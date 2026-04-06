@@ -202,3 +202,88 @@ fn test_attributes_survive_sop_chain() {
         assert_eq!(val, i as i32, "attribute value mismatch at index {i}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Test 7: Grid → Subdivide → Scatter → verify points within bbox
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_scatter_on_subdivided_grid() {
+    let grid = generate(&GridSop, &GridParams { rows: 3, cols: 3, size: [2.0, 2.0], ..Default::default() }).unwrap();
+    let subdiv = grid.apply(&SubdivideSop, &SubdivideParams { depth: 1 }).unwrap();
+    let scattered = subdiv.apply(&ScatterSop, &ScatterParams { count: 50, seed: 42 }).unwrap();
+
+    assert_eq!(scattered.num_points(), 50);
+    let bbox = scattered.bounding_box();
+    // The grid goes from -1 to +1 on X and Z (size=2.0)
+    assert!(bbox.min.x >= -1.1 && bbox.max.x <= 1.1, "points outside grid x bounds");
+}
+
+// ---------------------------------------------------------------------------
+// Test 8: Grid → Scatter 5 pts → Copy box to those points
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_copy_to_scattered_points() {
+    let grid = generate(&GridSop, &GridParams::default()).unwrap();
+    let targets = grid.apply(&ScatterSop, &ScatterParams { count: 5, seed: 0 }).unwrap();
+    let box_geo = generate(&BoxSop, &BoxParams { size: Vec3::splat(0.1), ..Default::default() }).unwrap();
+    let result = CopyToPointsSop.execute(&[&box_geo, &targets], &CopyToPointsParams).unwrap();
+
+    assert_eq!(result.num_points(), 40); // 8 * 5
+    assert_eq!(result.num_prims(), 30);  // 6 * 5
+}
+
+// ---------------------------------------------------------------------------
+// Test 9: Box → PolyExtrude → Measure → verify all faces have positive area
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_extrude_then_measure() {
+    let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let extruded = box_geo.apply(&PolyExtrudeSop, &PolyExtrudeParams { distance: 1.0, ..Default::default() }).unwrap();
+    let measured = extruded.apply(&MeasureSop, &MeasureParams::default()).unwrap();
+
+    let area_h = measured.find_attrib::<f32>(AttribClass::Primitive, "area").unwrap();
+    for i in 0..measured.num_prims() {
+        let area = measured.get_attrib(&area_h, i).unwrap();
+        assert!(area > 0.0, "face {i} should have positive area, got {area}");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 10: Box → GroupCreate → Blast → 4 prims remain
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_blast_by_group() {
+    let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let grouped = box_geo.apply(&GroupCreateSop, &GroupCreateParams {
+        name: "to_delete".to_string(),
+        group_type: GroupType::Primitives,
+        mode: GroupCreateMode::Range,
+        range_start: 0,
+        range_end: 2,
+        ..Default::default()
+    }).unwrap();
+    let blasted = grouped.apply(&BlastSop, &BlastParams {
+        group_name: "to_delete".to_string(),
+        entity: BlastEntity::Primitives,
+        negate: false,
+    }).unwrap();
+    assert_eq!(blasted.num_prims(), 4);
+}
+
+// ---------------------------------------------------------------------------
+// Test 11: Box → Enumerate → verify sequential index values
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_enumerate_points() {
+    let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let enumerated = box_geo.apply(&EnumerateSop, &EnumerateParams::default()).unwrap();
+    let idx_h = enumerated.find_attrib::<i32>(AttribClass::Point, "index").unwrap();
+    for i in 0..enumerated.num_points() {
+        assert_eq!(enumerated.get_attrib(&idx_h, i).unwrap(), i as i32);
+    }
+}

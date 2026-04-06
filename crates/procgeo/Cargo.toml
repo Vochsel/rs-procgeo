@@ -7,14 +7,24 @@ edition.workspace = true
 procgeo-core = { path = "../procgeo-core" }
 procgeo-sops = { path = "../procgeo-sops" }
 procgeo-io = { path = "../procgeo-io" }
+glam = { workspace = true }
 
 [features]
-default = ["creation", "transform", "normals", "merge", "obj"]
+default = ["creation", "transform", "normals", "merge", "obj", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops"]
 creation = ["procgeo-sops/creation"]
 transform = ["procgeo-sops/transform"]
 normals = ["procgeo-sops/normals"]
 merge = ["procgeo-sops/merge"]
 obj = ["procgeo-io/obj"]
+attributes = ["procgeo-sops/attributes"]
+groups_sops = ["procgeo-sops/groups_sops"]
+delete = ["procgeo-sops/delete"]
+copy = ["procgeo-sops/copy"]
+reshape = ["procgeo-sops/reshape"]
+scatter = ["procgeo-sops/scatter"]
+topology = ["procgeo-sops/topology"]
+measure_sops = ["procgeo-sops/measure_sops"]
+utility_sops = ["procgeo-sops/utility_sops"]
 
 [dev-dependencies]
 approx = { workspace = true }

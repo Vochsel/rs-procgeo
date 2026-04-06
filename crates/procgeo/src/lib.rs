@@ -18,4 +18,22 @@ pub mod prelude {
     pub use procgeo_sops::normals::*;
     #[cfg(feature = "merge")]
     pub use procgeo_sops::merge::*;
+    #[cfg(feature = "attributes")]
+    pub use procgeo_sops::attributes::*;
+    #[cfg(feature = "groups_sops")]
+    pub use procgeo_sops::groups::*;
+    #[cfg(feature = "delete")]
+    pub use procgeo_sops::delete::*;
+    #[cfg(feature = "copy")]
+    pub use procgeo_sops::copy::*;
+    #[cfg(feature = "reshape")]
+    pub use procgeo_sops::reshape::*;
+    #[cfg(feature = "scatter")]
+    pub use procgeo_sops::scatter::*;
+    #[cfg(feature = "topology")]
+    pub use procgeo_sops::topology::*;
+    #[cfg(feature = "measure_sops")]
+    pub use procgeo_sops::measure::*;
+    #[cfg(feature = "utility_sops")]
+    pub use procgeo_sops::utility::*;
 }
