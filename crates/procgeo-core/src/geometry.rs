@@ -163,6 +163,10 @@ impl Geometry {
         self.primitives.get(handle)
     }
 
+    pub fn prim_mut(&mut self, handle: PrimHandle) -> &mut Primitive {
+        self.primitives.get_mut(handle)
+    }
+
     pub fn prim_vertices(&self, handle: PrimHandle) -> &[VertexHandle] {
         self.primitives.get(handle).vertices()
     }

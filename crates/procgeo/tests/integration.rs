@@ -228,7 +228,7 @@ fn test_copy_to_scattered_points() {
     let grid = generate(&GridSop, &GridParams::default()).unwrap();
     let targets = grid.apply(&ScatterSop, &ScatterParams { count: 5, seed: 0 }).unwrap();
     let box_geo = generate(&BoxSop, &BoxParams { size: Vec3::splat(0.1), ..Default::default() }).unwrap();
-    let result = CopyToPointsSop.execute(&[&box_geo, &targets], &CopyToPointsParams).unwrap();
+    let result = CopyToPointsSop.execute(&[&box_geo, &targets], &CopyToPointsParams::default()).unwrap();
 
     assert_eq!(result.num_points(), 40); // 8 * 5
     assert_eq!(result.num_prims(), 30);  // 6 * 5

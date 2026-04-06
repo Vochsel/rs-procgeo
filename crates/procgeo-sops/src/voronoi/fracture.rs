@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
 use glam::Vec3;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
 use procgeo_core::{AttribClass, AttribDefault, Geometry, PointHandle, PrimHandle, TypeQualifier};
@@ -12,10 +10,9 @@ use crate::{Sop, SopError};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VoronoiFractureParams {
-    /// Number of scatter points for fracture (used when auto-scattering from 1 input).
-    pub num_points: u32,
-    /// Random seed for auto-scatter.
-    pub seed: u64,
+    /// Offset the cut planes along their normals. Positive values create gaps
+    /// between pieces; negative values create overlap.
+    pub cut_plane_offset: f32,
     /// Whether to create interior faces on cut surfaces.
     /// (The Clip SOP already creates edge-crossing geometry; this flag is reserved
     /// for future cap-face generation and currently has no additional effect.)
@@ -25,35 +22,13 @@ pub struct VoronoiFractureParams {
 impl Default for VoronoiFractureParams {
     fn default() -> Self {
         VoronoiFractureParams {
-            num_points: 10,
-            seed: 0,
+            cut_plane_offset: 0.0,
             create_inside_faces: true,
         }
     }
 }
 
 pub struct VoronoiFractureSop;
-
-/// Auto-scatter `count` points inside the bounding box of `geo` using a seeded RNG.
-fn scatter_bbox_points(geo: &Geometry, count: u32, seed: u64) -> Vec<Vec3> {
-    let bbox = geo.bounding_box();
-    if !bbox.is_valid() || count == 0 {
-        return Vec::new();
-    }
-
-    let mut rng = StdRng::seed_from_u64(seed);
-    let size = bbox.size();
-
-    (0..count)
-        .map(|_| {
-            Vec3::new(
-                bbox.min.x + rng.random_range(0.0f32..1.0f32) * size.x,
-                bbox.min.y + rng.random_range(0.0f32..1.0f32) * size.y,
-                bbox.min.z + rng.random_range(0.0f32..1.0f32) * size.z,
-            )
-        })
-        .collect()
-}
 
 /// Merge geometry pieces (each with `prims_per_piece` face counts) into a single
 /// geometry and add a "piece" primitive integer attribute.
@@ -117,25 +92,19 @@ impl Sop for VoronoiFractureSop {
     }
 
     fn input_count(&self) -> (usize, usize) {
-        (1, 2)
+        (2, 2)
     }
 
     fn execute(&self, inputs: &[&Geometry], params: &Self::Params) -> Result<Geometry, SopError> {
         self.validate_inputs(inputs)?;
 
         let input_mesh = inputs[0];
+        let seed_geo = inputs[1];
 
-        // Gather seed points
-        let seeds: Vec<Vec3> = if inputs.len() == 2 {
-            // Use second input as seed points
-            let seed_geo = inputs[1];
-            (0..seed_geo.num_points())
-                .map(|i| seed_geo.point_pos(PointHandle::from_index(i)))
-                .collect()
-        } else {
-            // Auto-scatter inside bounding box
-            scatter_bbox_points(input_mesh, params.num_points, params.seed)
-        };
+        // Gather seed points from second input
+        let seeds: Vec<Vec3> = (0..seed_geo.num_points())
+            .map(|i| seed_geo.point_pos(PointHandle::from_index(i)))
+            .collect();
 
         if seeds.is_empty() {
             return Ok(input_mesh.clone());
@@ -178,7 +147,7 @@ impl Sop for VoronoiFractureSop {
                 }
 
                 let clip_params = ClipParams {
-                    origin: midpoint,
+                    origin: midpoint + normal * params.cut_plane_offset,
                     normal,
                     keep_above: true,
                 };
@@ -227,11 +196,7 @@ mod tests {
             Vec3::new(0.4, 0.0, 0.0),
         ]);
 
-        let params = VoronoiFractureParams {
-            num_points: 3,
-            seed: 0,
-            create_inside_faces: true,
-        };
+        let params = VoronoiFractureParams::default();
 
         let result = VoronoiFractureSop.execute(&[&box_geo, &seeds], &params).unwrap();
 
@@ -275,35 +240,12 @@ mod tests {
     }
 
     #[test]
-    fn voronoi_auto_scatter() {
-        // 1 input only, num_points=4 → should produce 4 pieces
+    fn voronoi_requires_two_inputs() {
+        // 1 input only should fail validation
         let box_geo = make_box();
-        let params = VoronoiFractureParams {
-            num_points: 4,
-            seed: 42,
-            create_inside_faces: true,
-        };
-
-        let result = VoronoiFractureSop.execute(&[&box_geo], &params).unwrap();
-
-        // Verify "piece" attribute exists
-        let piece_handle = result
-            .find_attrib::<i32>(AttribClass::Primitive, "piece")
-            .expect("piece attribute should exist");
-
-        // Collect distinct piece indices
-        let mut piece_values: std::collections::HashSet<i32> = std::collections::HashSet::new();
-        for prim_i in 0..result.num_prims() {
-            let val = result.get_attrib(&piece_handle, prim_i).unwrap();
-            piece_values.insert(val);
-        }
-
-        // Should have 4 pieces (indices 0..3), though some may be empty after clipping
-        // At minimum, we should have pieces present
-        assert!(
-            !piece_values.is_empty(),
-            "should have at least 1 piece after auto-scatter fracture"
-        );
+        let params = VoronoiFractureParams::default();
+        let result = VoronoiFractureSop.execute(&[&box_geo], &params);
+        assert!(result.is_err(), "should require 2 inputs");
     }
 
     #[test]
@@ -340,6 +282,37 @@ mod tests {
         assert!(
             result_bbox.max.y <= orig_bbox.max.y + eps,
             "result bbox max.y should be <= original"
+        );
+    }
+
+    #[test]
+    fn voronoi_cut_plane_offset() {
+        // Positive offset should shrink pieces (creating gaps), resulting in fewer total prims
+        let box_geo = make_box();
+        let seeds = make_seed_points(&[
+            Vec3::new(-0.3, 0.0, 0.0),
+            Vec3::new(0.3, 0.0, 0.0),
+        ]);
+
+        let no_offset = VoronoiFractureSop.execute(
+            &[&box_geo, &seeds],
+            &VoronoiFractureParams::default(),
+        ).unwrap();
+
+        let with_offset = VoronoiFractureSop.execute(
+            &[&box_geo, &seeds],
+            &VoronoiFractureParams {
+                cut_plane_offset: 0.1,
+                ..Default::default()
+            },
+        ).unwrap();
+
+        // With offset, pieces are clipped more aggressively so should have fewer or equal points
+        assert!(
+            with_offset.num_points() <= no_offset.num_points(),
+            "offset should shrink pieces: {} points with offset vs {} without",
+            with_offset.num_points(),
+            no_offset.num_points(),
         );
     }
 }

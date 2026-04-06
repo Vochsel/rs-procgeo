@@ -8,7 +8,6 @@ A Rust library for procedural geometry creation, modeled as a 1:1 recreation of 
 rs-procgeo/
 ├── crates/
 │   ├── procgeo-core/       # Geometry model, attributes, groups, spatial indexing
-│   ├── procgeo-math/       # SIMD vector/matrix math, noise functions
 │   ├── procgeo-sops/       # All SOP implementations (feature-gated by category)
 │   ├── procgeo-io/         # Export/import trait + format plugins
 │   └── procgeo/            # Umbrella re-export crate
@@ -169,20 +168,22 @@ geo.par_points().for_each(|pt| { ... });
 
 ---
 
-## 1b. Math Library (`procgeo-math`)
+## 1b. Math (`glam` + `procgeo-core::math`)
 
-Standalone math crate used by all other crates. No dependency on `procgeo-core`.
+Uses `glam` as the math foundation — no custom math crate.
 
-- **Vector types:** `Vec2`, `Vec3`, `Vec4` (f32), `DVec3` (f64)
-- **Matrix types:** `Mat3`, `Mat4`, `DMat4`
-- **Quaternion:** `Quat`
-- **Transforms:** `Transform` (translation + rotation + scale, decomposable)
-- **Bounding types:** `BBox` (axis-aligned bounding box)
-- **Noise functions:** Perlin, Simplex, Worley/Voronoi, curl noise — matching VEX `noise()` signatures
-- **Interpolation:** lerp, slerp, fit, smooth, ease functions
-- All types implement SIMD-accelerated operations via `wide` crate internally
-- `#[repr(C)]` on core types for FFI compatibility
-- No dependency on `glam` or `nalgebra` — purpose-built for geometry processing with Houdini-matching semantics (row-major matrices, Houdini coordinate conventions)
+**From glam (re-exported):**
+- `Vec2`, `Vec3`, `Vec4` (f32) and `DVec2`, `DVec3`, `DVec4` (f64)
+- `Mat3`, `Mat4`, `DMat4`
+- `Quat`, `DQuat`
+- `Affine3A` (SIMD-aligned affine transform)
+- All SIMD-accelerated (SSE2/SSE4.1/NEON) out of the box
+
+**In `procgeo-core::math` (geometry-specific utilities glam doesn't cover):**
+- `BBox` — axis-aligned bounding box with min/max, expand, contains, intersect
+- Noise functions: Perlin, Simplex, Worley/Voronoi, curl noise — matching VEX `noise()` signatures
+- `fit()`, `efit()`, `smooth()`, `ease()` — Houdini-style interpolation helpers
+- Batch SIMD operations: transform N points by a matrix, batch normalize, batch distance (using `wide` crate for 4/8-wide processing over arrays, complementing glam's per-element SIMD)
 
 ---
 
@@ -194,14 +195,13 @@ All attribute data is stored column-wise. Position `P` is stored as three separa
 
 ### SIMD
 
-- Primary: `wide` crate for stable Rust SIMD (`f32x4`, `f32x8`)
-- Optional: `std::simd` behind `nightly` feature flag
-- Key SIMD paths:
-  - Vector operations: dot, cross, normalize, length
-  - Transform application (matrix × point batch)
-  - Distance calculations, bounding box computation
-  - Attribute arithmetic (add, multiply, lerp over arrays)
-- Batch processing: operate on 4/8 elements per iteration with scalar remainder
+- Per-element: `glam` provides SIMD-accelerated vector/matrix ops (SSE2/SSE4.1/NEON) automatically
+- Batch processing: `wide` crate for 4/8-wide operations over arrays of data
+- Key batch SIMD paths:
+  - Transform N points by a matrix in one pass
+  - Batch normalize, batch distance, bounding box over point arrays
+  - Attribute arithmetic (add, multiply, lerp over contiguous `Vec<f32>` storage)
+- `wide` operates on 4/8 elements per iteration with scalar remainder
 
 ### Allocation
 
@@ -401,7 +401,7 @@ Extension-based dispatch. Custom formats register via `registry.register_writer(
 ### Unit Tests (per crate)
 
 - `procgeo-core`: geometry creation, attribute CRUD, group operations, topology traversal
-- `procgeo-math`: SIMD correctness vs scalar reference, matrix operations
+- `procgeo-core::math`: noise functions, batch SIMD ops, BBox
 - `procgeo-sops`: each SOP tested individually with known inputs/expected outputs
 
 ### Geometry Validation Tests
@@ -467,7 +467,8 @@ Features for later:
 
 | Crate | Purpose |
 |-------|---------|
-| `wide` | Stable SIMD (f32x4, f32x8) |
+| `glam` | Vector/matrix/quat math (SIMD-accelerated) |
+| `wide` | Batch SIMD over arrays (f32x4, f32x8) |
 | `rayon` | Data parallelism |
 | `smallvec` | Inline vertex lists |
 | `bumpalo` | Bump allocation for scratch data |

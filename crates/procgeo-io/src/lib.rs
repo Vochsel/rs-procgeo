@@ -6,6 +6,9 @@ use std::path::Path;
 #[cfg(feature = "obj")]
 pub mod obj;
 
+#[cfg(feature = "gltf")]
+pub mod gltf;
+
 #[derive(Debug, Error)]
 pub enum IoError {
     #[error("I/O error: {0}")]
@@ -32,6 +35,8 @@ pub fn write_file(geo: &Geometry, path: &Path) -> Result<(), IoError> {
     match ext {
         #[cfg(feature = "obj")]
         "obj" => { let mut f = std::fs::File::create(path)?; obj::ObjWriter.write(geo, &mut f) }
+        #[cfg(feature = "gltf")]
+        "glb" => { let mut f = std::fs::File::create(path)?; gltf::GlbWriter.write(geo, &mut f) }
         _ => Err(IoError::UnsupportedFormat(ext.to_string())),
     }
 }
