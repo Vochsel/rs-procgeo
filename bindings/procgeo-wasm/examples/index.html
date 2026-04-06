@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcGeo &mdash; Procedural Geometry in the Browser</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; overflow: hidden; }
+        canvas { display: block; }
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0,0,0,0.7); padding: 20px; border-radius: 12px;
+            min-width: 280px; backdrop-filter: blur(10px);
+        }
+        h1 { font-size: 18px; margin-bottom: 12px; color: #7eb8ff; }
+        .control { margin-bottom: 10px; }
+        .control label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
+        select, input[type=range] { width: 100%; }
+        select { background: #2a2a3e; color: #eee; border: 1px solid #444; padding: 6px; border-radius: 4px; }
+        input[type=range] { accent-color: #7eb8ff; }
+        #stats { font-size: 11px; color: #888; margin-top: 12px; }
+        button {
+            width: 100%; padding: 8px; margin-top: 8px;
+            background: #3a5fcd; color: white; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 13px;
+        }
+        button:hover { background: #4a6fdd; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="ui">
+        <h1>ProcGeo</h1>
+        <div class="control">
+            <label>Shape</label>
+            <select id="shape">
+                <option value="box">Box</option>
+                <option value="sphere">Sphere</option>
+                <option value="torus" selected>Torus</option>
+                <option value="tube">Tube</option>
+                <option value="grid">Grid</option>
+            </select>
+        </div>
+        <div class="control">
+            <label>Subdivisions: <span id="subdivVal">1</span></label>
+            <input type="range" id="subdivisions" min="0" max="3" value="1">
+        </div>
+        <div class="control">
+            <label>Smooth Iterations: <span id="smoothVal">0</span></label>
+            <input type="range" id="smoothIter" min="0" max="10" value="0">
+        </div>
+        <div class="control">
+            <label>Mode</label>
+            <select id="subdivMode">
+                <option value="linear">Linear</option>
+                <option value="catmullClark">Catmull-Clark</option>
+            </select>
+        </div>
+        <button id="exportObj">Export OBJ</button>
+        <button id="exportGlb">Export GLB</button>
+        <div id="stats"></div>
+    </div>
+
+    <script type="module">
+        import init, {
+            createBox, createSphere, createTorus, createTube, createGrid,
+            subdivide, smooth, computeNormals, color
+        } from '../pkg/procgeo_wasm.js';
+
+        await init();
+
+        const canvas = document.getElementById('canvas');
+        const gl = canvas.getContext('webgl2');
+        if (!gl) { alert('WebGL2 not supported'); throw new Error(); }
+
+        // Resize
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Shaders
+        const vsrc = `#version 300 es
+            layout(location=0) in vec3 aPos;
+            layout(location=1) in vec3 aNorm;
+            uniform mat4 uMVP;
+            uniform mat3 uNormalMat;
+            out vec3 vNorm;
+            out vec3 vPos;
+            void main() {
+                gl_Position = uMVP * vec4(aPos, 1.0);
+                vNorm = normalize(uNormalMat * aNorm);
+                vPos = aPos;
+            }
+        `;
+        const fsrc = `#version 300 es
+            precision mediump float;
+            in vec3 vNorm;
+            in vec3 vPos;
+            out vec4 fragColor;
+            void main() {
+                vec3 lightDir = normalize(vec3(1.0, 2.0, 3.0));
+                float diff = max(dot(vNorm, lightDir), 0.0);
+                float amb = 0.15;
+                vec3 baseColor = vec3(0.4, 0.6, 1.0);
+                vec3 col = baseColor * (amb + diff * 0.85);
+                fragColor = vec4(col, 1.0);
+            }
+        `;
+
+        function compileShader(src, type) {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, src);
+            gl.compileShader(s);
+            if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+            return s;
+        }
+        const prog = gl.createProgram();
+        gl.attachShader(prog, compileShader(vsrc, gl.VERTEX_SHADER));
+        gl.attachShader(prog, compileShader(fsrc, gl.FRAGMENT_SHADER));
+        gl.linkProgram(prog);
+        gl.useProgram(prog);
+
+        const uMVP = gl.getUniformLocation(prog, 'uMVP');
+        const uNormalMat = gl.getUniformLocation(prog, 'uNormalMat');
+
+        // Buffers
+        const vao = gl.createVertexArray();
+        gl.bindVertexArray(vao);
+        const posBuf = gl.createBuffer();
+        const normBuf = gl.createBuffer();
+        const idxBuf = gl.createBuffer();
+
+        let indexCount = 0;
+        let currentGeo = null;
+
+        function updateMesh(geo) {
+            currentGeo = geo;
+            const positions = geo.getPositions();
+            const normals = geo.getNormals() || new Float32Array(positions.length);
+            const indices = geo.getTriangleIndices();
+            indexCount = indices.length;
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(1);
+            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
+
+            document.getElementById('stats').textContent =
+                `Points: ${geo.numPoints} | Prims: ${geo.numPrims} | Triangles: ${indexCount / 3}`;
+        }
+
+        // Simple matrix helpers (no external dependency)
+        function perspective(fov, aspect, near, far) {
+            const f = 1.0 / Math.tan(fov / 2);
+            const nf = 1 / (near - far);
+            return new Float32Array([
+                f/aspect, 0, 0, 0,
+                0, f, 0, 0,
+                0, 0, (far+near)*nf, -1,
+                0, 0, 2*far*near*nf, 0
+            ]);
+        }
+
+        function multiply(a, b) {
+            const r = new Float32Array(16);
+            for (let i = 0; i < 4; i++)
+                for (let j = 0; j < 4; j++)
+                    for (let k = 0; k < 4; k++)
+                        r[i*4+j] += a[i*4+k] * b[k*4+j];
+            return r;
+        }
+
+        function rotateY(angle) {
+            const c = Math.cos(angle), s = Math.sin(angle);
+            return new Float32Array([c,0,s,0, 0,1,0,0, -s,0,c,0, 0,0,0,1]);
+        }
+        function rotateX(angle) {
+            const c = Math.cos(angle), s = Math.sin(angle);
+            return new Float32Array([1,0,0,0, 0,c,-s,0, 0,s,c,0, 0,0,0,1]);
+        }
+        function translate(x,y,z) {
+            return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, x,y,z,1]);
+        }
+        function normalMat(m) {
+            // Extract upper-left 3x3
+            return new Float32Array([m[0],m[1],m[2], m[4],m[5],m[6], m[8],m[9],m[10]]);
+        }
+
+        function generateGeometry() {
+            const shape = document.getElementById('shape').value;
+            const subdivs = parseInt(document.getElementById('subdivisions').value);
+            const smoothIt = parseInt(document.getElementById('smoothIter').value);
+            const mode = document.getElementById('subdivMode').value;
+
+            document.getElementById('subdivVal').textContent = subdivs;
+            document.getElementById('smoothVal').textContent = smoothIt;
+
+            let geo;
+            switch (shape) {
+                case 'box': geo = createBox(); break;
+                case 'sphere': geo = createSphere({ rows: 8, cols: 16 }); break;
+                case 'torus': geo = createTorus(); break;
+                case 'tube': geo = createTube({ rows: 4 }); break;
+                case 'grid': geo = createGrid({ rows: 10, cols: 10, sizeX: 2, sizeY: 2 }); break;
+            }
+
+            if (subdivs > 0) {
+                geo = subdivide(geo, { depth: subdivs, mode });
+            }
+            if (smoothIt > 0) {
+                geo = smooth(geo, { iterations: smoothIt, strength: 0.5 });
+            }
+            geo = computeNormals(geo);
+            updateMesh(geo);
+        }
+
+        // Event listeners
+        document.getElementById('shape').addEventListener('change', generateGeometry);
+        document.getElementById('subdivisions').addEventListener('input', generateGeometry);
+        document.getElementById('smoothIter').addEventListener('input', generateGeometry);
+        document.getElementById('subdivMode').addEventListener('change', generateGeometry);
+
+        document.getElementById('exportObj').addEventListener('click', () => {
+            if (!currentGeo) return;
+            const obj = currentGeo.toObj();
+            const blob = new Blob([obj], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'procgeo.obj';
+            a.click();
+        });
+
+        document.getElementById('exportGlb').addEventListener('click', () => {
+            if (!currentGeo) return;
+            const glb = currentGeo.toGlb();
+            const blob = new Blob([glb], { type: 'model/gltf-binary' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'procgeo.glb';
+            a.click();
+        });
+
+        // Initial render
+        generateGeometry();
+
+        // Render loop
+        gl.enable(gl.DEPTH_TEST);
+        gl.clearColor(0.1, 0.1, 0.15, 1.0);
+
+        let angle = 0;
+        function render() {
+            angle += 0.008;
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            const aspect = canvas.width / canvas.height;
+            const proj = perspective(Math.PI / 4, aspect, 0.1, 100);
+            const view = multiply(translate(0, 0, -4), multiply(rotateX(-0.3), rotateY(angle)));
+            const mvp = multiply(proj, view);
+
+            gl.uniformMatrix4fv(uMVP, false, mvp);
+            gl.uniformMatrix3fv(uNormalMat, false, normalMat(view));
+
+            if (indexCount > 0) {
+                gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_INT, 0);
+            }
+            requestAnimationFrame(render);
+        }
+        render();
+    </script>
+</body>
+</html>
