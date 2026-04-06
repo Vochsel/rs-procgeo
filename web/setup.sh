@@ -13,14 +13,15 @@ else
     npm install
 fi
 
-# Link WASM build
-mkdir -p public/wasm
+# Copy WASM build into web/wasm/ (source dir, not public — Vite imports it as a module)
+mkdir -p wasm
 WASM_PKG="../bindings/procgeo-wasm/pkg"
 if [ -d "$WASM_PKG" ]; then
-    cp "$WASM_PKG/procgeo_wasm.js" public/wasm/
-    cp "$WASM_PKG/procgeo_wasm_bg.wasm" public/wasm/
-    cp "$WASM_PKG/procgeo_wasm.d.ts" public/wasm/
-    echo "WASM files copied to public/wasm/"
+    cp "$WASM_PKG/procgeo_wasm.js" wasm/
+    cp "$WASM_PKG/procgeo_wasm_bg.wasm" wasm/
+    cp "$WASM_PKG/procgeo_wasm.d.ts" wasm/
+    cp "$WASM_PKG/procgeo_wasm_bg.wasm.d.ts" wasm/ 2>/dev/null || true
+    echo "WASM files copied to wasm/"
 else
     echo "WASM package not found. Run: cd ../bindings/procgeo-wasm && ./build.sh"
     exit 1

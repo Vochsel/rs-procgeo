@@ -1,4 +1,5 @@
 node_modules/
+wasm/
 public/wasm/
 pnpm-lock.yaml
 pnpm-workspace.yaml

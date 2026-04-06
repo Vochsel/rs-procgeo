@@ -10,9 +10,7 @@ let pg = null;
 let wasmReady = false;
 
 async function loadWasm() {
-    // Try loading from the WASM package
-    // The built WASM files should be copied/linked to public/
-    const wasmModule = await import('/wasm/procgeo_wasm.js');
+    const wasmModule = await import('procgeo-wasm');
     await wasmModule.default();
     pg = wasmModule;
     wasmReady = true;
