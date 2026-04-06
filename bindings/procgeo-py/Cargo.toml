@@ -8,7 +8,7 @@ name = "procgeo"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.23", features = ["extension-module"] }
+pyo3 = { version = "0.28", features = ["extension-module"] }
 procgeo-core = { path = "../../crates/procgeo-core" }
 procgeo-sops = { path = "../../crates/procgeo-sops" }
 procgeo-io = { path = "../../crates/procgeo-io" }

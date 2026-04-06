@@ -6,6 +6,7 @@ members = [
     "crates/procgeo-io",
     "crates/procgeo",
     "bindings/procgeo-node",
+    "bindings/procgeo-py",
 ]
 
 [workspace.package]
