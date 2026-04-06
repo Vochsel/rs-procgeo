@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use glam::Vec3;
 
-use procgeo_core::{AttribClass, AttribDefault, Geometry, PointHandle, PrimHandle, TypeQualifier};
+use procgeo_core::{AttribClass, AttribDefault, Geometry, PrimHandle, TypeQualifier};
+#[cfg(test)]
+use procgeo_core::PointHandle;
 
 use crate::{Sop, SopError};
 
