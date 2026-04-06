@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 procgeo-core = { path = "../procgeo-core" }
 thiserror = { workspace = true }
+glam = { workspace = true }
 
 [dev-dependencies]
 approx = { workspace = true }
