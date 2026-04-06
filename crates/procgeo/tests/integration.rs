@@ -210,7 +210,7 @@ fn test_attributes_survive_sop_chain() {
 #[test]
 fn test_scatter_on_subdivided_grid() {
     let grid = generate(&GridSop, &GridParams { rows: 3, cols: 3, size: [2.0, 2.0], ..Default::default() }).unwrap();
-    let subdiv = grid.apply(&SubdivideSop, &SubdivideParams { depth: 1 }).unwrap();
+    let subdiv = grid.apply(&SubdivideSop, &SubdivideParams { depth: 1, mode: SubdivideMode::Linear }).unwrap();
     let scattered = subdiv.apply(&ScatterSop, &ScatterParams { count: 50, seed: 42 }).unwrap();
 
     assert_eq!(scattered.num_points(), 50);
@@ -295,7 +295,7 @@ fn test_enumerate_points() {
 #[test]
 fn test_full_workflow() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let geo = geo.apply(&SubdivideSop, &SubdivideParams { depth: 1 }).unwrap();
+    let geo = geo.apply(&SubdivideSop, &SubdivideParams { depth: 1, mode: SubdivideMode::Linear }).unwrap();
     let geo = geo.apply(&SmoothSop, &SmoothParams { iterations: 3, strength: 0.5 }).unwrap();
     let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
     let geo = geo.apply(&ColorSop, &ColorParams { color: [0.2, 0.6, 1.0] }).unwrap();

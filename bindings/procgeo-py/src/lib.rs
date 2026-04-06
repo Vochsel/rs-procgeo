@@ -276,7 +276,10 @@ fn merge(geometries: Vec<Geometry>) -> PyResult<Geometry> {
 #[pyfunction]
 #[pyo3(signature = (geo, depth=1))]
 fn subdivide(geo: &Geometry, depth: u32) -> PyResult<Geometry> {
-    let params = procgeo_sops::reshape::SubdivideParams { depth };
+    let params = procgeo_sops::reshape::SubdivideParams {
+        depth,
+        mode: procgeo_sops::reshape::SubdivideMode::default(),
+    };
     let inner = procgeo_sops::reshape::SubdivideSop
         .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;

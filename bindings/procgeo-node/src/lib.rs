@@ -264,6 +264,7 @@ pub fn subdivide(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Ge
     let p = params.unwrap_or(serde_json::json!({}));
     let params = procgeo_sops::reshape::SubdivideParams {
         depth: get_u32(&p, "depth", 1),
+        mode: procgeo_sops::reshape::SubdivideMode::default(),
     };
     let inner = procgeo_sops::reshape::SubdivideSop
         .execute(&[&geo.inner], &params)
