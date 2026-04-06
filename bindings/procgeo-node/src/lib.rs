@@ -213,6 +213,61 @@ pub fn create_torus(params: Option<serde_json::Value>) -> Result<Geometry> {
     Ok(Geometry { inner })
 }
 
+#[napi]
+pub fn revolve(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::creation::RevolveParams {
+        origin: get_vec3(&p, "origin", [0.0, 0.0, 0.0]),
+        axis: get_vec3(&p, "axis", [0.0, 1.0, 0.0]),
+        divisions: get_u32(&p, "divisions", 24),
+        start_angle: get_f32(&p, "start_angle", 0.0),
+        end_angle: get_f32(&p, "end_angle", 360.0),
+        end_caps: get_bool(&p, "end_caps", false),
+    };
+    let inner = procgeo_sops::creation::RevolveSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn create_metaball(params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let balls = p
+        .get("balls")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .map(|b| procgeo_sops::creation::MetaballDef {
+                    center: get_vec3(b, "center", [0.0, 0.0, 0.0]),
+                    radius: get_f32(b, "radius", 1.0),
+                    weight: get_f32(b, "weight", 1.0),
+                })
+                .collect()
+        })
+        .unwrap_or_else(|| vec![procgeo_sops::creation::MetaballDef::default()]);
+    let kernel_str = p
+        .get("kernel")
+        .and_then(|v| v.as_str())
+        .unwrap_or("wyvill");
+    let kernel = match kernel_str {
+        "blinn" => procgeo_sops::creation::MetaballKernel::Blinn,
+        "hart" => procgeo_sops::creation::MetaballKernel::Hart,
+        _ => procgeo_sops::creation::MetaballKernel::Wyvill,
+    };
+    let params = procgeo_sops::creation::MetaballParams {
+        balls,
+        threshold: get_f32(&p, "threshold", 1.0),
+        kernel,
+        resolution: get_u32(&p, "resolution", 32),
+        padding: get_f32(&p, "padding", 0.2),
+    };
+    let inner = procgeo_sops::creation::MetaballSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---------------------------------------------------------------------------
 // Manipulation SOPs
 // ---------------------------------------------------------------------------
@@ -290,7 +345,7 @@ pub fn copy_to_points(source: &Geometry, target: &Geometry) -> Result<Geometry> 
     let inner = procgeo_sops::copy::CopyToPointsSop
         .execute(
             &[&source.inner, &target.inner],
-            &procgeo_sops::copy::CopyToPointsParams,
+            &procgeo_sops::copy::CopyToPointsParams::default(),
         )
         .map_err(sop_err)?;
     Ok(Geometry { inner })
@@ -457,6 +512,145 @@ pub fn measure(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geom
         ..Default::default()
     };
     let inner = procgeo_sops::measure::MeasureSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Attribute SOPs
+// ---------------------------------------------------------------------------
+
+fn get_str<'a>(obj: &'a serde_json::Value, key: &str, default: &'a str) -> &'a str {
+    obj.get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or(default)
+}
+
+fn parse_attrib_class(s: &str) -> procgeo_core::AttribClass {
+    serde_json::from_str(&format!("\"{}\"", s)).unwrap_or(procgeo_core::AttribClass::Point)
+}
+
+fn parse_attrib_type(s: &str) -> procgeo_core::AttribType {
+    serde_json::from_str(&format!("\"{}\"", s)).unwrap_or(procgeo_core::AttribType::Float)
+}
+
+#[napi]
+pub fn attrib_transfer(dest: &Geometry, source: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::attributes::AttribTransferParams {
+        attrib_name: get_str(&p, "attrib_name", "attrib").to_string(),
+        class: parse_attrib_class(get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(get_str(&p, "attrib_type", "Float")),
+        max_samples: get_u32(&p, "max_samples", 1),
+        distance_threshold: get_f32(&p, "distance_threshold", f32::MAX),
+    };
+    let inner = procgeo_sops::attributes::AttribTransferSop
+        .execute(&[&dest.inner, &source.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn attrib_copy(dest: &Geometry, source: Option<&Geometry>, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::attributes::AttribCopyParams {
+        attrib_name: get_str(&p, "attrib_name", "attrib").to_string(),
+        class: parse_attrib_class(get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(get_str(&p, "attrib_type", "Float")),
+        new_name: get_str(&p, "new_name", "").to_string(),
+    };
+    let inner = match source {
+        Some(src) => procgeo_sops::attributes::AttribCopySop
+            .execute(&[&dest.inner, &src.inner], &params)
+            .map_err(sop_err)?,
+        None => procgeo_sops::attributes::AttribCopySop
+            .execute(&[&dest.inner], &params)
+            .map_err(sop_err)?,
+    };
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn attrib_randomize(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let distribution_str = get_str(&p, "distribution", "Uniform");
+    let distribution = serde_json::from_str::<procgeo_sops::attributes::RandomDistribution>(
+        &format!("\"{}\"", distribution_str),
+    ).unwrap_or(procgeo_sops::attributes::RandomDistribution::Uniform);
+    let operation_str = get_str(&p, "operation", "Set");
+    let operation = serde_json::from_str::<procgeo_sops::attributes::RandomOperation>(
+        &format!("\"{}\"", operation_str),
+    ).unwrap_or(procgeo_sops::attributes::RandomOperation::Set);
+    let params = procgeo_sops::attributes::AttribRandomizeParams {
+        attrib_name: get_str(&p, "attrib_name", "randomize").to_string(),
+        class: parse_attrib_class(get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(get_str(&p, "attrib_type", "Float")),
+        distribution,
+        operation,
+        seed: p.get("seed").and_then(|v| v.as_u64()).unwrap_or(0),
+        min_value: get_f32(&p, "min_value", 0.0),
+        max_value: get_f32(&p, "max_value", 1.0),
+        mean: get_f32(&p, "mean", 0.0),
+        stddev: get_f32(&p, "stddev", 1.0),
+        value_a: get_f32(&p, "value_a", 0.0),
+        value_b: get_f32(&p, "value_b", 1.0),
+        probability: get_f32(&p, "probability", 0.5),
+        dimensions: get_u32(&p, "dimensions", 1),
+        global_scale: get_f32(&p, "global_scale", 1.0),
+    };
+    let inner = procgeo_sops::attributes::AttribRandomizeSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn attrib_sort(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let order_str = get_str(&p, "order", "Ascending");
+    let order = serde_json::from_str::<procgeo_sops::attributes::AttribSortOrder>(
+        &format!("\"{}\"", order_str),
+    ).unwrap_or(procgeo_sops::attributes::AttribSortOrder::Ascending);
+    let params = procgeo_sops::attributes::AttribSortParams {
+        attrib_name: get_str(&p, "attrib_name", "attrib").to_string(),
+        class: parse_attrib_class(get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(get_str(&p, "attrib_type", "Float")),
+        order,
+        component: p.get("component").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+    };
+    let inner = procgeo_sops::attributes::AttribSortSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn attrib_blur(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::attributes::AttribBlurParams {
+        attrib_name: get_str(&p, "attrib_name", "attrib").to_string(),
+        attrib_type: parse_attrib_type(get_str(&p, "attrib_type", "Float")),
+        iterations: get_u32(&p, "iterations", 1),
+        step_size: get_f32(&p, "step_size", 1.0),
+    };
+    let inner = procgeo_sops::attributes::AttribBlurSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn attrib_fill(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::attributes::AttribFillParams {
+        attrib_name: get_str(&p, "attrib_name", "attrib").to_string(),
+        attrib_type: parse_attrib_type(get_str(&p, "attrib_type", "Float")),
+        boundary_group: get_str(&p, "boundary_group", "").to_string(),
+        iterations: get_u32(&p, "iterations", 10),
+        step_size: get_f32(&p, "step_size", 0.5),
+    };
+    let inner = procgeo_sops::attributes::AttribFillSop
         .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;
     Ok(Geometry { inner })

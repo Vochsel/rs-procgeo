@@ -225,6 +225,69 @@ fn create_torus(
     Ok(Geometry { inner })
 }
 
+#[pyfunction]
+#[pyo3(signature = (geo, origin_x=0.0, origin_y=0.0, origin_z=0.0, axis_x=0.0, axis_y=1.0, axis_z=0.0, divisions=24, start_angle=0.0, end_angle=360.0, end_caps=false))]
+fn revolve(
+    geo: &Geometry,
+    origin_x: f32,
+    origin_y: f32,
+    origin_z: f32,
+    axis_x: f32,
+    axis_y: f32,
+    axis_z: f32,
+    divisions: u32,
+    start_angle: f32,
+    end_angle: f32,
+    end_caps: bool,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::creation::RevolveParams {
+        origin: glam::Vec3::new(origin_x, origin_y, origin_z),
+        axis: glam::Vec3::new(axis_x, axis_y, axis_z),
+        divisions,
+        start_angle,
+        end_angle,
+        end_caps,
+    };
+    let inner = procgeo_sops::creation::RevolveSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (center_x=0.0, center_y=0.0, center_z=0.0, radius=1.0, weight=1.0, threshold=1.0, resolution=32, kernel="wyvill"))]
+fn create_metaball(
+    center_x: f32,
+    center_y: f32,
+    center_z: f32,
+    radius: f32,
+    weight: f32,
+    threshold: f32,
+    resolution: u32,
+    kernel: &str,
+) -> PyResult<Geometry> {
+    let k = match kernel {
+        "blinn" => procgeo_sops::creation::MetaballKernel::Blinn,
+        "hart" => procgeo_sops::creation::MetaballKernel::Hart,
+        _ => procgeo_sops::creation::MetaballKernel::Wyvill,
+    };
+    let params = procgeo_sops::creation::MetaballParams {
+        balls: vec![procgeo_sops::creation::MetaballDef {
+            center: glam::Vec3::new(center_x, center_y, center_z),
+            radius,
+            weight,
+        }],
+        threshold,
+        kernel: k,
+        resolution,
+        ..Default::default()
+    };
+    let inner = procgeo_sops::creation::MetaballSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---- Manipulation SOPs ----
 
 #[pyfunction]
@@ -436,6 +499,186 @@ fn measure_area(geo: &Geometry) -> PyResult<Geometry> {
     Ok(Geometry { inner })
 }
 
+// ---- Attribute SOPs ----
+
+fn parse_attrib_class(s: &str) -> procgeo_core::AttribClass {
+    serde_json::from_str(&format!("\"{}\"", s)).unwrap_or(procgeo_core::AttribClass::Point)
+}
+
+fn parse_attrib_type(s: &str) -> procgeo_core::AttribType {
+    serde_json::from_str(&format!("\"{}\"", s)).unwrap_or(procgeo_core::AttribType::Float)
+}
+
+#[pyfunction]
+#[pyo3(signature = (dest, source, attrib_name="attrib", class="Point", attrib_type="Float", max_samples=1, distance_threshold=f32::MAX))]
+fn attrib_transfer(
+    dest: &Geometry,
+    source: &Geometry,
+    attrib_name: &str,
+    class: &str,
+    attrib_type: &str,
+    max_samples: u32,
+    distance_threshold: f32,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::attributes::AttribTransferParams {
+        attrib_name: attrib_name.to_string(),
+        class: parse_attrib_class(class),
+        attrib_type: parse_attrib_type(attrib_type),
+        max_samples,
+        distance_threshold,
+    };
+    let inner = procgeo_sops::attributes::AttribTransferSop
+        .execute(&[&dest.inner, &source.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (dest, source=None, attrib_name="attrib", class="Point", attrib_type="Float", new_name=""))]
+fn attrib_copy(
+    dest: &Geometry,
+    source: Option<&Geometry>,
+    attrib_name: &str,
+    class: &str,
+    attrib_type: &str,
+    new_name: &str,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::attributes::AttribCopyParams {
+        attrib_name: attrib_name.to_string(),
+        class: parse_attrib_class(class),
+        attrib_type: parse_attrib_type(attrib_type),
+        new_name: new_name.to_string(),
+    };
+    let inner = match source {
+        Some(src) => procgeo_sops::attributes::AttribCopySop
+            .execute(&[&dest.inner, &src.inner], &params)
+            .map_err(sop_err)?,
+        None => procgeo_sops::attributes::AttribCopySop
+            .execute(&[&dest.inner], &params)
+            .map_err(sop_err)?,
+    };
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, attrib_name="randomize", class="Point", attrib_type="Float", distribution="Uniform", operation="Set", seed=0, min_value=0.0, max_value=1.0, mean=0.0, stddev=1.0, value_a=0.0, value_b=1.0, probability=0.5, dimensions=1, global_scale=1.0))]
+fn attrib_randomize(
+    geo: &Geometry,
+    attrib_name: &str,
+    class: &str,
+    attrib_type: &str,
+    distribution: &str,
+    operation: &str,
+    seed: u64,
+    min_value: f32,
+    max_value: f32,
+    mean: f32,
+    stddev: f32,
+    value_a: f32,
+    value_b: f32,
+    probability: f32,
+    dimensions: u32,
+    global_scale: f32,
+) -> PyResult<Geometry> {
+    let distribution = serde_json::from_str::<procgeo_sops::attributes::RandomDistribution>(
+        &format!("\"{}\"", distribution),
+    ).unwrap_or(procgeo_sops::attributes::RandomDistribution::Uniform);
+    let operation = serde_json::from_str::<procgeo_sops::attributes::RandomOperation>(
+        &format!("\"{}\"", operation),
+    ).unwrap_or(procgeo_sops::attributes::RandomOperation::Set);
+    let params = procgeo_sops::attributes::AttribRandomizeParams {
+        attrib_name: attrib_name.to_string(),
+        class: parse_attrib_class(class),
+        attrib_type: parse_attrib_type(attrib_type),
+        distribution,
+        operation,
+        seed,
+        min_value,
+        max_value,
+        mean,
+        stddev,
+        value_a,
+        value_b,
+        probability,
+        dimensions,
+        global_scale,
+    };
+    let inner = procgeo_sops::attributes::AttribRandomizeSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, attrib_name="attrib", class="Point", attrib_type="Float", order="Ascending", component=0))]
+fn attrib_sort(
+    geo: &Geometry,
+    attrib_name: &str,
+    class: &str,
+    attrib_type: &str,
+    order: &str,
+    component: usize,
+) -> PyResult<Geometry> {
+    let order = serde_json::from_str::<procgeo_sops::attributes::AttribSortOrder>(
+        &format!("\"{}\"", order),
+    ).unwrap_or(procgeo_sops::attributes::AttribSortOrder::Ascending);
+    let params = procgeo_sops::attributes::AttribSortParams {
+        attrib_name: attrib_name.to_string(),
+        class: parse_attrib_class(class),
+        attrib_type: parse_attrib_type(attrib_type),
+        order,
+        component,
+    };
+    let inner = procgeo_sops::attributes::AttribSortSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, attrib_name="attrib", attrib_type="Float", iterations=1, step_size=1.0))]
+fn attrib_blur(
+    geo: &Geometry,
+    attrib_name: &str,
+    attrib_type: &str,
+    iterations: u32,
+    step_size: f32,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::attributes::AttribBlurParams {
+        attrib_name: attrib_name.to_string(),
+        attrib_type: parse_attrib_type(attrib_type),
+        iterations,
+        step_size,
+    };
+    let inner = procgeo_sops::attributes::AttribBlurSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, attrib_name="attrib", attrib_type="Float", boundary_group="", iterations=10, step_size=0.5))]
+fn attrib_fill(
+    geo: &Geometry,
+    attrib_name: &str,
+    attrib_type: &str,
+    boundary_group: &str,
+    iterations: u32,
+    step_size: f32,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::attributes::AttribFillParams {
+        attrib_name: attrib_name.to_string(),
+        attrib_type: parse_attrib_type(attrib_type),
+        boundary_group: boundary_group.to_string(),
+        iterations,
+        step_size,
+    };
+    let inner = procgeo_sops::attributes::AttribFillSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---- I/O ----
 
 #[pyfunction]
@@ -462,6 +705,8 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_circle, m)?)?;
     m.add_function(wrap_pyfunction!(create_tube, m)?)?;
     m.add_function(wrap_pyfunction!(create_torus, m)?)?;
+    m.add_function(wrap_pyfunction!(revolve, m)?)?;
+    m.add_function(wrap_pyfunction!(create_metaball, m)?)?;
     // Manipulation
     m.add_function(wrap_pyfunction!(transform, m)?)?;
     m.add_function(wrap_pyfunction!(compute_normals, m)?)?;
@@ -479,6 +724,13 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(color, m)?)?;
     m.add_function(wrap_pyfunction!(enumerate_attrib, m)?)?;
     m.add_function(wrap_pyfunction!(measure_area, m)?)?;
+    // Attribute SOPs
+    m.add_function(wrap_pyfunction!(attrib_transfer, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_copy, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_randomize, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_sort, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_blur, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_fill, m)?)?;
     // I/O
     m.add_function(wrap_pyfunction!(write_obj, m)?)?;
     m.add_function(wrap_pyfunction!(write_glb, m)?)?;

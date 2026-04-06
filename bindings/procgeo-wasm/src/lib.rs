@@ -420,3 +420,140 @@ pub fn voronoi_fracture(geo: &Geometry, params: Option<JsValue>) -> Result<Geome
     let inner = procgeo_sops::voronoi::VoronoiFractureSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
     Ok(Geometry { inner })
 }
+
+// ---------------------------------------------------------------------------
+// Attribute SOPs
+// ---------------------------------------------------------------------------
+
+fn get_str(val: &JsValue, key: &str, default: &str) -> String {
+    js_sys::Reflect::get(val, &key.into())
+        .ok()
+        .and_then(|v| v.as_string())
+        .unwrap_or_else(|| default.to_string())
+}
+
+fn parse_attrib_class(s: &str) -> procgeo_core::AttribClass {
+    serde_json::from_str(&format!("\"{}\"", s)).unwrap_or(procgeo_core::AttribClass::Point)
+}
+
+fn parse_attrib_type(s: &str) -> procgeo_core::AttribType {
+    serde_json::from_str(&format!("\"{}\"", s)).unwrap_or(procgeo_core::AttribType::Float)
+}
+
+#[wasm_bindgen(js_name = "attribTransfer")]
+pub fn attrib_transfer(dest: &Geometry, source: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::attributes::AttribTransferParams {
+        attrib_name: get_str(&p, "attribName", "attrib"),
+        class: parse_attrib_class(&get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(&get_str(&p, "attribType", "Float")),
+        max_samples: get_u32(&p, "maxSamples", 1),
+        distance_threshold: get_f32(&p, "distanceThreshold", f32::MAX),
+    };
+    let inner = procgeo_sops::attributes::AttribTransferSop
+        .execute(&[&dest.inner, &source.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "attribCopy")]
+pub fn attrib_copy(dest: &Geometry, source: Option<Geometry>, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::attributes::AttribCopyParams {
+        attrib_name: get_str(&p, "attribName", "attrib"),
+        class: parse_attrib_class(&get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(&get_str(&p, "attribType", "Float")),
+        new_name: get_str(&p, "newName", ""),
+    };
+    let inner = match source {
+        Some(src) => procgeo_sops::attributes::AttribCopySop
+            .execute(&[&dest.inner, &src.inner], &params)
+            .map_err(sop_err)?,
+        None => procgeo_sops::attributes::AttribCopySop
+            .execute(&[&dest.inner], &params)
+            .map_err(sop_err)?,
+    };
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "attribRandomize")]
+pub fn attrib_randomize(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let distribution = serde_json::from_str::<procgeo_sops::attributes::RandomDistribution>(
+        &format!("\"{}\"", get_str(&p, "distribution", "Uniform")),
+    ).unwrap_or(procgeo_sops::attributes::RandomDistribution::Uniform);
+    let operation = serde_json::from_str::<procgeo_sops::attributes::RandomOperation>(
+        &format!("\"{}\"", get_str(&p, "operation", "Set")),
+    ).unwrap_or(procgeo_sops::attributes::RandomOperation::Set);
+    let params = procgeo_sops::attributes::AttribRandomizeParams {
+        attrib_name: get_str(&p, "attribName", "randomize"),
+        class: parse_attrib_class(&get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(&get_str(&p, "attribType", "Float")),
+        distribution,
+        operation,
+        seed: get_u64(&p, "seed", 0),
+        min_value: get_f32(&p, "minValue", 0.0),
+        max_value: get_f32(&p, "maxValue", 1.0),
+        mean: get_f32(&p, "mean", 0.0),
+        stddev: get_f32(&p, "stddev", 1.0),
+        value_a: get_f32(&p, "valueA", 0.0),
+        value_b: get_f32(&p, "valueB", 1.0),
+        probability: get_f32(&p, "probability", 0.5),
+        dimensions: get_u32(&p, "dimensions", 1),
+        global_scale: get_f32(&p, "globalScale", 1.0),
+    };
+    let inner = procgeo_sops::attributes::AttribRandomizeSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "attribSort")]
+pub fn attrib_sort(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let order = serde_json::from_str::<procgeo_sops::attributes::AttribSortOrder>(
+        &format!("\"{}\"", get_str(&p, "order", "Ascending")),
+    ).unwrap_or(procgeo_sops::attributes::AttribSortOrder::Ascending);
+    let params = procgeo_sops::attributes::AttribSortParams {
+        attrib_name: get_str(&p, "attribName", "attrib"),
+        class: parse_attrib_class(&get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(&get_str(&p, "attribType", "Float")),
+        order,
+        component: get_u32(&p, "component", 0) as usize,
+    };
+    let inner = procgeo_sops::attributes::AttribSortSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "attribBlur")]
+pub fn attrib_blur(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::attributes::AttribBlurParams {
+        attrib_name: get_str(&p, "attribName", "attrib"),
+        attrib_type: parse_attrib_type(&get_str(&p, "attribType", "Float")),
+        iterations: get_u32(&p, "iterations", 1),
+        step_size: get_f32(&p, "stepSize", 1.0),
+    };
+    let inner = procgeo_sops::attributes::AttribBlurSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "attribFill")]
+pub fn attrib_fill(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::attributes::AttribFillParams {
+        attrib_name: get_str(&p, "attribName", "attrib"),
+        attrib_type: parse_attrib_type(&get_str(&p, "attribType", "Float")),
+        boundary_group: get_str(&p, "boundaryGroup", ""),
+        iterations: get_u32(&p, "iterations", 10),
+        step_size: get_f32(&p, "stepSize", 0.5),
+    };
+    let inner = procgeo_sops::attributes::AttribFillSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}

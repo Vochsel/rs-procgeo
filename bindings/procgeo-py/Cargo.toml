@@ -13,3 +13,4 @@ procgeo-core = { path = "../../crates/procgeo-core" }
 procgeo-sops = { path = "../../crates/procgeo-sops" }
 procgeo-io = { path = "../../crates/procgeo-io" }
 glam = { workspace = true }
+serde_json = { workspace = true }
