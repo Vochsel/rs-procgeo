@@ -46,20 +46,25 @@ fractured = pg.computeNormals(fractured);
 return fractured;
 `,
 
-    noiseDisplace: `// Noise-displaced grid (terrain)
+    noiseDisplace: `// Noise-displaced terrain
+// attribNoise defaults to operation: 'add'
 let geo = pg.createGrid({ rows: 30, cols: 30, sizeX: 4, sizeY: 4 });
 geo = pg.subdivide(geo, { depth: 1, mode: 'linear' });
+
+// Layer 1: large hills (simplex fBm)
 geo = pg.attribNoise(geo, {
-  attribName: 'P',
-  dimensions: 3,
-  noiseType: 'simplex',
-  fractal: 'standard',
-  octaves: 5,
-  lacunarity: 2.0,
-  roughness: 0.5,
-  elementSize: 1.2,
-  amplitude: 0.4,
+  attribName: 'P', dimensions: 3,
+  noiseType: 'simplex', fractal: 'standard',
+  octaves: 4, elementSize: 2.0, amplitude: 0.5,
 });
+
+// Layer 2: fine detail added on top (operation defaults to 'add')
+geo = pg.attribNoise(geo, {
+  attribName: 'P', dimensions: 3,
+  noiseType: 'perlin', fractal: 'standard',
+  octaves: 6, elementSize: 0.5, amplitude: 0.08, seed: 99,
+});
+
 geo = pg.computeNormals(geo);
 geo = pg.color(geo, { color: [0.35, 0.55, 0.25] });
 return geo;
@@ -82,29 +87,23 @@ geo = pg.color(geo, { color: [0.3, 0.5, 0.9] });
 return geo;
 `,
 
-    allPrimitives: `// All primitive shapes merged
-const box = pg.transform(pg.createBox(), { translate: [-3, 0, 0] });
-const sphere = pg.transform(pg.createSphere({ rows: 8, cols: 16 }), { translate: [-1.5, 0, 0] });
-const torus = pg.createTorus();
-const tube = pg.transform(pg.createTube({ rows: 4 }), { translate: [1.5, 0, 0] });
-const grid = pg.transform(pg.createGrid({ rows: 5, cols: 5, sizeX: 1, sizeY: 1 }), { translate: [3, 0, 0] });
+    allPrimitives: `// All primitive shapes
+let box = pg.transform(pg.createBox(), { translate: [-3, 0, 0] });
+box = pg.color(pg.computeNormals(box), { color: [0.9, 0.3, 0.3] });
 
-let geo = pg.computeNormals(box);
-geo = pg.color(geo, { color: [0.9, 0.3, 0.3] });
+let sphere = pg.transform(pg.createSphere({ rows: 8, cols: 16 }), { translate: [-1.5, 0, 0] });
+sphere = pg.color(pg.computeNormals(sphere), { color: [0.3, 0.9, 0.3] });
 
-let s = pg.computeNormals(sphere);
-s = pg.color(s, { color: [0.3, 0.9, 0.3] });
+let torus = pg.createTorus();
+torus = pg.color(pg.computeNormals(torus), { color: [0.3, 0.3, 0.9] });
 
-let t = pg.computeNormals(torus);
-t = pg.color(t, { color: [0.3, 0.3, 0.9] });
+let tube = pg.transform(pg.createTube({ rows: 4 }), { translate: [1.5, 0, 0] });
+tube = pg.color(pg.computeNormals(tube), { color: [0.9, 0.9, 0.3] });
 
-let tb = pg.computeNormals(tube);
-tb = pg.color(tb, { color: [0.9, 0.9, 0.3] });
+let circle = pg.transform(pg.createCircle({ divisions: 24 }), { translate: [3, 0, 0] });
+circle = pg.color(pg.computeNormals(circle), { color: [0.9, 0.3, 0.9] });
 
-let g = pg.computeNormals(grid);
-g = pg.color(g, { color: [0.9, 0.3, 0.9] });
-
-return geo;
+return box;
 `,
 
     extrudeTower: `// Recursive extrude tower
@@ -132,17 +131,23 @@ reversed = pg.color(reversed, { color: [0.9, 0.3, 0.2] });
 return grid;
 `,
 
-    noisyTorus: `// Noise-deformed torus
+    noisyTorus: `// Noise-deformed torus with Worley cellular pattern
 let geo = pg.createTorus({ radiusOuter: 1.0, radiusInner: 0.3, rows: 24, cols: 48 });
+
+// Perlin displacement
 geo = pg.attribNoise(geo, {
-  attribName: 'P',
-  dimensions: 3,
-  noiseType: 'perlin',
-  fractal: 'standard',
-  octaves: 3,
-  elementSize: 0.6,
-  amplitude: 0.15,
+  attribName: 'P', dimensions: 3,
+  noiseType: 'perlin', fractal: 'standard',
+  octaves: 3, elementSize: 0.6, amplitude: 0.12,
 });
+
+// Worley cellular bumps (operation: 'add' stacks on top)
+geo = pg.attribNoise(geo, {
+  attribName: 'P', dimensions: 3,
+  noiseType: 'worley',
+  elementSize: 0.4, amplitude: 0.05, seed: 7,
+});
+
 geo = pg.smooth(geo, { iterations: 1, strength: 0.3 });
 geo = pg.computeNormals(geo);
 geo = pg.color(geo, { color: [0.95, 0.7, 0.3] });
