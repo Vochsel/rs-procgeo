@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcGeo Playground</title>
+    <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+    <div id="app">
+        <div id="toolbar">
+            <span class="logo">ProcGeo</span>
+            <span class="separator"></span>
+            <button id="run-btn" title="Run (Ctrl+Enter)">Run</button>
+            <span id="status"></span>
+            <span class="spacer"></span>
+            <select id="examples">
+                <option value="">Examples...</option>
+                <option value="basic">Basic Box</option>
+                <option value="subdiv">Catmull-Clark Sphere</option>
+                <option value="scatter">Scatter + Instances</option>
+                <option value="extrude">Extrude City</option>
+                <option value="fracture">Voronoi Fracture</option>
+            </select>
+            <button id="export-obj" title="Export OBJ">OBJ</button>
+            <button id="export-glb" title="Export GLB">GLB</button>
+        </div>
+        <div id="panels">
+            <div id="editor-panel">
+                <div id="editor"></div>
+            </div>
+            <div id="divider"></div>
+            <div id="viewer-panel">
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

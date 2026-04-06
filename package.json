@@ -13,6 +13,8 @@
     "test": "cargo test --workspace",
     "test:rust": "cargo test --workspace",
     "clean": "cargo clean && rm -rf bindings/procgeo-node/procgeo.*.node bindings/procgeo-wasm/pkg",
+    "dev:web": "cd web && pnpm dev",
+    "setup:web": "cd web && ./setup.sh",
     "serve": "pnpm run build:wasm && python3 -m http.server 8080 -d bindings/procgeo-wasm",
     "check": "cargo check --workspace && cargo check -p procgeo-node && cargo check -p procgeo-py"
   }
