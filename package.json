@@ -8,6 +8,8 @@
     "build:wasm": "wasm-pack build bindings/procgeo-wasm --target web --out-dir pkg --release",
     "build:python": "cd bindings/procgeo-py && maturin develop --release",
     "build:bindings": "pnpm run build:node && pnpm run build:wasm && pnpm run build:python",
+    "bench": "scripts/bench.sh",
+    "bench:core": "cargo bench -p procgeo-core",
     "test": "cargo test --workspace",
     "test:rust": "cargo test --workspace",
     "clean": "cargo clean && rm -rf bindings/procgeo-node/procgeo.*.node bindings/procgeo-wasm/pkg",
