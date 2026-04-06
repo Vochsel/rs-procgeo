@@ -1,0 +1,9 @@
+[package]
+name = "procgeo"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+procgeo-core = { path = "../procgeo-core" }
+procgeo-sops = { path = "../procgeo-sops" }
+procgeo-io = { path = "../procgeo-io" }

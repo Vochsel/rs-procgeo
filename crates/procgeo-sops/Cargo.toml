@@ -1,0 +1,20 @@
+[package]
+name = "procgeo-sops"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+procgeo-core = { path = "../procgeo-core" }
+glam = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+
+[features]
+default = ["creation", "transform", "normals", "merge"]
+creation = []
+transform = []
+normals = []
+merge = []

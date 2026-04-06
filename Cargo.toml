@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/procgeo-core",
+    "crates/procgeo-sops",
+    "crates/procgeo-io",
+    "crates/procgeo",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/vochsel/rs-procgeo"
+
+[workspace.dependencies]
+glam = "0.29"
+smallvec = { version = "1.13", features = ["serde"] }
+bitvec = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+approx = "0.5"

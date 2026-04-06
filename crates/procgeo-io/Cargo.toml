@@ -1,0 +1,16 @@
+[package]
+name = "procgeo-io"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+procgeo-core = { path = "../procgeo-core" }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+procgeo-sops = { path = "../procgeo-sops" }
+
+[features]
+default = ["obj"]
+obj = []
