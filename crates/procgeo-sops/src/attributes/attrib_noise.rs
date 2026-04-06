@@ -21,11 +21,21 @@ pub enum NoiseType {
 /// How to combine noise with existing attribute values.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub enum NoiseOperation {
-    #[default]
+    /// Set value only if the attribute doesn't already exist.
+    SetInitial,
+    /// Overwrite any existing value.
     Set,
+    /// Add the noise value to the existing value.
+    #[default]
     Add,
+    /// Subtract the noise value from the existing value.
     Subtract,
+    /// Multiply the existing value by the noise value.
     Multiply,
+    /// Use the lower of the noise value and the existing value.
+    Minimum,
+    /// Use the higher of the noise value and the existing value.
+    Maximum,
 }
 
 /// Fractal layering mode.
@@ -84,7 +94,7 @@ impl Default for AttribNoiseParams {
             class: AttribClass::Point,
             dimensions: 1,
             noise_type: NoiseType::Perlin,
-            operation: NoiseOperation::Set,
+            operation: NoiseOperation::Add,
             element_size: 1.0,
             offset: [0.0; 3],
             seed: 0,
@@ -465,10 +475,13 @@ fn map_range(raw: f32, noise_type: NoiseType, params: &AttribNoiseParams) -> f32
 
 fn apply_op(current: f32, generated: f32, op: NoiseOperation) -> f32 {
     match op {
+        NoiseOperation::SetInitial => current, // handled at a higher level — if we get here, attribute existed
         NoiseOperation::Set => generated,
         NoiseOperation::Add => current + generated,
         NoiseOperation::Subtract => current - generated,
         NoiseOperation::Multiply => current * generated,
+        NoiseOperation::Minimum => current.min(generated),
+        NoiseOperation::Maximum => current.max(generated),
     }
 }
 
@@ -556,6 +569,19 @@ impl Sop for AttribNoiseSop {
         let count = element_count(&out, params.class);
         if count == 0 {
             return Ok(out);
+        }
+
+        // SetInitial: only write if the attribute doesn't already exist on input
+        if matches!(params.operation, NoiseOperation::SetInitial) {
+            let already_exists = inputs[0]
+                .find_attrib::<f32>(params.class, &params.attrib_name)
+                .is_ok()
+                || inputs[0]
+                    .find_attrib::<[f32; 3]>(params.class, &params.attrib_name)
+                    .is_ok();
+            if already_exists {
+                return Ok(out);
+            }
         }
 
         if params.dimensions <= 1 {
