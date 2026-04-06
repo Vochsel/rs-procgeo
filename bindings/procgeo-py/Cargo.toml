@@ -1,0 +1,15 @@
+[package]
+name = "procgeo-py"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "procgeo"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+procgeo-core = { path = "../../crates/procgeo-core" }
+procgeo-sops = { path = "../../crates/procgeo-sops" }
+procgeo-io = { path = "../../crates/procgeo-io" }
+glam = { workspace = true }
