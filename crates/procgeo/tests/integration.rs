@@ -356,3 +356,214 @@ fn test_reverse_normals() {
     // Y component should be flipped
     assert!((orig_n[1] + new_n[1]).abs() < 0.1, "normals should be roughly opposite");
 }
+
+// ===========================================================================
+// Intrinsic / Well-Known Attribute Tests
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// P: position is a real attribute, synced with PointStorage
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_p_readable_as_attribute() {
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let p_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "P").unwrap();
+    for i in 0..geo.num_points() {
+        let pos = geo.point_pos(procgeo_core::PointHandle::from_index(i));
+        let p_attr = geo.get_attrib(&p_handle, i).unwrap();
+        assert_eq!(p_attr, [pos.x, pos.y, pos.z], "P attribute must match point_pos at index {i}");
+    }
+}
+
+#[test]
+fn test_p_writable_moves_geometry() {
+    let mut geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let p_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "P").unwrap();
+
+    // Move point 0 via attribute API
+    geo.set_attrib(&p_handle, 0, [99.0, 99.0, 99.0]);
+
+    // point_pos must reflect the change
+    let pos = geo.point_pos(procgeo_core::PointHandle::from_index(0));
+    assert_relative_eq!(pos.x, 99.0, epsilon = 1e-6);
+    assert_relative_eq!(pos.y, 99.0, epsilon = 1e-6);
+    assert_relative_eq!(pos.z, 99.0, epsilon = 1e-6);
+
+    // bounding_box must include the moved point
+    let bbox = geo.bounding_box();
+    assert!(bbox.max.x >= 99.0);
+}
+
+#[test]
+fn test_p_survives_sop_chain() {
+    // Box → Transform → read P attribute → must match moved positions
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let geo = geo.apply(&TransformSop, &TransformParams {
+        translate: Vec3::new(10.0, 20.0, 30.0),
+        ..Default::default()
+    }).unwrap();
+
+    let p_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "P").unwrap();
+    for i in 0..geo.num_points() {
+        let pos = geo.point_pos(procgeo_core::PointHandle::from_index(i));
+        let p_attr = geo.get_attrib(&p_handle, i).unwrap();
+        assert_relative_eq!(p_attr[0], pos.x, epsilon = 1e-5);
+        assert_relative_eq!(p_attr[1], pos.y, epsilon = 1e-5);
+        assert_relative_eq!(p_attr[2], pos.z, epsilon = 1e-5);
+    }
+}
+
+#[test]
+fn test_noise_on_p_displaces_geometry() {
+    let geo = generate(&GridSop, &GridParams {
+        rows: 5, cols: 5, size: [2.0, 2.0], ..Default::default()
+    }).unwrap();
+
+    // Grid is flat on XZ plane — all Y positions are 0
+    let bbox_before = geo.bounding_box();
+    assert_relative_eq!(bbox_before.min.y, 0.0, epsilon = 1e-6);
+    assert_relative_eq!(bbox_before.max.y, 0.0, epsilon = 1e-6);
+
+    // Apply noise to P — should displace points
+    let noisy = geo.apply(&AttribNoiseSop, &AttribNoiseParams {
+        attrib_name: "P".to_string(),
+        dimensions: 3,
+        amplitude: 0.5,
+        element_size: 1.0,
+        ..Default::default()
+    }).unwrap();
+
+    // Positions should have changed — Y no longer all zero
+    let bbox_after = noisy.bounding_box();
+    assert!(
+        (bbox_after.max.y - bbox_after.min.y) > 0.01,
+        "noise on P should displace geometry, but Y range is {}",
+        bbox_after.max.y - bbox_after.min.y
+    );
+}
+
+// ---------------------------------------------------------------------------
+// N: normal is a regular Vector3 point attribute with Normal qualifier
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_n_created_by_normal_sop() {
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+
+    let n_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+    for i in 0..geo.num_points() {
+        let n = geo.get_attrib(&n_handle, i).unwrap();
+        let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+        assert_relative_eq!(len, 1.0, epsilon = 1e-3, max_relative = 1e-3);
+    }
+}
+
+#[test]
+fn test_n_exported_in_obj() {
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+
+    let mut buf = Vec::new();
+    procgeo::io::obj::ObjWriter.write(&geo, &mut buf).unwrap();
+    let output = String::from_utf8(buf).unwrap();
+
+    assert!(output.contains("vn "), "OBJ should contain vertex normals when N attribute exists");
+}
+
+#[test]
+fn test_n_exported_in_glb() {
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+
+    let mut buf = Vec::new();
+    procgeo::io::gltf::GlbWriter.write(&geo, &mut buf).unwrap();
+    let json_str = String::from_utf8_lossy(&buf);
+    assert!(json_str.contains("NORMAL"), "GLB should contain NORMAL accessor when N attribute exists");
+}
+
+// ---------------------------------------------------------------------------
+// Cd: color is a regular Vector3 attribute with Color qualifier
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_cd_created_by_color_sop() {
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let geo = geo.apply(&ColorSop, &ColorParams { color: [1.0, 0.0, 0.0] }).unwrap();
+
+    let cd_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").unwrap();
+    for i in 0..geo.num_points() {
+        assert_eq!(geo.get_attrib(&cd_handle, i).unwrap(), [1.0, 0.0, 0.0]);
+    }
+}
+
+#[test]
+fn test_cd_exported_in_glb() {
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let geo = geo.apply(&ColorSop, &ColorParams { color: [0.5, 0.5, 0.5] }).unwrap();
+
+    let mut buf = Vec::new();
+    procgeo::io::gltf::GlbWriter.write(&geo, &mut buf).unwrap();
+    let json_str = String::from_utf8_lossy(&buf);
+    assert!(json_str.contains("COLOR_0"), "GLB should contain COLOR_0 accessor when Cd attribute exists");
+}
+
+// ---------------------------------------------------------------------------
+// Attribute pipeline: P, N, Cd all flow through merge, copy, blast
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_intrinsic_attribs_survive_merge() {
+    let mut box1 = generate(&BoxSop, &BoxParams::default()).unwrap();
+    box1 = box1.apply(&NormalSop, &NormalParams).unwrap();
+    box1 = box1.apply(&ColorSop, &ColorParams { color: [1.0, 0.0, 0.0] }).unwrap();
+
+    let mut box2 = generate(&BoxSop, &BoxParams {
+        center: Vec3::new(5.0, 0.0, 0.0), ..Default::default()
+    }).unwrap();
+    box2 = box2.apply(&NormalSop, &NormalParams).unwrap();
+    box2 = box2.apply(&ColorSop, &ColorParams { color: [0.0, 0.0, 1.0] }).unwrap();
+
+    let merged = MergeSop.execute(&[&box1, &box2], &MergeParams).unwrap();
+
+    // P should be correct for both halves
+    let p_handle = merged.find_attrib::<[f32; 3]>(AttribClass::Point, "P").unwrap();
+    let p0 = merged.get_attrib(&p_handle, 0).unwrap();
+    let p8 = merged.get_attrib(&p_handle, 8).unwrap();
+    // First box near origin, second near x=5
+    assert!(p0[0].abs() <= 0.6);
+    assert!(p8[0] >= 4.4);
+}
+
+#[test]
+fn test_full_intrinsic_pipeline() {
+    // Create → Subdivide → Smooth → Normal → Color → Noise on P → Export
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let geo = geo.apply(&SubdivideSop, &SubdivideParams { depth: 1, mode: SubdivideMode::CatmullClark }).unwrap();
+    let geo = geo.apply(&SmoothSop, &SmoothParams { iterations: 2, strength: 0.5 }).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+    let geo = geo.apply(&ColorSop, &ColorParams { color: [0.4, 0.7, 1.0] }).unwrap();
+
+    // All three intrinsic attribs should be accessible
+    let p = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "P");
+    let n = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "N");
+    let cd = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd");
+    assert!(p.is_ok(), "P must be findable");
+    assert!(n.is_ok(), "N must be findable");
+    assert!(cd.is_ok(), "Cd must be findable");
+
+    // Export to both formats — should include all three
+    let mut obj_buf = Vec::new();
+    procgeo::io::obj::ObjWriter.write(&geo, &mut obj_buf).unwrap();
+    let obj = String::from_utf8(obj_buf).unwrap();
+    assert!(obj.contains("v "), "OBJ has positions");
+    assert!(obj.contains("vn "), "OBJ has normals");
+
+    let mut glb_buf = Vec::new();
+    procgeo::io::gltf::GlbWriter.write(&geo, &mut glb_buf).unwrap();
+    let glb = String::from_utf8_lossy(&glb_buf);
+    assert!(glb.contains("POSITION"), "GLB has POSITION");
+    assert!(glb.contains("NORMAL"), "GLB has NORMAL");
+    assert!(glb.contains("COLOR_0"), "GLB has COLOR_0");
+}
