@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use pyo3::prelude::*;
 use procgeo_sops::Sop;
 
@@ -785,6 +787,47 @@ fn attrib_noise(
     Ok(Geometry { inner })
 }
 
+// ---- SOP Registry — generic execute ----
+
+static REGISTRY: OnceLock<procgeo_sops::SopRegistry> = OnceLock::new();
+
+fn get_registry() -> &'static procgeo_sops::SopRegistry {
+    REGISTRY.get_or_init(procgeo_sops::default_registry)
+}
+
+/// Execute any registered SOP by name with a JSON params string.
+/// Uses Rust/snake_case field names for params (matching serde serialization).
+#[pyfunction]
+#[pyo3(signature = (name, geo, params_json="{}"))]
+fn execute_sop(name: &str, geo: &Geometry, params_json: &str) -> PyResult<Geometry> {
+    let registry = get_registry();
+    let inner = registry
+        .execute(name, &[&geo.inner], params_json)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+/// Execute a creation SOP (no input geometry required).
+#[pyfunction]
+#[pyo3(signature = (name, params_json="{}"))]
+fn execute_sop_create(name: &str, params_json: &str) -> PyResult<Geometry> {
+    let registry = get_registry();
+    let inner = registry
+        .execute(name, &[], params_json)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+/// List all registered SOP names.
+#[pyfunction]
+fn list_sops() -> Vec<String> {
+    get_registry()
+        .list()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
 // ---- I/O ----
 
 #[pyfunction]
@@ -843,6 +886,10 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(attrib_blur, m)?)?;
     m.add_function(wrap_pyfunction!(attrib_fill, m)?)?;
     m.add_function(wrap_pyfunction!(attrib_noise, m)?)?;
+    // SOP Registry
+    m.add_function(wrap_pyfunction!(execute_sop, m)?)?;
+    m.add_function(wrap_pyfunction!(execute_sop_create, m)?)?;
+    m.add_function(wrap_pyfunction!(list_sops, m)?)?;
     // I/O
     m.add_function(wrap_pyfunction!(write_obj, m)?)?;
     m.add_function(wrap_pyfunction!(write_glb, m)?)?;

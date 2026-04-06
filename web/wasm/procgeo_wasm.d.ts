@@ -77,7 +77,23 @@ export function createTorus(params?: any | null): Geometry;
 
 export function createTube(params?: any | null): Geometry;
 
+/**
+ * Execute any registered SOP by name. Params are a JSON-compatible JS object.
+ * Uses Rust/snake_case field names for params (matching serde serialization).
+ */
+export function executeSop(name: string, geo: Geometry, params?: any | null): Geometry;
+
+/**
+ * Execute a creation SOP (no input geometry required).
+ */
+export function executeSopCreate(name: string, params?: any | null): Geometry;
+
 export function fuse(geo: Geometry, params?: any | null): Geometry;
+
+/**
+ * List all registered SOP names.
+ */
+export function listSops(): string[];
 
 export function polyExtrude(geo: Geometry, params?: any | null): Geometry;
 
@@ -116,6 +132,8 @@ export interface InitOutput {
     readonly createSphere: (a: number) => [number, number, number];
     readonly createTorus: (a: number) => [number, number, number];
     readonly createTube: (a: number) => [number, number, number];
+    readonly executeSop: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly executeSopCreate: (a: number, b: number, c: number) => [number, number, number];
     readonly fuse: (a: number, b: number) => [number, number, number];
     readonly geometry_boundingBox: (a: number) => any;
     readonly geometry_getColors: (a: number) => [number, number];
@@ -129,6 +147,7 @@ export interface InitOutput {
     readonly geometry_pointPos: (a: number, b: number) => [number, number];
     readonly geometry_toGlb: (a: number) => [number, number, number, number];
     readonly geometry_toObj: (a: number) => [number, number, number, number];
+    readonly listSops: () => [number, number];
     readonly polyExtrude: (a: number, b: number) => [number, number, number];
     readonly reverse: (a: number) => [number, number, number];
     readonly scatter: (a: number, b: number) => [number, number, number];
@@ -143,6 +162,7 @@ export interface InitOutput {
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __externref_drop_slice: (a: number, b: number) => void;
     readonly __wbindgen_start: () => void;
 }
 

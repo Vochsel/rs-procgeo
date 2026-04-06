@@ -398,6 +398,41 @@ export function createTube(params) {
 }
 
 /**
+ * Execute any registered SOP by name. Params are a JSON-compatible JS object.
+ * Uses Rust/snake_case field names for params (matching serde serialization).
+ * @param {string} name
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function executeSop(name, geo, params) {
+    const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    _assertClass(geo, Geometry);
+    const ret = wasm.executeSop(ptr0, len0, geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * Execute a creation SOP (no input geometry required).
+ * @param {string} name
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function executeSopCreate(name, params) {
+    const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.executeSopCreate(ptr0, len0, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
  * @param {Geometry} geo
  * @param {any | null} [params]
  * @returns {Geometry}
@@ -409,6 +444,17 @@ export function fuse(geo, params) {
         throw takeFromExternrefTable0(ret[1]);
     }
     return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * List all registered SOP names.
+ * @returns {string[]}
+ */
+export function listSops() {
+    const ret = wasm.listSops();
+    var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+    wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+    return v1;
 }
 
 /**
@@ -529,6 +575,10 @@ function __wbg_get_imports() {
             getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
             getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
         },
+        __wbg___wbindgen_is_null_344c8750a8525473: function(arg0) {
+            const ret = arg0 === null;
+            return ret;
+        },
         __wbg___wbindgen_is_undefined_c0cca72b82b86f4d: function(arg0) {
             const ret = arg0 === undefined;
             return ret;
@@ -572,6 +622,10 @@ function __wbg_get_imports() {
         },
         __wbg_set_8ee2d34facb8466e: function() { return handleError(function (arg0, arg1, arg2) {
             const ret = Reflect.set(arg0, arg1, arg2);
+            return ret;
+        }, arguments); },
+        __wbg_stringify_a2c39d991e1bf91d: function() { return handleError(function (arg0) {
+            const ret = JSON.stringify(arg0);
             return ret;
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
@@ -679,6 +733,17 @@ function debugString(val) {
 function getArrayF32FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getFloat32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
+function getArrayJsValueFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    const mem = getDataViewMemory0();
+    const result = [];
+    for (let i = ptr; i < ptr + 4 * len; i += 4) {
+        result.push(wasm.__wbindgen_externrefs.get(mem.getUint32(i, true)));
+    }
+    wasm.__externref_drop_slice(ptr, len);
+    return result;
 }
 
 function getArrayU32FromWasm0(ptr, len) {

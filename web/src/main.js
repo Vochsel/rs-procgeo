@@ -231,6 +231,14 @@ declare const pg: {
     // ── Attribute SOPs ──
     /** Apply procedural noise to an attribute. Default operation is "add" (stacks noise layers). */
     attribNoise(geo: ProcGeoGeometry, params?: { attribName?: string; noiseType?: "perlin" | "simplex" | "worley" | "worleyF2F1"; operation?: "setInitial" | "set" | "add" | "subtract" | "multiply" | "min" | "max"; elementSize?: number; amplitude?: number; seed?: number; dimensions?: number; fractal?: "none" | "standard" | "terrain"; octaves?: number; lacunarity?: number; roughness?: number; range?: "positive" | "zeroCentered" | "minMax"; minValue?: number; maxValue?: number; offset?: [number, number, number]; gain?: number; bias?: number }): ProcGeoGeometry;
+
+    // ── SOP Registry (generic dispatch) ──
+    /** Execute any registered SOP by name with a single input geometry. Params use snake_case field names. */
+    executeSop(name: string, geo: ProcGeoGeometry, params?: Record<string, any>): ProcGeoGeometry;
+    /** Execute a creation SOP by name (no input geometry). Params use snake_case field names. */
+    executeSopCreate(name: string, params?: Record<string, any>): ProcGeoGeometry;
+    /** List all registered SOP names. */
+    listSops(): string[];
 };
 `;
 
@@ -273,10 +281,16 @@ function scheduleRun() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
         executeCode(editor.getValue());
-    }, 500);
+    }, 5000);
 }
 
 editor.onDidChangeModelContent(scheduleRun);
+
+// Compile immediately when the editor loses focus
+editor.onDidBlurEditorText(() => {
+    clearTimeout(debounceTimer);
+    executeCode(editor.getValue());
+});
 
 // Ctrl+Enter to run immediately
 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {

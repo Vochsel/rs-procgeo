@@ -7,6 +7,7 @@ edition.workspace = true
 procgeo-core = { path = "../procgeo-core" }
 glam = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
 

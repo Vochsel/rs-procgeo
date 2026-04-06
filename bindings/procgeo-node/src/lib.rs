@@ -1,5 +1,7 @@
 #![deny(clippy::all)]
 
+use std::sync::OnceLock;
+
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
@@ -785,4 +787,60 @@ pub fn write_obj(geo: &Geometry, path: String) -> Result<()> {
 pub fn write_glb(geo: &Geometry, path: String) -> Result<()> {
     procgeo_io::write_file(&geo.inner, std::path::Path::new(&path))
         .map_err(|e| napi::Error::from_reason(e.to_string()))
+}
+
+// ---------------------------------------------------------------------------
+// SOP Registry — generic execute
+// ---------------------------------------------------------------------------
+
+static REGISTRY: OnceLock<procgeo_sops::SopRegistry> = OnceLock::new();
+
+fn get_registry() -> &'static procgeo_sops::SopRegistry {
+    REGISTRY.get_or_init(procgeo_sops::default_registry)
+}
+
+/// Execute any registered SOP by name with JSON params.
+/// Uses Rust/snake_case field names for params (matching serde serialization).
+#[napi(js_name = "executeSop")]
+pub fn execute_sop(
+    name: String,
+    geo: &Geometry,
+    params: Option<serde_json::Value>,
+) -> Result<Geometry> {
+    let registry = get_registry();
+    let params_json = match params {
+        Some(v) => serde_json::to_string(&v).unwrap_or_default(),
+        None => "{}".to_string(),
+    };
+    let inner = registry
+        .execute(&name, &[&geo.inner], &params_json)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+/// Execute a creation SOP (no input geometry required).
+#[napi(js_name = "executeSopCreate")]
+pub fn execute_sop_create(
+    name: String,
+    params: Option<serde_json::Value>,
+) -> Result<Geometry> {
+    let registry = get_registry();
+    let params_json = match params {
+        Some(v) => serde_json::to_string(&v).unwrap_or_default(),
+        None => "{}".to_string(),
+    };
+    let inner = registry
+        .execute(&name, &[], &params_json)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+/// List all registered SOP names.
+#[napi(js_name = "listSops")]
+pub fn list_sops() -> Vec<String> {
+    get_registry()
+        .list()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
 }

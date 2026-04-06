@@ -3,6 +3,9 @@
 use procgeo_core::Geometry;
 use thiserror::Error;
 
+pub mod registry;
+pub use registry::{DynSop, SopRegistry, default_registry};
+
 #[cfg(feature = "creation")]
 pub mod creation;
 #[cfg(feature = "transform")]

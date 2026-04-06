@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use wasm_bindgen::prelude::*;
 use procgeo_core::{AttribClass, PrimHandle, PointHandle};
 use procgeo_sops::Sop;
@@ -615,4 +617,75 @@ pub fn attrib_noise(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry,
         .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;
     Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// SOP Registry — generic execute
+// ---------------------------------------------------------------------------
+
+static REGISTRY: OnceLock<procgeo_sops::SopRegistry> = OnceLock::new();
+
+fn get_registry() -> &'static procgeo_sops::SopRegistry {
+    REGISTRY.get_or_init(procgeo_sops::default_registry)
+}
+
+/// Execute any registered SOP by name. Params are a JSON-compatible JS object.
+/// Uses Rust/snake_case field names for params (matching serde serialization).
+#[wasm_bindgen(js_name = "executeSop")]
+pub fn execute_sop(
+    name: &str,
+    geo: &Geometry,
+    params: Option<JsValue>,
+) -> Result<Geometry, JsError> {
+    let registry = get_registry();
+
+    let params_json = match params {
+        Some(p) if !p.is_undefined() && !p.is_null() => {
+            js_sys::JSON::stringify(&p)
+                .map_err(|_| JsError::new("Failed to serialize params"))?
+                .as_string()
+                .unwrap_or_default()
+        }
+        _ => "{}".to_string(),
+    };
+
+    let inputs = vec![&geo.inner];
+    let inner = registry
+        .execute(name, &inputs, &params_json)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+/// Execute a creation SOP (no input geometry required).
+#[wasm_bindgen(js_name = "executeSopCreate")]
+pub fn execute_sop_create(
+    name: &str,
+    params: Option<JsValue>,
+) -> Result<Geometry, JsError> {
+    let registry = get_registry();
+
+    let params_json = match params {
+        Some(p) if !p.is_undefined() && !p.is_null() => {
+            js_sys::JSON::stringify(&p)
+                .map_err(|_| JsError::new("Failed to serialize params"))?
+                .as_string()
+                .unwrap_or_default()
+        }
+        _ => "{}".to_string(),
+    };
+
+    let inner = registry
+        .execute(name, &[], &params_json)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+/// List all registered SOP names.
+#[wasm_bindgen(js_name = "listSops")]
+pub fn list_sops() -> Vec<String> {
+    get_registry()
+        .list()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
 }
