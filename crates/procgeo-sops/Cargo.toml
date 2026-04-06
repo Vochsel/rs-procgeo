@@ -14,7 +14,7 @@ rand = { workspace = true }
 approx = { workspace = true }
 
 [features]
-default = ["creation", "transform", "normals", "merge", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops"]
+default = ["creation", "transform", "normals", "merge", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops", "color", "voronoi"]
 creation = []
 transform = []
 normals = []
@@ -28,3 +28,5 @@ scatter = []
 topology = []
 measure_sops = []
 utility_sops = []
+color = []
+voronoi = ["reshape"]

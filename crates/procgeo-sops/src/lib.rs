@@ -29,6 +29,10 @@ pub mod topology;
 pub mod measure;
 #[cfg(feature = "utility_sops")]
 pub mod utility;
+#[cfg(feature = "color")]
+pub mod color;
+#[cfg(feature = "voronoi")]
+pub mod voronoi;
 
 #[derive(Debug, Error)]
 pub enum SopError {
