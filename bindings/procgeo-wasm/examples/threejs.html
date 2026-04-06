@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcGeo + Three.js</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; background: #111; }
+        #container { width: 100vw; height: 100vh; }
+        #ui {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(10,10,20,0.85); padding: 20px; border-radius: 12px;
+            min-width: 300px; backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #ddd; font-size: 13px;
+        }
+        h1 { font-size: 16px; margin-bottom: 14px; color: #7eb8ff; font-weight: 600; letter-spacing: 0.5px; }
+        .section { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #667; margin-bottom: 8px; }
+        .control { margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+        .control label { min-width: 80px; font-size: 12px; color: #999; }
+        .control span { min-width: 24px; text-align: right; font-size: 11px; color: #7eb8ff; font-variant-numeric: tabular-nums; }
+        select {
+            flex: 1; background: #1a1a2e; color: #eee; border: 1px solid #333;
+            padding: 5px 8px; border-radius: 4px; font-size: 12px;
+        }
+        input[type=range] { flex: 1; accent-color: #7eb8ff; }
+        input[type=checkbox] { accent-color: #7eb8ff; }
+        button {
+            padding: 7px 14px; background: #2a4a8a; color: white; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 6px;
+        }
+        button:hover { background: #3a5a9a; }
+        #stats { font-size: 11px; color: #556; margin-top: 6px; }
+        .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="ui">
+        <h1>ProcGeo + Three.js</h1>
+
+        <div class="section">
+            <div class="section-title">Shape</div>
+            <div class="control">
+                <label>Primitive</label>
+                <select id="shape">
+                    <option value="box">Box</option>
+                    <option value="sphere">Sphere</option>
+                    <option value="torus" selected>Torus</option>
+                    <option value="tube">Tube</option>
+                    <option value="grid">Grid</option>
+                    <option value="circle">Circle</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Subdivision</div>
+            <div class="control">
+                <label>Depth</label>
+                <input type="range" id="subdivDepth" min="0" max="3" value="1">
+                <span id="subdivDepthVal">1</span>
+            </div>
+            <div class="control">
+                <label>Mode</label>
+                <select id="subdivMode">
+                    <option value="linear">Linear</option>
+                    <option value="catmullClark" selected>Catmull-Clark</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Smoothing</div>
+            <div class="control">
+                <label>Iterations</label>
+                <input type="range" id="smoothIter" min="0" max="10" value="0">
+                <span id="smoothIterVal">0</span>
+            </div>
+            <div class="control">
+                <label>Strength</label>
+                <input type="range" id="smoothStrength" min="0" max="100" value="50">
+                <span id="smoothStrengthVal">0.5</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Operations</div>
+            <div class="control">
+                <label>Extrude</label>
+                <input type="range" id="extrude" min="0" max="100" value="0">
+                <span id="extrudeVal">0</span>
+            </div>
+            <div class="control">
+                <label>Inset</label>
+                <input type="range" id="inset" min="0" max="50" value="0">
+                <span id="insetVal">0</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Display</div>
+            <div class="control">
+                <label>Wireframe</label>
+                <input type="checkbox" id="wireframe">
+            </div>
+            <div class="control">
+                <label>Edges</label>
+                <input type="checkbox" id="showEdges" checked>
+            </div>
+            <div class="control">
+                <label>Flat shade</label>
+                <input type="checkbox" id="flatShade">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Export</div>
+            <div class="btn-row">
+                <button id="exportObj">OBJ</button>
+                <button id="exportGlb">GLB</button>
+            </div>
+        </div>
+
+        <div id="stats"></div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import init, * as pg from '../pkg/procgeo_wasm.js';
+
+        // We inline the bridge functions here to avoid import issues with the local file server.
+        // In a real project, import from '@procgeo/three'.
+
+        function toBufferGeometry(geo, opts = {}) {
+            const bufGeo = new THREE.BufferGeometry();
+            bufGeo.setAttribute('position', new THREE.BufferAttribute(geo.getPositions(), 3));
+            bufGeo.setIndex(new THREE.BufferAttribute(geo.getTriangleIndices(), 1));
+            const normals = geo.getNormals?.();
+            if (normals) bufGeo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+            else if (opts.computeNormals) bufGeo.computeVertexNormals();
+            const colors = geo.getColors?.();
+            if (colors) bufGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            bufGeo.computeBoundingSphere();
+            return bufGeo;
+        }
+
+        function toMesh(geo, opts = {}) {
+            const bufGeo = toBufferGeometry(geo, { computeNormals: true });
+            const hasColors = !!bufGeo.getAttribute('color');
+            const mat = opts.material || new THREE.MeshStandardMaterial({
+                color: hasColors ? 0xffffff : (opts.color ?? 0x4488cc),
+                vertexColors: hasColors,
+                wireframe: opts.wireframe ?? false,
+                flatShading: opts.flat ?? false,
+                side: THREE.DoubleSide,
+                roughness: 0.55,
+                metalness: 0.15,
+            });
+            return new THREE.Mesh(bufGeo, mat);
+        }
+
+        function toEdges(geo, opts = {}) {
+            const bufGeo = toBufferGeometry(geo, { computeNormals: true });
+            const edgesGeo = new THREE.EdgesGeometry(bufGeo, opts.thresholdAngle ?? 20);
+            return new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color: opts.color ?? 0x223355 }));
+        }
+
+        // ── Init ──────────────────────────────────────────
+        await init();
+
+        const container = document.getElementById('container');
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        container.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x12121f);
+
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+        camera.position.set(3, 2.2, 3.5);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.target.set(0, 0, 0);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+        const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+        dir.position.set(5, 8, 6);
+        scene.add(dir);
+        const fill = new THREE.DirectionalLight(0x6688bb, 0.4);
+        fill.position.set(-4, 3, -5);
+        scene.add(fill);
+
+        // Grid helper
+        const gridHelper = new THREE.GridHelper(6, 12, 0x222233, 0x1a1a28);
+        scene.add(gridHelper);
+
+        function resize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // ── State ─────────────────────────────────────────
+        let meshGroup = new THREE.Group();
+        scene.add(meshGroup);
+        let currentGeo = null;
+
+        function rebuildGeometry() {
+            const shape = document.getElementById('shape').value;
+            const subdivDepth = +document.getElementById('subdivDepth').value;
+            const subdivMode = document.getElementById('subdivMode').value;
+            const smoothIterations = +document.getElementById('smoothIter').value;
+            const smoothStrength = +document.getElementById('smoothStrength').value / 100;
+            const extrudeAmt = +document.getElementById('extrude').value / 100;
+            const insetAmt = +document.getElementById('inset').value / 100;
+            const showWireframe = document.getElementById('wireframe').checked;
+            const showEdges = document.getElementById('showEdges').checked;
+            const flatShade = document.getElementById('flatShade').checked;
+
+            // Update value displays
+            document.getElementById('subdivDepthVal').textContent = subdivDepth;
+            document.getElementById('smoothIterVal').textContent = smoothIterations;
+            document.getElementById('smoothStrengthVal').textContent = smoothStrength.toFixed(2);
+            document.getElementById('extrudeVal').textContent = extrudeAmt.toFixed(2);
+            document.getElementById('insetVal').textContent = insetAmt.toFixed(2);
+
+            const t0 = performance.now();
+
+            // Create base shape
+            let geo;
+            switch (shape) {
+                case 'box':    geo = pg.createBox(); break;
+                case 'sphere': geo = pg.createSphere({ rows: 8, cols: 16 }); break;
+                case 'torus':  geo = pg.createTorus(); break;
+                case 'tube':   geo = pg.createTube({ rows: 4 }); break;
+                case 'grid':   geo = pg.createGrid({ rows: 10, cols: 10, sizeX: 2, sizeY: 2 }); break;
+                case 'circle': geo = pg.createCircle({ divisions: 32 }); break;
+            }
+
+            // Apply operations
+            if (subdivDepth > 0) geo = pg.subdivide(geo, { depth: subdivDepth, mode: subdivMode });
+            if (extrudeAmt > 0)  geo = pg.polyExtrude(geo, { distance: extrudeAmt, inset: insetAmt });
+            if (smoothIterations > 0) geo = pg.smooth(geo, { iterations: smoothIterations, strength: smoothStrength });
+
+            geo = pg.computeNormals(geo);
+            currentGeo = geo;
+
+            const elapsed = (performance.now() - t0).toFixed(1);
+
+            // Rebuild Three.js objects
+            while (meshGroup.children.length) {
+                const c = meshGroup.children[0];
+                c.geometry?.dispose();
+                c.material?.dispose();
+                meshGroup.remove(c);
+            }
+
+            meshGroup.add(toMesh(geo, { wireframe: showWireframe, flat: flatShade }));
+            if (showEdges && !showWireframe) meshGroup.add(toEdges(geo));
+
+            document.getElementById('stats').textContent =
+                `${geo.numPoints} pts | ${geo.numPrims} prims | ${elapsed}ms`;
+        }
+
+        // ── Controls ──────────────────────────────────────
+        document.querySelectorAll('#ui select, #ui input').forEach(el =>
+            el.addEventListener(el.type === 'range' ? 'input' : 'change', rebuildGeometry)
+        );
+
+        document.getElementById('exportObj').addEventListener('click', () => {
+            if (!currentGeo) return;
+            const blob = new Blob([currentGeo.toObj()], { type: 'text/plain' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = 'procgeo.obj'; a.click();
+        });
+
+        document.getElementById('exportGlb').addEventListener('click', () => {
+            if (!currentGeo) return;
+            const blob = new Blob([currentGeo.toGlb()], { type: 'model/gltf-binary' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = 'procgeo.glb'; a.click();
+        });
+
+        // ── Initial build + render loop ───────────────────
+        rebuildGeometry();
+
+        function render() {
+            requestAnimationFrame(render);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        render();
+    </script>
+</body>
+</html>
