@@ -256,6 +256,101 @@ impl Geometry {
     }
 
     // -----------------------------------------------------------------------
+    // Rebuild helpers
+    // -----------------------------------------------------------------------
+
+    /// Rebuild geometry keeping only primitives where `keep[i]` is true.
+    /// Points not referenced by any kept primitive are removed.
+    /// Returns a new Geometry with compacted indices.
+    pub fn rebuild_keeping_prims(&self, keep: &[bool]) -> Geometry {
+        // Determine which points are referenced by kept prims
+        let mut point_used = vec![false; self.points.len()];
+        for (i, &k) in keep.iter().enumerate() {
+            if k && i < self.primitives.len() {
+                let ph = PrimHandle::from_index(i);
+                for pt in self.prim_points(ph) {
+                    point_used[pt.index()] = true;
+                }
+            }
+        }
+
+        // Build point remap: old index -> new index (None if removed)
+        let mut point_remap: Vec<Option<usize>> = vec![None; self.points.len()];
+        let mut new_geo = Geometry::new();
+        for (old_idx, &used) in point_used.iter().enumerate() {
+            if used {
+                let new_idx = new_geo.num_points();
+                point_remap[old_idx] = Some(new_idx);
+                let pos = self.points.position(PointHandle::from_index(old_idx));
+                new_geo.add_point(pos);
+            }
+        }
+
+        // Add kept prims with remapped point indices
+        for (i, &k) in keep.iter().enumerate() {
+            if k && i < self.primitives.len() {
+                let ph = PrimHandle::from_index(i);
+                let old_pts = self.prim_points(ph);
+                let new_pts: Vec<PointHandle> = old_pts
+                    .iter()
+                    .filter_map(|pt| point_remap[pt.index()].map(PointHandle::from_index))
+                    .collect();
+                if new_pts.len() == old_pts.len() {
+                    let prim = self.primitives.get(ph);
+                    match prim {
+                        Primitive::Polygon(poly) => match poly.poly_type {
+                            PolyType::Closed => { new_geo.add_face(&new_pts); }
+                            PolyType::Open => { new_geo.add_polyline(&new_pts); }
+                        },
+                    }
+                }
+            }
+        }
+
+        new_geo
+    }
+
+    /// Rebuild geometry keeping only points where `keep[i]` is true.
+    /// Primitives referencing any removed point are also removed.
+    pub fn rebuild_keeping_points(&self, keep: &[bool]) -> Geometry {
+        // Build point remap: old index -> new index (None if removed)
+        let mut point_remap: Vec<Option<usize>> = vec![None; self.points.len()];
+        let mut new_geo = Geometry::new();
+        for (old_idx, &kept) in keep.iter().enumerate() {
+            if kept {
+                let new_idx = new_geo.num_points();
+                point_remap[old_idx] = Some(new_idx);
+                let pos = self.points.position(PointHandle::from_index(old_idx));
+                new_geo.add_point(pos);
+            }
+        }
+
+        // Add prims whose all points are kept
+        for i in 0..self.primitives.len() {
+            let ph = PrimHandle::from_index(i);
+            let old_pts = self.prim_points(ph);
+            let all_kept = old_pts.iter().all(|pt| {
+                pt.index() < keep.len() && keep[pt.index()]
+            });
+            if all_kept {
+                let new_pts: Vec<PointHandle> = old_pts
+                    .iter()
+                    .filter_map(|pt| point_remap[pt.index()].map(PointHandle::from_index))
+                    .collect();
+                let prim = self.primitives.get(ph);
+                match prim {
+                    Primitive::Polygon(poly) => match poly.poly_type {
+                        PolyType::Closed => { new_geo.add_face(&new_pts); }
+                        PolyType::Open => { new_geo.add_polyline(&new_pts); }
+                    },
+                }
+            }
+        }
+
+        new_geo
+    }
+
+    // -----------------------------------------------------------------------
     // Spatial
     // -----------------------------------------------------------------------
 
