@@ -568,17 +568,20 @@ pub fn attrib_noise(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry,
         "worleyF2F1" => procgeo_sops::attributes::NoiseType::WorleyF2F1,
         _ => procgeo_sops::attributes::NoiseType::Perlin,
     };
-    let operation_str = get_str(&p, "operation", "Set");
+    let operation_str = get_str(&p, "operation", "add");
     let operation = match operation_str.as_str() {
-        "Add" => procgeo_sops::attributes::NoiseOperation::Add,
-        "Subtract" => procgeo_sops::attributes::NoiseOperation::Subtract,
-        "Multiply" => procgeo_sops::attributes::NoiseOperation::Multiply,
-        _ => procgeo_sops::attributes::NoiseOperation::Set,
+        "setInitial" => procgeo_sops::attributes::NoiseOperation::SetInitial,
+        "set" => procgeo_sops::attributes::NoiseOperation::Set,
+        "subtract" => procgeo_sops::attributes::NoiseOperation::Subtract,
+        "multiply" => procgeo_sops::attributes::NoiseOperation::Multiply,
+        "min" | "minimum" => procgeo_sops::attributes::NoiseOperation::Minimum,
+        "max" | "maximum" => procgeo_sops::attributes::NoiseOperation::Maximum,
+        _ => procgeo_sops::attributes::NoiseOperation::Add,
     };
-    let range_str = get_str(&p, "range", "Positive");
+    let range_str = get_str(&p, "range", "positive");
     let range = match range_str.as_str() {
-        "ZeroCentered" => procgeo_sops::attributes::NoiseRange::ZeroCentered,
-        "MinMax" => procgeo_sops::attributes::NoiseRange::MinMax,
+        "zeroCentered" | "ZeroCentered" => procgeo_sops::attributes::NoiseRange::ZeroCentered,
+        "minMax" | "MinMax" => procgeo_sops::attributes::NoiseRange::MinMax,
         _ => procgeo_sops::attributes::NoiseRange::Positive,
     };
     let fractal_str = get_str(&p, "fractal", "none");

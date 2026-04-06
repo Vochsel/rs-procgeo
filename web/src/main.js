@@ -229,8 +229,8 @@ declare const pg: {
     voronoiFracture(geo: ProcGeoGeometry, points: ProcGeoGeometry, params?: { cutPlaneOffset?: number; createInsideFaces?: boolean }): ProcGeoGeometry;
 
     // ── Attribute SOPs ──
-    /** Apply procedural noise to an attribute. noiseType: "perlin"|"simplex"|"worley"|"worleyF2F1". fractal: "none"|"standard"|"terrain". */
-    attribNoise(geo: ProcGeoGeometry, params?: { attribName?: string; noiseType?: "perlin" | "simplex" | "worley" | "worleyF2F1"; elementSize?: number; amplitude?: number; seed?: number; dimensions?: number; fractal?: "none" | "standard" | "terrain"; octaves?: number; lacunarity?: number; roughness?: number; offset?: [number, number, number] }): ProcGeoGeometry;
+    /** Apply procedural noise to an attribute. Default operation is "add" (stacks noise layers). */
+    attribNoise(geo: ProcGeoGeometry, params?: { attribName?: string; noiseType?: "perlin" | "simplex" | "worley" | "worleyF2F1"; operation?: "setInitial" | "set" | "add" | "subtract" | "multiply" | "min" | "max"; elementSize?: number; amplitude?: number; seed?: number; dimensions?: number; fractal?: "none" | "standard" | "terrain"; octaves?: number; lacunarity?: number; roughness?: number; range?: "positive" | "zeroCentered" | "minMax"; minValue?: number; maxValue?: number; offset?: [number, number, number]; gain?: number; bias?: number }): ProcGeoGeometry;
 };
 `;
 
