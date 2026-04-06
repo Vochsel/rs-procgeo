@@ -1,0 +1,6 @@
+/target
+Cargo.lock
+*.obj
+*.glb
+*.gltf
+.DS_Store
