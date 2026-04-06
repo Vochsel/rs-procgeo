@@ -2,20 +2,15 @@
   "name": "rs-procgeo",
   "private": true,
   "scripts": {
-    "build": "pnpm run build:rust && pnpm run build:bindings",
-    "build:rust": "cargo build --release",
+    "build": "scripts/build.sh",
+    "build:rust": "cargo build --release && cargo test --workspace",
     "build:node": "cd bindings/procgeo-node && pnpm install && pnpm run build",
-    "build:wasm": "wasm-pack build bindings/procgeo-wasm --target web --out-dir pkg --release",
+    "build:wasm": "wasm-pack build bindings/procgeo-wasm --target web --out-dir pkg --release && cp bindings/procgeo-wasm/pkg/procgeo_wasm.js web/wasm/ && cp bindings/procgeo-wasm/pkg/procgeo_wasm_bg.wasm web/wasm/ && cp bindings/procgeo-wasm/pkg/procgeo_wasm.d.ts web/wasm/",
     "build:python": "cd bindings/procgeo-py && maturin develop --release",
-    "build:bindings": "pnpm run build:node && pnpm run build:wasm && pnpm run build:python",
-    "bench": "scripts/bench.sh",
-    "bench:core": "cargo bench -p procgeo-core",
     "test": "cargo test --workspace",
-    "test:rust": "cargo test --workspace",
-    "clean": "cargo clean && rm -rf bindings/procgeo-node/procgeo.*.node bindings/procgeo-wasm/pkg",
+    "check": "cargo check --workspace && cargo check -p procgeo-node && cargo check -p procgeo-py",
+    "clean": "cargo clean && rm -rf bindings/procgeo-node/procgeo.*.node bindings/procgeo-wasm/pkg web/wasm/*.wasm web/wasm/*.js web/wasm/*.d.ts",
     "dev:web": "cd web && pnpm dev",
-    "setup:web": "cd web && ./setup.sh",
-    "serve": "pnpm run build:wasm && python3 -m http.server 8080 -d bindings/procgeo-wasm",
-    "check": "cargo check --workspace && cargo check -p procgeo-node && cargo check -p procgeo-py"
+    "bench": "scripts/bench.sh"
   }
 }
