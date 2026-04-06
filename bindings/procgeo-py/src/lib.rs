@@ -499,6 +499,55 @@ fn measure_area(geo: &Geometry) -> PyResult<Geometry> {
     Ok(Geometry { inner })
 }
 
+// ---- Reshape SOPs (new) ----
+
+#[pyfunction]
+#[pyo3(signature = (geo, offset=0.1, divisions=1))]
+fn poly_bevel(geo: &Geometry, offset: f32, divisions: u32) -> PyResult<Geometry> {
+    let params = procgeo_sops::reshape::PolyBevelParams { offset, divisions };
+    let inner = procgeo_sops::reshape::PolyBevelSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, radius=0.1, divisions=8))]
+fn poly_wire(geo: &Geometry, radius: f32, divisions: u32) -> PyResult<Geometry> {
+    let params = procgeo_sops::reshape::PolyWireParams { radius, divisions };
+    let inner = procgeo_sops::reshape::PolyWireSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, target_percent=0.5, preserve_boundaries=true))]
+fn poly_reduce(geo: &Geometry, target_percent: f32, preserve_boundaries: bool) -> PyResult<Geometry> {
+    let params = procgeo_sops::reshape::PolyReduceParams {
+        target_percent,
+        preserve_boundaries,
+    };
+    let inner = procgeo_sops::reshape::PolyReduceSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, mode="single", smooth=0.0))]
+fn poly_fill(geo: &Geometry, mode: &str, smooth: f32) -> PyResult<Geometry> {
+    let m = match mode {
+        "fan" | "triangle_fan" => procgeo_sops::reshape::PolyFillMode::TriangleFan,
+        _ => procgeo_sops::reshape::PolyFillMode::SinglePolygon,
+    };
+    let params = procgeo_sops::reshape::PolyFillParams { mode: m, smooth };
+    let inner = procgeo_sops::reshape::PolyFillSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---- Attribute SOPs ----
 
 fn parse_attrib_class(s: &str) -> procgeo_core::AttribClass {
@@ -781,6 +830,11 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(color, m)?)?;
     m.add_function(wrap_pyfunction!(enumerate_attrib, m)?)?;
     m.add_function(wrap_pyfunction!(measure_area, m)?)?;
+    // Reshape SOPs
+    m.add_function(wrap_pyfunction!(poly_bevel, m)?)?;
+    m.add_function(wrap_pyfunction!(poly_wire, m)?)?;
+    m.add_function(wrap_pyfunction!(poly_reduce, m)?)?;
+    m.add_function(wrap_pyfunction!(poly_fill, m)?)?;
     // Attribute SOPs
     m.add_function(wrap_pyfunction!(attrib_transfer, m)?)?;
     m.add_function(wrap_pyfunction!(attrib_copy, m)?)?;

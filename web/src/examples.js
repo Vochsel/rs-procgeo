@@ -41,7 +41,7 @@ return pg.fuse(city, { distance: 0.001 });
     fracture: `// Voronoi fractured box
 let box = pg.createBox({ size: [1.5, 1.5, 1.5] });
 let points = pg.scatter(box, { count: 6, seed: 42 });
-let fractured = pg.voronoiFracture(box, points);
+let fractured = pg.voronoiFracture(box, points, { cutPlaneOffset: 0.1, createInsideFaces: true });
 fractured = pg.computeNormals(fractured);
 return fractured;
 `,

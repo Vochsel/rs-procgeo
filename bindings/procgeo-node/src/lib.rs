@@ -394,6 +394,62 @@ pub fn clip(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometr
 }
 
 #[napi]
+pub fn poly_bevel(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::reshape::PolyBevelParams {
+        offset: get_f32(&p, "offset", 0.1),
+        divisions: get_u32(&p, "divisions", 1),
+    };
+    let inner = procgeo_sops::reshape::PolyBevelSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn poly_wire(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::reshape::PolyWireParams {
+        radius: get_f32(&p, "radius", 0.1),
+        divisions: get_u32(&p, "divisions", 8),
+    };
+    let inner = procgeo_sops::reshape::PolyWireSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn poly_reduce(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::reshape::PolyReduceParams {
+        target_percent: get_f32(&p, "target_percent", 0.5),
+        preserve_boundaries: get_bool(&p, "preserve_boundaries", true),
+    };
+    let inner = procgeo_sops::reshape::PolyReduceSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn poly_fill(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let mode = match p.get("mode").and_then(|v| v.as_str()).unwrap_or("single") {
+        "fan" | "triangle_fan" => procgeo_sops::reshape::PolyFillMode::TriangleFan,
+        _ => procgeo_sops::reshape::PolyFillMode::SinglePolygon,
+    };
+    let params = procgeo_sops::reshape::PolyFillParams {
+        mode,
+        smooth: get_f32(&p, "smooth", 0.0),
+    };
+    let inner = procgeo_sops::reshape::PolyFillSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
 pub fn reverse(geo: &Geometry) -> Result<Geometry> {
     let inner = procgeo_sops::topology::ReverseSop
         .execute(
