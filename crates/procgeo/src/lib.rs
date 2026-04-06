@@ -36,4 +36,6 @@ pub mod prelude {
     pub use procgeo_sops::measure::*;
     #[cfg(feature = "utility_sops")]
     pub use procgeo_sops::utility::*;
+    #[cfg(feature = "color")]
+    pub use procgeo_sops::color::*;
 }

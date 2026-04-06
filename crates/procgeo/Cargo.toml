@@ -10,7 +10,7 @@ procgeo-io = { path = "../procgeo-io" }
 glam = { workspace = true }
 
 [features]
-default = ["creation", "transform", "normals", "merge", "obj", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops"]
+default = ["creation", "transform", "normals", "merge", "obj", "gltf", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops", "color"]
 creation = ["procgeo-sops/creation"]
 transform = ["procgeo-sops/transform"]
 normals = ["procgeo-sops/normals"]
@@ -25,6 +25,8 @@ scatter = ["procgeo-sops/scatter"]
 topology = ["procgeo-sops/topology"]
 measure_sops = ["procgeo-sops/measure_sops"]
 utility_sops = ["procgeo-sops/utility_sops"]
+color = ["procgeo-sops/color"]
+gltf = ["procgeo-io/gltf"]
 
 [dev-dependencies]
 approx = { workspace = true }

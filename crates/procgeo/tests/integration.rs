@@ -287,3 +287,72 @@ fn test_enumerate_points() {
         assert_eq!(enumerated.get_attrib(&idx_h, i).unwrap(), i as i32);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Test 12: Box → Subdivide → Smooth → Normal → Color → write GLB
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_full_workflow() {
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let geo = geo.apply(&SubdivideSop, &SubdivideParams { depth: 1 }).unwrap();
+    let geo = geo.apply(&SmoothSop, &SmoothParams { iterations: 3, strength: 0.5 }).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+    let geo = geo.apply(&ColorSop, &ColorParams { color: [0.2, 0.6, 1.0] }).unwrap();
+
+    // Verify geometry is valid
+    assert!(geo.num_points() > 8); // subdivided
+    let n_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+    let cd_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").unwrap();
+    assert_eq!(geo.get_attrib(&cd_handle, 0).unwrap(), [0.2, 0.6, 1.0]);
+
+    // Write to GLB buffer
+    let mut buf = Vec::new();
+    procgeo::io::gltf::GlbWriter.write(&geo, &mut buf).unwrap();
+    assert!(buf.len() > 12); // at least the GLB header
+    assert_eq!(&buf[0..4], b"glTF"); // magic bytes
+}
+
+// ---------------------------------------------------------------------------
+// Test 13: Box → Clip at y=0 → Measure area
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_clip_and_measure() {
+    let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
+    let clipped = geo.apply(&ClipSop, &ClipParams {
+        origin: Vec3::ZERO,
+        normal: Vec3::Y,
+        keep_above: true,
+    }).unwrap();
+
+    // Should have fewer prims than original 6
+    assert!(clipped.num_prims() > 0);
+    assert!(clipped.num_prims() <= 6);
+
+    let measured = clipped.apply(&MeasureSop, &MeasureParams::default()).unwrap();
+    let area_h = measured.find_attrib::<f32>(AttribClass::Primitive, "area").unwrap();
+    for i in 0..measured.num_prims() {
+        assert!(measured.get_attrib(&area_h, i).unwrap() > 0.0);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 14: Grid → Normal → Reverse → Normal → verify flipped
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_reverse_normals() {
+    let geo = generate(&GridSop, &GridParams { rows: 3, cols: 3, size: [2.0, 2.0], ..Default::default() }).unwrap();
+    let with_normals = geo.apply(&NormalSop, &NormalParams).unwrap();
+    let n_handle = with_normals.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+    let orig_n = with_normals.get_attrib(&n_handle, 0).unwrap();
+
+    let reversed = with_normals.apply(&ReverseSop, &ReverseParams).unwrap();
+    let recomputed = reversed.apply(&NormalSop, &NormalParams).unwrap();
+    let n_handle2 = recomputed.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+    let new_n = recomputed.get_attrib(&n_handle2, 0).unwrap();
+
+    // Y component should be flipped
+    assert!((orig_n[1] + new_n[1]).abs() < 0.1, "normals should be roughly opposite");
+}
