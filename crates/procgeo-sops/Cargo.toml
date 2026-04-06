@@ -8,13 +8,23 @@ procgeo-core = { path = "../procgeo-core" }
 glam = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 approx = { workspace = true }
 
 [features]
-default = ["creation", "transform", "normals", "merge"]
+default = ["creation", "transform", "normals", "merge", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops"]
 creation = []
 transform = []
 normals = []
 merge = []
+attributes = []
+groups_sops = []
+delete = []
+copy = []
+reshape = []
+scatter = []
+topology = []
+measure_sops = []
+utility_sops = []

@@ -11,6 +11,24 @@ pub mod transform;
 pub mod normals;
 #[cfg(feature = "merge")]
 pub mod merge;
+#[cfg(feature = "attributes")]
+pub mod attributes;
+#[cfg(feature = "groups_sops")]
+pub mod groups;
+#[cfg(feature = "delete")]
+pub mod delete;
+#[cfg(feature = "copy")]
+pub mod copy;
+#[cfg(feature = "reshape")]
+pub mod reshape;
+#[cfg(feature = "scatter")]
+pub mod scatter;
+#[cfg(feature = "topology")]
+pub mod topology;
+#[cfg(feature = "measure_sops")]
+pub mod measure;
+#[cfg(feature = "utility_sops")]
+pub mod utility;
 
 #[derive(Debug, Error)]
 pub enum SopError {
