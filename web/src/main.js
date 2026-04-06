@@ -247,10 +247,10 @@ const editor = monaco.editor.create(document.getElementById('editor'), {
     tabSize: 2,
 });
 
-// Add type definitions for autocomplete
+// Suppress diagnostics — user code runs inside new Function() so top-level return is valid
 monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-    noSemanticValidation: false,
-    noSyntaxValidation: false,
+    noSemanticValidation: true,
+    noSyntaxValidation: true,
 });
 
 monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
