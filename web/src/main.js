@@ -144,78 +144,90 @@ function executeCode(code) {
 }
 
 // ── Monaco Editor ────────────────────────────────────────
-// Configure Monaco workers
+// Configure Monaco workers for Vite ESM
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+
 self.MonacoEnvironment = {
-    getWorkerUrl: function (moduleId, label) {
+    getWorker: function (_moduleId, label) {
         if (label === 'typescript' || label === 'javascript') {
-            return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-                self.MonacoEnvironment = { baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/' };
-                importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/base/worker/workerMain.js');
-            `)}`;
+            return new tsWorker();
         }
-        return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-            self.MonacoEnvironment = { baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/' };
-            importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/base/worker/workerMain.js');
-        `)}`;
+        return new editorWorker();
     }
 };
 
 // ProcGeo type definitions for autocomplete
+// Using `declare const pg` so Monaco knows pg is a variable with these methods
 const procgeoTypes = `
-declare namespace pg {
-    interface Geometry {
-        readonly numPoints: number;
-        readonly numPrims: number;
-        readonly numVertices: number;
-        getPositions(): Float32Array;
-        getTriangleIndices(): Uint32Array;
-        getNormals(): Float32Array | undefined;
-        getColors(): Float32Array | undefined;
-        pointPos(index: number): Float32Array;
-        boundingBox(): { min: Float32Array, max: Float32Array };
-        toObj(): string;
-        toGlb(): Uint8Array;
-    }
-
-    /** Create a box. */
-    function createBox(params?: { size?: [number, number, number]; center?: [number, number, number] }): Geometry;
-    /** Create a grid. */
-    function createGrid(params?: { rows?: number; cols?: number; sizeX?: number; sizeY?: number; center?: [number, number, number] }): Geometry;
-    /** Create a UV sphere. */
-    function createSphere(params?: { radius?: number; rows?: number; cols?: number; center?: [number, number, number] }): Geometry;
-    /** Create a line. */
-    function createLine(params?: { origin?: [number, number, number]; direction?: [number, number, number]; length?: number; points?: number }): Geometry;
-    /** Create a circle. */
-    function createCircle(params?: { radius?: number; divisions?: number; center?: [number, number, number] }): Geometry;
-    /** Create a tube/cylinder. */
-    function createTube(params?: { radiusBottom?: number; radiusTop?: number; height?: number; cols?: number; rows?: number; center?: [number, number, number] }): Geometry;
-    /** Create a torus. */
-    function createTorus(params?: { radiusOuter?: number; radiusInner?: number; rows?: number; cols?: number; center?: [number, number, number] }): Geometry;
-    /** Transform geometry (translate, rotate in degrees, scale). */
-    function transform(geo: Geometry, params?: { translate?: [number, number, number]; rotate?: [number, number, number]; scale?: [number, number, number]; pivot?: [number, number, number] }): Geometry;
-    /** Compute vertex normals. */
-    function computeNormals(geo: Geometry): Geometry;
-    /** Subdivide geometry. Mode: "linear" or "catmullClark". */
-    function subdivide(geo: Geometry, params?: { depth?: number; mode?: "linear" | "catmullClark" }): Geometry;
-    /** Scatter random points on mesh surface. */
-    function scatter(geo: Geometry, params?: { count?: number; seed?: number }): Geometry;
-    /** Copy source geometry to each point of target. */
-    function copyToPoints(source: Geometry, target: Geometry): Geometry;
-    /** Extrude polygon faces. */
-    function polyExtrude(geo: Geometry, params?: { distance?: number; inset?: number; outputFront?: boolean; outputSide?: boolean }): Geometry;
-    /** Laplacian smoothing. */
-    function smooth(geo: Geometry, params?: { iterations?: number; strength?: number }): Geometry;
-    /** Clip geometry by a plane. */
-    function clip(geo: Geometry, params?: { origin?: [number, number, number]; normal?: [number, number, number]; keepAbove?: boolean }): Geometry;
-    /** Reverse polygon winding (flip normals). */
-    function reverse(geo: Geometry): Geometry;
-    /** Set vertex color attribute (Cd). */
-    function color(geo: Geometry, params?: { color?: [number, number, number] }): Geometry;
-    /** Merge coincident points within distance. */
-    function fuse(geo: Geometry, params?: { distance?: number }): Geometry;
-    /** Voronoi fracture a mesh into pieces. */
-    function voronoiFracture(geo: Geometry, params?: { numPoints?: number; seed?: number; createInsideFaces?: boolean }): Geometry;
+interface ProcGeoGeometry {
+    /** Number of points in the geometry. */
+    readonly numPoints: number;
+    /** Number of primitives (faces) in the geometry. */
+    readonly numPrims: number;
+    /** Number of vertices in the geometry. */
+    readonly numVertices: number;
+    /** Get all positions as a flat Float32Array [x0,y0,z0, x1,y1,z1, ...]. */
+    getPositions(): Float32Array;
+    /** Get triangle indices as a flat Uint32Array. */
+    getTriangleIndices(): Uint32Array;
+    /** Get normals as a flat Float32Array (if "N" attribute exists). */
+    getNormals(): Float32Array | undefined;
+    /** Get vertex colors as a flat Float32Array (if "Cd" attribute exists). */
+    getColors(): Float32Array | undefined;
+    /** Get position of a point by index. */
+    pointPos(index: number): Float32Array;
+    /** Get the axis-aligned bounding box. */
+    boundingBox(): { min: Float32Array, max: Float32Array };
+    /** Export geometry as OBJ string. */
+    toObj(): string;
+    /** Export geometry as GLB binary (Uint8Array). */
+    toGlb(): Uint8Array;
 }
+
+declare const pg: {
+    // ── Creation ──
+    /** Create a box. Default: unit cube at origin. */
+    createBox(params?: { size?: [number, number, number]; center?: [number, number, number] }): ProcGeoGeometry;
+    /** Create a grid of quads. Default: 10x10, size 10x10 on XZ plane. */
+    createGrid(params?: { rows?: number; cols?: number; sizeX?: number; sizeY?: number; center?: [number, number, number] }): ProcGeoGeometry;
+    /** Create a UV sphere. Default: radius 0.5, 12 rows, 24 cols. */
+    createSphere(params?: { radius?: number; rows?: number; cols?: number; center?: [number, number, number] }): ProcGeoGeometry;
+    /** Create a line (open polyline). Default: unit length along Y. */
+    createLine(params?: { origin?: [number, number, number]; direction?: [number, number, number]; length?: number; points?: number }): ProcGeoGeometry;
+    /** Create a circle (closed polygon). Default: radius 1, 40 divisions. */
+    createCircle(params?: { radius?: number; divisions?: number; center?: [number, number, number] }): ProcGeoGeometry;
+    /** Create a tube/cylinder. Default: radius 0.5, height 1. */
+    createTube(params?: { radiusBottom?: number; radiusTop?: number; height?: number; cols?: number; rows?: number; center?: [number, number, number] }): ProcGeoGeometry;
+    /** Create a torus. Default: outer radius 1, inner radius 0.3. */
+    createTorus(params?: { radiusOuter?: number; radiusInner?: number; rows?: number; cols?: number; center?: [number, number, number] }): ProcGeoGeometry;
+
+    // ── Manipulation ──
+    /** Transform geometry: translate, rotate (degrees), scale with optional pivot. */
+    transform(geo: ProcGeoGeometry, params?: { translate?: [number, number, number]; rotate?: [number, number, number]; scale?: [number, number, number]; pivot?: [number, number, number] }): ProcGeoGeometry;
+    /** Compute vertex normals (area-weighted). */
+    computeNormals(geo: ProcGeoGeometry): ProcGeoGeometry;
+    /** Subdivide geometry. mode: "linear" or "catmullClark". */
+    subdivide(geo: ProcGeoGeometry, params?: { depth?: number; mode?: "linear" | "catmullClark" }): ProcGeoGeometry;
+    /** Scatter random points on mesh surface (area-weighted). */
+    scatter(geo: ProcGeoGeometry, params?: { count?: number; seed?: number }): ProcGeoGeometry;
+    /** Copy source geometry onto each point of target. */
+    copyToPoints(source: ProcGeoGeometry, target: ProcGeoGeometry): ProcGeoGeometry;
+    /** Extrude polygon faces along their normals. */
+    polyExtrude(geo: ProcGeoGeometry, params?: { distance?: number; inset?: number; outputFront?: boolean; outputSide?: boolean }): ProcGeoGeometry;
+    /** Laplacian smoothing. */
+    smooth(geo: ProcGeoGeometry, params?: { iterations?: number; strength?: number }): ProcGeoGeometry;
+    /** Clip geometry by a plane, keeping one side. */
+    clip(geo: ProcGeoGeometry, params?: { origin?: [number, number, number]; normal?: [number, number, number]; keepAbove?: boolean }): ProcGeoGeometry;
+    /** Reverse polygon winding order (flip normals). */
+    reverse(geo: ProcGeoGeometry): ProcGeoGeometry;
+    /** Set vertex color attribute (Cd). */
+    color(geo: ProcGeoGeometry, params?: { color?: [number, number, number] }): ProcGeoGeometry;
+    /** Merge coincident points within a distance tolerance. */
+    fuse(geo: ProcGeoGeometry, params?: { distance?: number }): ProcGeoGeometry;
+    /** Voronoi fracture a mesh into pieces. */
+    voronoiFracture(geo: ProcGeoGeometry, params?: { numPoints?: number; seed?: number; createInsideFaces?: boolean }): ProcGeoGeometry;
+};
 `;
 
 // Create editor
