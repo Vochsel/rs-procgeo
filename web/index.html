@@ -16,11 +16,28 @@
             <span class="spacer"></span>
             <select id="examples">
                 <option value="">Examples...</option>
-                <option value="basic">Basic Box</option>
-                <option value="subdiv">Catmull-Clark Sphere</option>
-                <option value="scatter">Scatter + Instances</option>
-                <option value="extrude">Extrude City</option>
-                <option value="fracture">Voronoi Fracture</option>
+                <optgroup label="Basics">
+                    <option value="basic">Basic Box</option>
+                    <option value="allPrimitives">All Primitives</option>
+                    <option value="subdiv">Catmull-Clark Sphere</option>
+                    <option value="smoothSphere">Smoothed Sphere</option>
+                </optgroup>
+                <optgroup label="Noise &amp; Terrain">
+                    <option value="noiseDisplace">Noise Terrain</option>
+                    <option value="noisyTorus">Noisy Torus</option>
+                    <option value="scatterForest">Scatter Forest</option>
+                </optgroup>
+                <optgroup label="Operations">
+                    <option value="scatter">Scatter + Instances</option>
+                    <option value="extrude">Extrude City</option>
+                    <option value="extrudeTower">Extrude Tower</option>
+                    <option value="clippedTorus">Clipped Torus</option>
+                    <option value="reversedGrid">Reversed Normals</option>
+                    <option value="fusedCubes">Fused Cubes</option>
+                </optgroup>
+                <optgroup label="Advanced">
+                    <option value="fracture">Voronoi Fracture</option>
+                </optgroup>
             </select>
             <button id="export-obj" title="Export OBJ">OBJ</button>
             <button id="export-glb" title="Export GLB">GLB</button>
