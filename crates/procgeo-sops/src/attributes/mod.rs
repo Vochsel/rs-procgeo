@@ -10,6 +10,7 @@ pub mod attrib_randomize;
 pub mod attrib_sort;
 pub mod attrib_blur;
 pub mod attrib_fill;
+pub mod attrib_noise;
 
 pub use create::{AttribCreateSop, AttribCreateParams};
 pub use delete::{AttribDeleteSop, AttribDeleteParams};
@@ -21,3 +22,4 @@ pub use attrib_randomize::{AttribRandomizeSop, AttribRandomizeParams, RandomDist
 pub use attrib_sort::{AttribSortSop, AttribSortParams, AttribSortOrder};
 pub use attrib_blur::{AttribBlurSop, AttribBlurParams};
 pub use attrib_fill::{AttribFillSop, AttribFillParams};
+pub use attrib_noise::{AttribNoiseSop, AttribNoiseParams, NoiseType, NoiseOperation, FractalType, NoiseRange};
