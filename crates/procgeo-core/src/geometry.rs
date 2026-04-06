@@ -2,7 +2,7 @@ use std::fmt;
 
 use glam::Vec3;
 
-use crate::attribute::{AttribClass, AttribDefault, AttribHandle, AttribValue, AttributeMap, TypeQualifier};
+use crate::attribute::{AttribClass, AttribDefault, AttribHandle, AttribType, AttribValue, AttributeMap, TypeQualifier};
 use crate::error::CoreError;
 use crate::group::GroupMap;
 use crate::handle::{PrimHandle, PointHandle, VertexHandle};
@@ -46,14 +46,41 @@ impl Geometry {
     }
 
     // -----------------------------------------------------------------------
+    // Internal helpers
+    // -----------------------------------------------------------------------
+
+    /// Ensure the built-in `"P"` Vector3 attribute exists in the attribute map.
+    /// Called lazily when the first point is added or when user code explicitly
+    /// requests P through the attribute API.
+    fn ensure_p_attrib(&mut self) {
+        if self.attributes.get_raw(AttribClass::Point, "P").is_none() {
+            // Ignore the error — it can only fail if P already exists, which
+            // we just checked is not the case.
+            let _ = self.attributes.create(
+                AttribClass::Point,
+                "P",
+                AttribDefault::Vector3([0.0, 0.0, 0.0]),
+                TypeQualifier::Point,
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Points
     // -----------------------------------------------------------------------
 
     /// Add a point at `pos`. Also resizes point attributes and point groups.
+    /// The built-in `"P"` attribute is automatically kept in sync with the
+    /// SoA position storage.
     pub fn add_point(&mut self, pos: Vec3) -> PointHandle {
         let handle = self.points.add(pos);
         let new_len = self.points.len();
+        self.ensure_p_attrib();
         self.attributes.resize_class(AttribClass::Point, new_len);
+        // Write the actual position into the P attribute (resize filled it
+        // with the default [0,0,0], so overwrite with the real value).
+        let p_handle: AttribHandle<[f32; 3]> = AttribHandle::new(AttribClass::Point, "P");
+        let _ = self.attributes.set(&p_handle, handle.index(), [pos.x, pos.y, pos.z]);
         self.groups.resize_point_groups(new_len);
         handle
     }
@@ -64,6 +91,9 @@ impl Geometry {
 
     pub fn set_point_pos(&mut self, handle: PointHandle, pos: Vec3) {
         self.points.set_position(handle, pos);
+        // Keep the P attribute in sync with PointStorage.
+        let p_handle: AttribHandle<[f32; 3]> = AttribHandle::new(AttribClass::Point, "P");
+        let _ = self.attributes.set(&p_handle, handle.index(), [pos.x, pos.y, pos.z]);
     }
 
     pub fn num_points(&self) -> usize {
@@ -192,6 +222,11 @@ impl Geometry {
         qualifier: TypeQualifier,
     ) -> Result<(), CoreError> {
         let name_str: String = name.into();
+        // P on Points is auto-managed via PointStorage — treat as no-op.
+        if class == AttribClass::Point && name_str == "P" {
+            self.ensure_p_attrib();
+            return Ok(());
+        }
         self.attributes.create(class, name_str.clone(), default, qualifier)?;
         // Resize to match current element counts
         let count = match class {
@@ -226,6 +261,24 @@ impl Geometry {
         index: usize,
         value: T,
     ) -> Result<(), CoreError> {
+        // When writing to the P attribute on Points, also update PointStorage
+        // so that point_pos() stays in sync.
+        if handle.class == AttribClass::Point && handle.name == "P" {
+            if T::attrib_type() == AttribType::Vector3 {
+                // T is [f32; 3] — extract the components via the attribute storage
+                // (set in AttributeMap first, then read back to update PointStorage).
+                self.attributes.set(handle, index, value)?;
+                // Read back the [f32;3] from the P attribute to push into PointStorage.
+                let p_handle: AttribHandle<[f32; 3]> = AttribHandle::new(AttribClass::Point, "P");
+                if let Ok(arr) = self.attributes.get(&p_handle, index) {
+                    self.points.set_position(
+                        PointHandle::from_index(index),
+                        Vec3::new(arr[0], arr[1], arr[2]),
+                    );
+                }
+                return Ok(());
+            }
+        }
         self.attributes.set(handle, index, value)
     }
 
@@ -560,5 +613,127 @@ mod tests {
                 assert_eq!(poly.vertices.len(), 3);
             }
         }
+    }
+
+    // -------------------------------------------------------------------
+    // P attribute unification tests
+    // -------------------------------------------------------------------
+
+    #[test]
+    fn p_attribute_exists_after_add_point() {
+        let mut geo = Geometry::new();
+        geo.add_point(Vec3::new(1.0, 2.0, 3.0));
+
+        // P should be discoverable through the attribute API
+        let handle: AttribHandle<[f32; 3]> =
+            geo.find_attrib(AttribClass::Point, "P").unwrap();
+        assert_eq!(handle.name, "P");
+        assert_eq!(handle.class, AttribClass::Point);
+    }
+
+    #[test]
+    fn p_attribute_matches_position() {
+        let mut geo = Geometry::new();
+        let h0 = geo.add_point(Vec3::new(1.0, 2.0, 3.0));
+        let h1 = geo.add_point(Vec3::new(4.0, 5.0, 6.0));
+
+        let p_handle: AttribHandle<[f32; 3]> =
+            geo.find_attrib(AttribClass::Point, "P").unwrap();
+
+        // Attribute API should return the same values as point_pos()
+        assert_eq!(
+            geo.get_attrib(&p_handle, h0.index()).unwrap(),
+            [1.0, 2.0, 3.0]
+        );
+        assert_eq!(
+            geo.get_attrib(&p_handle, h1.index()).unwrap(),
+            [4.0, 5.0, 6.0]
+        );
+    }
+
+    #[test]
+    fn set_p_attribute_moves_point() {
+        let mut geo = Geometry::new();
+        let h0 = geo.add_point(Vec3::ZERO);
+
+        let p_handle: AttribHandle<[f32; 3]> =
+            geo.find_attrib(AttribClass::Point, "P").unwrap();
+
+        // Writing through the attribute API should move the point
+        geo.set_attrib(&p_handle, h0.index(), [5.0, 6.0, 7.0]).unwrap();
+
+        let pos = geo.point_pos(h0);
+        assert_relative_eq!(pos.x, 5.0);
+        assert_relative_eq!(pos.y, 6.0);
+        assert_relative_eq!(pos.z, 7.0);
+    }
+
+    #[test]
+    fn set_point_pos_updates_p_attribute() {
+        let mut geo = Geometry::new();
+        let h0 = geo.add_point(Vec3::ZERO);
+
+        let p_handle: AttribHandle<[f32; 3]> =
+            geo.find_attrib(AttribClass::Point, "P").unwrap();
+
+        // Writing through set_point_pos should update the P attribute
+        geo.set_point_pos(h0, Vec3::new(3.0, 4.0, 5.0));
+
+        assert_eq!(
+            geo.get_attrib(&p_handle, h0.index()).unwrap(),
+            [3.0, 4.0, 5.0]
+        );
+    }
+
+    #[test]
+    fn add_attrib_p_is_noop() {
+        let mut geo = Geometry::new();
+        geo.add_point(Vec3::new(1.0, 2.0, 3.0));
+
+        // Creating P manually should succeed (no-op) without error
+        let result = geo.add_attrib(
+            AttribClass::Point,
+            "P",
+            AttribDefault::Vector3([0.0, 0.0, 0.0]),
+            TypeQualifier::Point,
+        );
+        assert!(result.is_ok());
+
+        // And position should be unchanged
+        let p_handle: AttribHandle<[f32; 3]> =
+            geo.find_attrib(AttribClass::Point, "P").unwrap();
+        assert_eq!(
+            geo.get_attrib(&p_handle, 0).unwrap(),
+            [1.0, 2.0, 3.0]
+        );
+    }
+
+    #[test]
+    fn p_attribute_listed_in_names() {
+        let mut geo = Geometry::new();
+        geo.add_point(Vec3::ZERO);
+
+        let names = geo.attributes().names(AttribClass::Point);
+        assert!(names.contains(&"P"), "P should appear in attribute names");
+    }
+
+    #[test]
+    fn bounding_box_after_p_set_attrib() {
+        let mut geo = Geometry::new();
+        let h0 = geo.add_point(Vec3::ZERO);
+        let h1 = geo.add_point(Vec3::ZERO);
+
+        let p_handle: AttribHandle<[f32; 3]> =
+            geo.find_attrib(AttribClass::Point, "P").unwrap();
+
+        // Move points via attribute API
+        geo.set_attrib(&p_handle, h0.index(), [-1.0, -1.0, -1.0]).unwrap();
+        geo.set_attrib(&p_handle, h1.index(), [1.0, 1.0, 1.0]).unwrap();
+
+        // Bounding box should reflect the moved positions
+        let bb = geo.bounding_box();
+        assert!(bb.is_valid());
+        assert_relative_eq!(bb.min.x, -1.0);
+        assert_relative_eq!(bb.max.x, 1.0);
     }
 }
