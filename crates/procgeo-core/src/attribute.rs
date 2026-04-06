@@ -578,6 +578,33 @@ impl AttributeMap {
             .map(|a| a.name.as_str())
             .collect()
     }
+
+    /// Rename an attribute. The new name must not already exist in the same class.
+    /// Returns an error if the old attribute is not found or the new name already exists.
+    pub fn rename(
+        &mut self,
+        class: AttribClass,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<(), CoreError> {
+        let old_key = (class, old_name.to_string());
+        let new_key = (class, new_name.to_string());
+
+        if self.map.contains_key(&new_key) {
+            return Err(CoreError::AttributeTypeMismatch(format!(
+                "attribute already exists: {new_name}"
+            )));
+        }
+
+        let mut attr = self
+            .map
+            .remove(&old_key)
+            .ok_or_else(|| CoreError::AttributeNotFound(old_name.to_string()))?;
+
+        attr.name = new_name.to_string();
+        self.map.insert(new_key, attr);
+        Ok(())
+    }
 }
 
 // ---------------------------------------------------------------------------
