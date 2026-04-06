@@ -8,6 +8,7 @@ members = [
     "bindings/procgeo-node",
     "bindings/procgeo-py",
     "bindings/procgeo-wasm",
+    "benchmarks/rust",
 ]
 
 [workspace.package]

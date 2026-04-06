@@ -36,6 +36,21 @@ pub enum AttribType {
     String,
 }
 
+impl AttribType {
+    /// Number of scalar components per element.
+    pub fn component_count(&self) -> usize {
+        match self {
+            AttribType::Int | AttribType::Int64 | AttribType::Float | AttribType::Float64 => 1,
+            AttribType::Vector2 => 2,
+            AttribType::Vector3 => 3,
+            AttribType::Vector4 => 4,
+            AttribType::Matrix3 => 9,
+            AttribType::Matrix4 => 16,
+            AttribType::String => 1,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // TypeQualifier
 // ---------------------------------------------------------------------------
@@ -107,6 +122,31 @@ impl AttribStorage {
             AttribStorage::Matrix3(_) => AttribType::Matrix3,
             AttribStorage::Matrix4(_) => AttribType::Matrix4,
             AttribStorage::String(_) => AttribType::String,
+        }
+    }
+
+    /// Return all numeric values as a flat f64 vec (components interleaved).
+    /// For String storage, returns an empty vec.
+    pub fn to_f64_flat(&self) -> Vec<f64> {
+        match self {
+            AttribStorage::Int(v) => v.iter().map(|&x| x as f64).collect(),
+            AttribStorage::Int64(v) => v.iter().map(|&x| x as f64).collect(),
+            AttribStorage::Float(v) => v.iter().map(|&x| x as f64).collect(),
+            AttribStorage::Float64(v) => v.clone(),
+            AttribStorage::Vector2(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
+            AttribStorage::Vector3(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
+            AttribStorage::Vector4(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
+            AttribStorage::Matrix3(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
+            AttribStorage::Matrix4(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
+            AttribStorage::String(_) => Vec::new(),
+        }
+    }
+
+    /// Return all string values. For non-String storage, returns an empty vec.
+    pub fn to_string_vec(&self) -> Vec<std::string::String> {
+        match self {
+            AttribStorage::String(v) => v.clone(),
+            _ => Vec::new(),
         }
     }
 

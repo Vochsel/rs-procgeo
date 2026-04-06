@@ -57,6 +57,63 @@ impl Geometry {
             self.inner.num_vertices()
         )
     }
+
+    // -- Attribute introspection (spreadsheet / debugging) --
+
+    fn attrib_names(&self, class: &str) -> Vec<String> {
+        self.inner
+            .attrib_names(py_parse_class(class))
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    fn attrib_type(&self, class: &str, name: &str) -> Option<String> {
+        self.inner
+            .attrib_type(py_parse_class(class), name)
+            .map(|t| format!("{t:?}"))
+    }
+
+    fn attrib_size(&self, class: &str, name: &str) -> Option<usize> {
+        self.inner.attrib_size(py_parse_class(class), name)
+    }
+
+    fn attrib_data(&self, class: &str, name: &str) -> Option<Vec<f64>> {
+        self.inner.attrib_data_f64(py_parse_class(class), name)
+    }
+
+    fn attrib_data_string(&self, class: &str, name: &str) -> Option<Vec<String>> {
+        self.inner.attrib_data_string(py_parse_class(class), name)
+    }
+
+    fn prim_point_indices(&self, prim_index: usize) -> Vec<usize> {
+        let ph = procgeo_core::PrimHandle::from_index(prim_index);
+        self.inner
+            .prim_points(ph)
+            .iter()
+            .map(|p| p.index())
+            .collect()
+    }
+
+    fn prim_vertex_count(&self, prim_index: usize) -> usize {
+        let ph = procgeo_core::PrimHandle::from_index(prim_index);
+        self.inner.prim_vertices(ph).len()
+    }
+
+    fn vertex_point(&self, vertex_index: usize) -> usize {
+        self.inner
+            .vertex_point(procgeo_core::VertexHandle::from_index(vertex_index))
+            .index()
+    }
+}
+
+fn py_parse_class(class: &str) -> procgeo_core::AttribClass {
+    match class {
+        "vertex" | "Vertex" => procgeo_core::AttribClass::Vertex,
+        "primitive" | "Primitive" | "prim" => procgeo_core::AttribClass::Primitive,
+        "detail" | "Detail" => procgeo_core::AttribClass::Detail,
+        _ => procgeo_core::AttribClass::Point,
+    }
 }
 
 fn sop_err(e: procgeo_sops::SopError) -> PyErr {

@@ -51,12 +51,14 @@ scene.add(meshGroup);
 let currentGeo = null;
 
 function resizeViewer() {
-    const panel = document.getElementById('viewer-panel');
-    const w = panel.clientWidth;
-    const h = panel.clientHeight;
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
+    const view = document.getElementById('viewport-view');
+    const w = view.clientWidth;
+    const h = view.clientHeight;
+    if (w > 0 && h > 0) {
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+    }
 }
 
 function toBufferGeometry(geo) {
@@ -100,6 +102,7 @@ function updateScene(geo) {
     meshGroup.add(new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color: 0x223355 })));
 
     setStatus(`${geo.numPoints} pts | ${geo.numPrims} prims`, 'success');
+    updateSpreadsheet();
 }
 
 // Render loop
@@ -327,6 +330,156 @@ document.getElementById('export-glb').addEventListener('click', () => {
     const blob = new Blob([currentGeo.toGlb()], { type: 'model/gltf-binary' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = 'procgeo.glb'; a.click();
+});
+
+// ── Geometry Spreadsheet ─────────────────────────────────
+let spreadsheetClass = 'point';
+
+function updateSpreadsheet() {
+    const geo = currentGeo;
+    const thead = document.getElementById('spreadsheet-thead-row');
+    const tbody = document.getElementById('spreadsheet-tbody');
+    const info = document.getElementById('spreadsheet-info');
+
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (!geo) { info.textContent = 'No geometry'; return; }
+    if (typeof geo.attribNames !== 'function') {
+        info.textContent = 'Rebuild WASM to enable spreadsheet (pnpm build:wasm)';
+        return;
+    }
+
+    const cls = spreadsheetClass;
+    const names = geo.attribNames(cls);
+    const rowCount = cls === 'point' ? geo.numPoints
+        : cls === 'vertex' ? geo.numVertices
+        : cls === 'primitive' ? geo.numPrims
+        : 1; // detail
+
+    info.textContent = `${rowCount} ${cls}${rowCount !== 1 ? 's' : ''} | ${names.length} attrib${names.length !== 1 ? 's' : ''}`;
+
+    // Build column definitions: index + each attrib (expanded per component)
+    const cols = [{ name: '#', size: 1 }];
+    const attribs = [];
+    for (const name of names) {
+        const size = geo.attribSize(cls, name) ?? 1;
+        const type = geo.attribType(cls, name) ?? 'Unknown';
+        attribs.push({ name, size, type });
+        if (size === 1) {
+            cols.push({ name, size: 1 });
+        } else {
+            const suffixes = size === 2 ? ['x', 'y']
+                : size === 3 ? ['x', 'y', 'z']
+                : size === 4 ? ['x', 'y', 'z', 'w']
+                : Array.from({ length: size }, (_, i) => String(i));
+            for (const s of suffixes) {
+                cols.push({ name: `${name}.${s}`, size: 1 });
+            }
+        }
+    }
+
+    // Extra topology columns for specific classes
+    if (cls === 'vertex') cols.push({ name: 'point', size: 1 });
+    if (cls === 'primitive') {
+        cols.push({ name: 'vertices', size: 1 });
+        cols.push({ name: 'points', size: 1 });
+    }
+
+    // Header row
+    for (const col of cols) {
+        const th = document.createElement('th');
+        th.textContent = col.name;
+        thead.appendChild(th);
+    }
+
+    // Fetch all attrib data upfront
+    const attribDataArrays = attribs.map(a => {
+        if (a.type === 'String') return { strings: geo.attribDataString(cls, a.name) ?? [], numeric: null, size: a.size };
+        return { strings: null, numeric: geo.attribData(cls, a.name), size: a.size };
+    });
+
+    // Limit rows for performance
+    const maxRows = Math.min(rowCount, 5000);
+    const frag = document.createDocumentFragment();
+
+    for (let i = 0; i < maxRows; i++) {
+        const tr = document.createElement('tr');
+
+        // Index column
+        const tdIdx = document.createElement('td');
+        tdIdx.textContent = i;
+        tr.appendChild(tdIdx);
+
+        // Attribute columns
+        for (const ad of attribDataArrays) {
+            if (ad.strings) {
+                const td = document.createElement('td');
+                td.textContent = ad.strings[i] ?? '';
+                tr.appendChild(td);
+            } else if (ad.numeric) {
+                const offset = i * ad.size;
+                for (let c = 0; c < ad.size; c++) {
+                    const td = document.createElement('td');
+                    const val = ad.numeric[offset + c];
+                    td.textContent = val !== undefined ? (Number.isInteger(val) ? val : val.toFixed(4)) : '';
+                    tr.appendChild(td);
+                }
+            } else {
+                for (let c = 0; c < ad.size; c++) {
+                    const td = document.createElement('td');
+                    td.textContent = '';
+                    tr.appendChild(td);
+                }
+            }
+        }
+
+        // Topology columns
+        if (cls === 'vertex') {
+            const td = document.createElement('td');
+            td.textContent = geo.vertexPoint(i);
+            tr.appendChild(td);
+        }
+        if (cls === 'primitive') {
+            const td1 = document.createElement('td');
+            td1.textContent = geo.primVertexCount(i);
+            tr.appendChild(td1);
+            const td2 = document.createElement('td');
+            td2.textContent = geo.primPointIndices(i).join(', ');
+            tr.appendChild(td2);
+        }
+
+        frag.appendChild(tr);
+    }
+
+    tbody.appendChild(frag);
+
+    if (rowCount > maxRows) {
+        info.textContent += ` (showing ${maxRows})`;
+    }
+}
+
+// Spreadsheet subtab switching (Points/Vertices/Primitives/Detail)
+document.getElementById('spreadsheet-subtabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.subtab');
+    if (!tab) return;
+    document.querySelectorAll('#spreadsheet-subtabs .subtab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    spreadsheetClass = tab.dataset.class;
+    updateSpreadsheet();
+});
+
+// Viewer tab switching (Viewport / Spreadsheet)
+document.getElementById('viewer-tabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.viewer-tab');
+    if (!tab) return;
+    document.querySelectorAll('.viewer-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.viewer-view').forEach(v => v.classList.remove('active'));
+    const viewId = tab.dataset.view === 'spreadsheet' ? 'spreadsheet-view' : 'viewport-view';
+    document.getElementById(viewId).classList.add('active');
+    if (tab.dataset.view === 'viewport') resizeViewer();
+    if (tab.dataset.view === 'spreadsheet') updateSpreadsheet();
 });
 
 // ── Resizable divider ────────────────────────────────────

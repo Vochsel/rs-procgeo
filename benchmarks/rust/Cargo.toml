@@ -1,0 +1,15 @@
+[package]
+name = "procgeo-bench-compare"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+procgeo = { path = "../../crates/procgeo" }
+procgeo-io = { path = "../../crates/procgeo-io" }
+glam = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+parry3d = "0.17"
+nalgebra = "0.33"
+meshopt = "0.4"

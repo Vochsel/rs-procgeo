@@ -114,6 +114,85 @@ impl Geometry {
         Some(buf)
     }
 
+    // -----------------------------------------------------------------------
+    // Attribute introspection (spreadsheet / debugging)
+    // -----------------------------------------------------------------------
+
+    fn parse_class(class: &str) -> AttribClass {
+        match class {
+            "vertex" | "Vertex" => AttribClass::Vertex,
+            "primitive" | "Primitive" | "prim" => AttribClass::Primitive,
+            "detail" | "Detail" => AttribClass::Detail,
+            _ => AttribClass::Point,
+        }
+    }
+
+    /// List attribute names for a class ("point", "vertex", "primitive", "detail").
+    #[wasm_bindgen(js_name = "attribNames")]
+    pub fn attrib_names(&self, class: &str) -> Vec<String> {
+        self.inner
+            .attrib_names(Self::parse_class(class))
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    /// Get the type name of an attribute ("Float", "Int", "Vector3", etc.).
+    #[wasm_bindgen(js_name = "attribType")]
+    pub fn attrib_type(&self, class: &str, name: &str) -> Option<String> {
+        self.inner
+            .attrib_type(Self::parse_class(class), name)
+            .map(|t| format!("{t:?}"))
+    }
+
+    /// Get the component count of an attribute (1 for float, 3 for vec3, etc.).
+    #[wasm_bindgen(js_name = "attribSize")]
+    pub fn attrib_size(&self, class: &str, name: &str) -> Option<u32> {
+        self.inner
+            .attrib_size(Self::parse_class(class), name)
+            .map(|s| s as u32)
+    }
+
+    /// Get all values of a numeric attribute as a flat Float64Array.
+    /// Components interleaved: for vec3 → [x0,y0,z0, x1,y1,z1, ...].
+    #[wasm_bindgen(js_name = "attribData")]
+    pub fn attrib_data(&self, class: &str, name: &str) -> Option<Vec<f64>> {
+        self.inner.attrib_data_f64(Self::parse_class(class), name)
+    }
+
+    /// Get all values of a string attribute.
+    #[wasm_bindgen(js_name = "attribDataString")]
+    pub fn attrib_data_string(&self, class: &str, name: &str) -> Option<Vec<String>> {
+        self.inner
+            .attrib_data_string(Self::parse_class(class), name)
+    }
+
+    /// Get the point indices for a specific primitive.
+    #[wasm_bindgen(js_name = "primPointIndices")]
+    pub fn prim_point_indices(&self, prim_index: u32) -> Vec<u32> {
+        let ph = PrimHandle::from_index(prim_index as usize);
+        self.inner
+            .prim_points(ph)
+            .iter()
+            .map(|p| p.index() as u32)
+            .collect()
+    }
+
+    /// Get the number of vertices in a specific primitive.
+    #[wasm_bindgen(js_name = "primVertexCount")]
+    pub fn prim_vertex_count(&self, prim_index: u32) -> u32 {
+        let ph = PrimHandle::from_index(prim_index as usize);
+        self.inner.prim_vertices(ph).len() as u32
+    }
+
+    /// Get which point a vertex maps to.
+    #[wasm_bindgen(js_name = "vertexPoint")]
+    pub fn vertex_point(&self, vertex_index: u32) -> u32 {
+        self.inner
+            .vertex_point(procgeo_core::VertexHandle::from_index(vertex_index as usize))
+            .index() as u32
+    }
+
     /// Write geometry as OBJ string.
     #[wasm_bindgen(js_name = "toObj")]
     pub fn to_obj(&self) -> Result<String, JsError> {

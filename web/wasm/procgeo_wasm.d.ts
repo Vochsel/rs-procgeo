@@ -7,6 +7,27 @@
 export class Geometry {
     free(): void;
     [Symbol.dispose](): void;
+    /**
+     * Get all values of a numeric attribute as a flat Float64Array.
+     * Components interleaved: for vec3 → [x0,y0,z0, x1,y1,z1, ...].
+     */
+    attribData(_class: string, name: string): Float64Array | undefined;
+    /**
+     * Get all values of a string attribute.
+     */
+    attribDataString(_class: string, name: string): string[] | undefined;
+    /**
+     * List attribute names for a class ("point", "vertex", "primitive", "detail").
+     */
+    attribNames(_class: string): string[];
+    /**
+     * Get the component count of an attribute (1 for float, 3 for vec3, etc.).
+     */
+    attribSize(_class: string, name: string): number | undefined;
+    /**
+     * Get the type name of an attribute ("Float", "Int", "Vector3", etc.).
+     */
+    attribType(_class: string, name: string): string | undefined;
     boundingBox(): any;
     /**
      * Get colors as a flat Float32Array (if "Cd" attribute exists).
@@ -29,6 +50,14 @@ export class Geometry {
     constructor();
     pointPos(index: number): Float32Array;
     /**
+     * Get the point indices for a specific primitive.
+     */
+    primPointIndices(prim_index: number): Uint32Array;
+    /**
+     * Get the number of vertices in a specific primitive.
+     */
+    primVertexCount(prim_index: number): number;
+    /**
      * Write geometry as GLB bytes (Uint8Array).
      */
     toGlb(): Uint8Array;
@@ -36,6 +65,10 @@ export class Geometry {
      * Write geometry as OBJ string.
      */
     toObj(): string;
+    /**
+     * Get which point a vertex maps to.
+     */
+    vertexPoint(vertex_index: number): number;
     readonly numPoints: number;
     readonly numPrims: number;
     readonly numVertices: number;
@@ -135,6 +168,11 @@ export interface InitOutput {
     readonly executeSop: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly executeSopCreate: (a: number, b: number, c: number) => [number, number, number];
     readonly fuse: (a: number, b: number) => [number, number, number];
+    readonly geometry_attribData: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly geometry_attribDataString: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly geometry_attribNames: (a: number, b: number, c: number) => [number, number];
+    readonly geometry_attribSize: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly geometry_attribType: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly geometry_boundingBox: (a: number) => any;
     readonly geometry_getColors: (a: number) => [number, number];
     readonly geometry_getNormals: (a: number) => [number, number];
@@ -145,8 +183,11 @@ export interface InitOutput {
     readonly geometry_numPrims: (a: number) => number;
     readonly geometry_numVertices: (a: number) => number;
     readonly geometry_pointPos: (a: number, b: number) => [number, number];
+    readonly geometry_primPointIndices: (a: number, b: number) => [number, number];
+    readonly geometry_primVertexCount: (a: number, b: number) => number;
     readonly geometry_toGlb: (a: number) => [number, number, number, number];
     readonly geometry_toObj: (a: number) => [number, number, number, number];
+    readonly geometry_vertexPoint: (a: number, b: number) => number;
     readonly listSops: () => [number, number];
     readonly polyExtrude: (a: number, b: number) => [number, number, number];
     readonly reverse: (a: number) => [number, number, number];

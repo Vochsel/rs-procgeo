@@ -291,6 +291,51 @@ impl Geometry {
     }
 
     // -----------------------------------------------------------------------
+    // Attribute introspection (for spreadsheet / debugging)
+    // -----------------------------------------------------------------------
+
+    /// List attribute names for a given class.
+    pub fn attrib_names(&self, class: AttribClass) -> Vec<&str> {
+        self.attributes.names(class)
+    }
+
+    /// Get the AttribType for a named attribute, or None if not found.
+    pub fn attrib_type(&self, class: AttribClass, name: &str) -> Option<AttribType> {
+        self.attributes
+            .get_raw(class, name)
+            .map(|a| a.storage.attrib_type())
+    }
+
+    /// Get the component count for a named attribute (1 for scalar, 3 for vec3, etc.).
+    pub fn attrib_size(&self, class: AttribClass, name: &str) -> Option<usize> {
+        self.attrib_type(class, name).map(|t| t.component_count())
+    }
+
+    /// Get all values of a numeric attribute as a flat f64 array.
+    /// Components are interleaved: for vec3, returns [x0,y0,z0, x1,y1,z1, ...].
+    /// Returns None if the attribute doesn't exist or is a String type.
+    pub fn attrib_data_f64(&self, class: AttribClass, name: &str) -> Option<Vec<f64>> {
+        let attr = self.attributes.get_raw(class, name)?;
+        let data = attr.storage.to_f64_flat();
+        if data.is_empty() && !attr.storage.is_empty() {
+            None // String type
+        } else {
+            Some(data)
+        }
+    }
+
+    /// Get all values of a String attribute. Returns None if not found or not String type.
+    pub fn attrib_data_string(&self, class: AttribClass, name: &str) -> Option<Vec<String>> {
+        let attr = self.attributes.get_raw(class, name)?;
+        let data = attr.storage.to_string_vec();
+        if data.is_empty() && !attr.storage.is_empty() {
+            None
+        } else {
+            Some(data)
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Groups
     // -----------------------------------------------------------------------
 

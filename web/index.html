@@ -48,7 +48,29 @@
             </div>
             <div id="divider"></div>
             <div id="viewer-panel">
-                <canvas id="canvas"></canvas>
+                <div id="viewer-tabs">
+                    <button class="viewer-tab active" data-view="viewport">Viewport</button>
+                    <button class="viewer-tab" data-view="spreadsheet">Spreadsheet</button>
+                    <span id="viewer-tab-info"></span>
+                </div>
+                <div id="viewport-view" class="viewer-view active">
+                    <canvas id="canvas"></canvas>
+                </div>
+                <div id="spreadsheet-view" class="viewer-view">
+                    <div id="spreadsheet-subtabs">
+                        <button class="subtab active" data-class="point">Points</button>
+                        <button class="subtab" data-class="vertex">Vertices</button>
+                        <button class="subtab" data-class="primitive">Primitives</button>
+                        <button class="subtab" data-class="detail">Detail</button>
+                        <span id="spreadsheet-info"></span>
+                    </div>
+                    <div id="spreadsheet-body">
+                        <table id="spreadsheet-table">
+                            <thead><tr id="spreadsheet-thead-row"></tr></thead>
+                            <tbody id="spreadsheet-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

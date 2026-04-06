@@ -1,0 +1,13 @@
+[project]
+name = "procgeo-benchmarks"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "trimesh>=4.0",
+    "pymeshlab>=2023.12",
+    "open3d>=0.18",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+blender = ["bpy>=4.0"]

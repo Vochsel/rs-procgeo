@@ -22,6 +22,91 @@ export class Geometry {
         wasm.__wbg_geometry_free(ptr, 0);
     }
     /**
+     * Get all values of a numeric attribute as a flat Float64Array.
+     * Components interleaved: for vec3 → [x0,y0,z0, x1,y1,z1, ...].
+     * @param {string} _class
+     * @param {string} name
+     * @returns {Float64Array | undefined}
+     */
+    attribData(_class, name) {
+        const ptr0 = passStringToWasm0(_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.geometry_attribData(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        let v3;
+        if (ret[0] !== 0) {
+            v3 = getArrayF64FromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
+        }
+        return v3;
+    }
+    /**
+     * Get all values of a string attribute.
+     * @param {string} _class
+     * @param {string} name
+     * @returns {string[] | undefined}
+     */
+    attribDataString(_class, name) {
+        const ptr0 = passStringToWasm0(_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.geometry_attribDataString(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        let v3;
+        if (ret[0] !== 0) {
+            v3 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        }
+        return v3;
+    }
+    /**
+     * List attribute names for a class ("point", "vertex", "primitive", "detail").
+     * @param {string} _class
+     * @returns {string[]}
+     */
+    attribNames(_class) {
+        const ptr0 = passStringToWasm0(_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.geometry_attribNames(this.__wbg_ptr, ptr0, len0);
+        var v2 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v2;
+    }
+    /**
+     * Get the component count of an attribute (1 for float, 3 for vec3, etc.).
+     * @param {string} _class
+     * @param {string} name
+     * @returns {number | undefined}
+     */
+    attribSize(_class, name) {
+        const ptr0 = passStringToWasm0(_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.geometry_attribSize(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        return ret === 0x100000001 ? undefined : ret;
+    }
+    /**
+     * Get the type name of an attribute ("Float", "Int", "Vector3", etc.).
+     * @param {string} _class
+     * @param {string} name
+     * @returns {string | undefined}
+     */
+    attribType(_class, name) {
+        const ptr0 = passStringToWasm0(_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.geometry_attribType(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        let v3;
+        if (ret[0] !== 0) {
+            v3 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v3;
+    }
+    /**
      * @returns {any}
      */
     boundingBox() {
@@ -114,6 +199,26 @@ export class Geometry {
         return v1;
     }
     /**
+     * Get the point indices for a specific primitive.
+     * @param {number} prim_index
+     * @returns {Uint32Array}
+     */
+    primPointIndices(prim_index) {
+        const ret = wasm.geometry_primPointIndices(this.__wbg_ptr, prim_index);
+        var v1 = getArrayU32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Get the number of vertices in a specific primitive.
+     * @param {number} prim_index
+     * @returns {number}
+     */
+    primVertexCount(prim_index) {
+        const ret = wasm.geometry_primVertexCount(this.__wbg_ptr, prim_index);
+        return ret >>> 0;
+    }
+    /**
      * Write geometry as GLB bytes (Uint8Array).
      * @returns {Uint8Array}
      */
@@ -147,6 +252,15 @@ export class Geometry {
         } finally {
             wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
+    }
+    /**
+     * Get which point a vertex maps to.
+     * @param {number} vertex_index
+     * @returns {number}
+     */
+    vertexPoint(vertex_index) {
+        const ret = wasm.geometry_vertexPoint(this.__wbg_ptr, vertex_index);
+        return ret >>> 0;
     }
 }
 if (Symbol.dispose) Geometry.prototype[Symbol.dispose] = Geometry.prototype.free;
@@ -735,6 +849,11 @@ function getArrayF32FromWasm0(ptr, len) {
     return getFloat32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
 }
 
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
 function getArrayJsValueFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     const mem = getDataViewMemory0();
@@ -770,6 +889,14 @@ function getFloat32ArrayMemory0() {
         cachedFloat32ArrayMemory0 = new Float32Array(wasm.memory.buffer);
     }
     return cachedFloat32ArrayMemory0;
+}
+
+let cachedFloat64ArrayMemory0 = null;
+function getFloat64ArrayMemory0() {
+    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
+        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
+    }
+    return cachedFloat64ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -884,6 +1011,7 @@ function __wbg_finalize_init(instance, module) {
     wasmModule = module;
     cachedDataViewMemory0 = null;
     cachedFloat32ArrayMemory0 = null;
+    cachedFloat64ArrayMemory0 = null;
     cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();

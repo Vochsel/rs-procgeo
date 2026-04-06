@@ -53,6 +53,66 @@ impl Geometry {
             "max": [bbox.max.x, bbox.max.y, bbox.max.z]
         })
     }
+
+    // -- Attribute introspection (spreadsheet / debugging) --
+
+    #[napi]
+    pub fn attrib_names(&self, class: String) -> Vec<String> {
+        self.inner
+            .attrib_names(parse_attrib_class(&class))
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    #[napi]
+    pub fn attrib_type(&self, class: String, name: String) -> Option<String> {
+        self.inner
+            .attrib_type(parse_attrib_class(&class), &name)
+            .map(|t| format!("{t:?}"))
+    }
+
+    #[napi]
+    pub fn attrib_size(&self, class: String, name: String) -> Option<u32> {
+        self.inner
+            .attrib_size(parse_attrib_class(&class), &name)
+            .map(|s| s as u32)
+    }
+
+    #[napi]
+    pub fn attrib_data(&self, class: String, name: String) -> Option<Vec<f64>> {
+        self.inner
+            .attrib_data_f64(parse_attrib_class(&class), &name)
+    }
+
+    #[napi]
+    pub fn attrib_data_string(&self, class: String, name: String) -> Option<Vec<String>> {
+        self.inner
+            .attrib_data_string(parse_attrib_class(&class), &name)
+    }
+
+    #[napi]
+    pub fn prim_point_indices(&self, prim_index: u32) -> Vec<u32> {
+        let ph = procgeo_core::PrimHandle::from_index(prim_index as usize);
+        self.inner
+            .prim_points(ph)
+            .iter()
+            .map(|p| p.index() as u32)
+            .collect()
+    }
+
+    #[napi]
+    pub fn prim_vertex_count(&self, prim_index: u32) -> u32 {
+        let ph = procgeo_core::PrimHandle::from_index(prim_index as usize);
+        self.inner.prim_vertices(ph).len() as u32
+    }
+
+    #[napi]
+    pub fn vertex_point(&self, vertex_index: u32) -> u32 {
+        self.inner
+            .vertex_point(procgeo_core::VertexHandle::from_index(vertex_index as usize))
+            .index() as u32
+    }
 }
 
 // ---------------------------------------------------------------------------

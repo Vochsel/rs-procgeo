@@ -1,0 +1,5 @@
+results/
+typescript/node_modules/
+python/.venv/
+python/__pycache__/
+rust/target/
