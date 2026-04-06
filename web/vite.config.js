@@ -4,9 +4,14 @@ import path from 'path';
 export default defineConfig({
     root: '.',
     publicDir: 'public',
+    base: '/',
     server: {
         port: 5173,
         open: true,
+    },
+    build: {
+        outDir: 'dist',
+        target: 'esnext',
     },
     resolve: {
         alias: {
