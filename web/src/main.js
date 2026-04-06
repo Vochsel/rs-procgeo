@@ -225,8 +225,12 @@ declare const pg: {
     color(geo: ProcGeoGeometry, params?: { color?: [number, number, number] }): ProcGeoGeometry;
     /** Merge coincident points within a distance tolerance. */
     fuse(geo: ProcGeoGeometry, params?: { distance?: number }): ProcGeoGeometry;
-    /** Voronoi fracture a mesh into pieces. */
-    voronoiFracture(geo: ProcGeoGeometry, params?: { numPoints?: number; seed?: number; createInsideFaces?: boolean }): ProcGeoGeometry;
+    /** Voronoi fracture a mesh into pieces using external seed points. */
+    voronoiFracture(geo: ProcGeoGeometry, points: ProcGeoGeometry, params?: { cutPlaneOffset?: number; createInsideFaces?: boolean }): ProcGeoGeometry;
+
+    // ── Attribute SOPs ──
+    /** Apply procedural noise to an attribute. noiseType: "perlin"|"simplex"|"worley"|"worleyF2F1". fractal: "none"|"standard"|"terrain". */
+    attribNoise(geo: ProcGeoGeometry, params?: { attribName?: string; noiseType?: "perlin" | "simplex" | "worley" | "worleyF2F1"; elementSize?: number; amplitude?: number; seed?: number; dimensions?: number; fractal?: "none" | "standard" | "terrain"; octaves?: number; lacunarity?: number; roughness?: number; offset?: [number, number, number] }): ProcGeoGeometry;
 };
 `;
 

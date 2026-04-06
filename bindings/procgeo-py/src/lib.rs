@@ -679,6 +679,63 @@ fn attrib_fill(
     Ok(Geometry { inner })
 }
 
+#[pyfunction]
+#[pyo3(signature = (geo, attrib_name="noise", noise_type="perlin", element_size=1.0, amplitude=1.0, seed=0, dimensions=1, fractal="none", octaves=8, lacunarity=2.0, roughness=0.5, gain=0.5, bias=0.5, offset_x=0.0, offset_y=0.0, offset_z=0.0))]
+fn attrib_noise(
+    geo: &Geometry,
+    attrib_name: &str,
+    noise_type: &str,
+    element_size: f32,
+    amplitude: f32,
+    seed: u64,
+    dimensions: u32,
+    fractal: &str,
+    octaves: u32,
+    lacunarity: f32,
+    roughness: f32,
+    gain: f32,
+    bias: f32,
+    offset_x: f32,
+    offset_y: f32,
+    offset_z: f32,
+) -> PyResult<Geometry> {
+    let noise_type = match noise_type {
+        "simplex" => procgeo_sops::attributes::NoiseType::Simplex,
+        "worley" => procgeo_sops::attributes::NoiseType::Worley,
+        "worleyF2F1" => procgeo_sops::attributes::NoiseType::WorleyF2F1,
+        _ => procgeo_sops::attributes::NoiseType::Perlin,
+    };
+    let fractal = match fractal {
+        "standard" => procgeo_sops::attributes::FractalType::Standard,
+        "terrain" => procgeo_sops::attributes::FractalType::Terrain,
+        _ => procgeo_sops::attributes::FractalType::None,
+    };
+    let params = procgeo_sops::attributes::AttribNoiseParams {
+        attrib_name: attrib_name.to_string(),
+        class: procgeo_core::AttribClass::Point,
+        dimensions,
+        noise_type,
+        operation: procgeo_sops::attributes::NoiseOperation::Set,
+        element_size,
+        offset: [offset_x, offset_y, offset_z],
+        seed,
+        range: procgeo_sops::attributes::NoiseRange::Positive,
+        amplitude,
+        min_value: 0.0,
+        max_value: 1.0,
+        fractal,
+        octaves,
+        lacunarity,
+        roughness,
+        gain,
+        bias,
+    };
+    let inner = procgeo_sops::attributes::AttribNoiseSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---- I/O ----
 
 #[pyfunction]
@@ -731,6 +788,7 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(attrib_sort, m)?)?;
     m.add_function(wrap_pyfunction!(attrib_blur, m)?)?;
     m.add_function(wrap_pyfunction!(attrib_fill, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_noise, m)?)?;
     // I/O
     m.add_function(wrap_pyfunction!(write_obj, m)?)?;
     m.add_function(wrap_pyfunction!(write_glb, m)?)?;

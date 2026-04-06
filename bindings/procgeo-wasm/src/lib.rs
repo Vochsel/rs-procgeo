@@ -410,14 +410,13 @@ pub fn fuse(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError
 }
 
 #[wasm_bindgen(js_name = "voronoiFracture")]
-pub fn voronoi_fracture(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+pub fn voronoi_fracture(geo: &Geometry, points: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
     let params = procgeo_sops::voronoi::VoronoiFractureParams {
-        num_points: get_u32(&p, "numPoints", 10),
-        seed: get_u64(&p, "seed", 0),
+        cut_plane_offset: get_f32(&p, "cutPlaneOffset", 0.0),
         create_inside_faces: get_bool(&p, "createInsideFaces", true),
     };
-    let inner = procgeo_sops::voronoi::VoronoiFractureSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::voronoi::VoronoiFractureSop.execute(&[&geo.inner, &points.inner], &params).map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -553,6 +552,63 @@ pub fn attrib_fill(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, 
         step_size: get_f32(&p, "stepSize", 0.5),
     };
     let inner = procgeo_sops::attributes::AttribFillSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "attribNoise")]
+pub fn attrib_noise(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+
+    let noise_type_str = get_str(&p, "noiseType", "perlin");
+    let noise_type = match noise_type_str.as_str() {
+        "simplex" => procgeo_sops::attributes::NoiseType::Simplex,
+        "worley" => procgeo_sops::attributes::NoiseType::Worley,
+        "worleyF2F1" => procgeo_sops::attributes::NoiseType::WorleyF2F1,
+        _ => procgeo_sops::attributes::NoiseType::Perlin,
+    };
+    let operation_str = get_str(&p, "operation", "Set");
+    let operation = match operation_str.as_str() {
+        "Add" => procgeo_sops::attributes::NoiseOperation::Add,
+        "Subtract" => procgeo_sops::attributes::NoiseOperation::Subtract,
+        "Multiply" => procgeo_sops::attributes::NoiseOperation::Multiply,
+        _ => procgeo_sops::attributes::NoiseOperation::Set,
+    };
+    let range_str = get_str(&p, "range", "Positive");
+    let range = match range_str.as_str() {
+        "ZeroCentered" => procgeo_sops::attributes::NoiseRange::ZeroCentered,
+        "MinMax" => procgeo_sops::attributes::NoiseRange::MinMax,
+        _ => procgeo_sops::attributes::NoiseRange::Positive,
+    };
+    let fractal_str = get_str(&p, "fractal", "none");
+    let fractal = match fractal_str.as_str() {
+        "standard" => procgeo_sops::attributes::FractalType::Standard,
+        "terrain" => procgeo_sops::attributes::FractalType::Terrain,
+        _ => procgeo_sops::attributes::FractalType::None,
+    };
+    let offset = get_vec3(&p, "offset", [0.0, 0.0, 0.0]);
+    let params = procgeo_sops::attributes::AttribNoiseParams {
+        attrib_name: get_str(&p, "attribName", "noise"),
+        class: parse_attrib_class(&get_str(&p, "class", "Point")),
+        dimensions: get_u32(&p, "dimensions", 1),
+        noise_type,
+        operation,
+        element_size: get_f32(&p, "elementSize", 1.0),
+        offset: [offset.x, offset.y, offset.z],
+        seed: get_u64(&p, "seed", 0),
+        range,
+        amplitude: get_f32(&p, "amplitude", 1.0),
+        min_value: get_f32(&p, "minValue", 0.0),
+        max_value: get_f32(&p, "maxValue", 1.0),
+        fractal,
+        octaves: get_u32(&p, "octaves", 8),
+        lacunarity: get_f32(&p, "lacunarity", 2.0),
+        roughness: get_f32(&p, "roughness", 0.5),
+        gain: get_f32(&p, "gain", 0.5),
+        bias: get_f32(&p, "bias", 0.5),
+    };
+    let inner = procgeo_sops::attributes::AttribNoiseSop
         .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;
     Ok(Geometry { inner })

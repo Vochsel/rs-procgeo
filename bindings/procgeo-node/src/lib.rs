@@ -656,6 +656,65 @@ pub fn attrib_fill(geo: &Geometry, params: Option<serde_json::Value>) -> Result<
     Ok(Geometry { inner })
 }
 
+#[napi(js_name = "attribNoise")]
+pub fn attrib_noise(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+
+    let noise_type = match get_str(&p, "noiseType", "perlin") {
+        "simplex" => procgeo_sops::attributes::NoiseType::Simplex,
+        "worley" => procgeo_sops::attributes::NoiseType::Worley,
+        "worleyF2F1" => procgeo_sops::attributes::NoiseType::WorleyF2F1,
+        _ => procgeo_sops::attributes::NoiseType::Perlin,
+    };
+    let operation = match get_str(&p, "operation", "Set") {
+        "Add" => procgeo_sops::attributes::NoiseOperation::Add,
+        "Subtract" => procgeo_sops::attributes::NoiseOperation::Subtract,
+        "Multiply" => procgeo_sops::attributes::NoiseOperation::Multiply,
+        _ => procgeo_sops::attributes::NoiseOperation::Set,
+    };
+    let range = match get_str(&p, "range", "Positive") {
+        "ZeroCentered" => procgeo_sops::attributes::NoiseRange::ZeroCentered,
+        "MinMax" => procgeo_sops::attributes::NoiseRange::MinMax,
+        _ => procgeo_sops::attributes::NoiseRange::Positive,
+    };
+    let fractal = match get_str(&p, "fractal", "none") {
+        "standard" => procgeo_sops::attributes::FractalType::Standard,
+        "terrain" => procgeo_sops::attributes::FractalType::Terrain,
+        _ => procgeo_sops::attributes::FractalType::None,
+    };
+    let offset_val = p.get("offset").and_then(|v| v.as_array()).map(|arr| {
+        [
+            arr.get(0).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+            arr.get(1).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+            arr.get(2).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+        ]
+    }).unwrap_or([0.0, 0.0, 0.0]);
+    let params = procgeo_sops::attributes::AttribNoiseParams {
+        attrib_name: get_str(&p, "attribName", "noise").to_string(),
+        class: parse_attrib_class(get_str(&p, "class", "Point")),
+        dimensions: get_u32(&p, "dimensions", 1),
+        noise_type,
+        operation,
+        element_size: get_f32(&p, "elementSize", 1.0),
+        offset: offset_val,
+        seed: p.get("seed").and_then(|v| v.as_u64()).unwrap_or(0),
+        range,
+        amplitude: get_f32(&p, "amplitude", 1.0),
+        min_value: get_f32(&p, "minValue", 0.0),
+        max_value: get_f32(&p, "maxValue", 1.0),
+        fractal,
+        octaves: get_u32(&p, "octaves", 8),
+        lacunarity: get_f32(&p, "lacunarity", 2.0),
+        roughness: get_f32(&p, "roughness", 0.5),
+        gain: get_f32(&p, "gain", 0.5),
+        bias: get_f32(&p, "bias", 0.5),
+    };
+    let inner = procgeo_sops::attributes::AttribNoiseSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---------------------------------------------------------------------------
 // I/O
 // ---------------------------------------------------------------------------
