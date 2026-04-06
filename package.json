@@ -1,0 +1,17 @@
+{
+  "name": "rs-procgeo",
+  "private": true,
+  "scripts": {
+    "build": "pnpm run build:rust && pnpm run build:bindings",
+    "build:rust": "cargo build --release",
+    "build:node": "cd bindings/procgeo-node && pnpm install && pnpm run build",
+    "build:wasm": "wasm-pack build bindings/procgeo-wasm --target web --out-dir pkg --release",
+    "build:python": "cd bindings/procgeo-py && maturin develop --release",
+    "build:bindings": "pnpm run build:node && pnpm run build:wasm && pnpm run build:python",
+    "test": "cargo test --workspace",
+    "test:rust": "cargo test --workspace",
+    "clean": "cargo clean && rm -rf bindings/procgeo-node/procgeo.*.node bindings/procgeo-wasm/pkg",
+    "serve": "pnpm run build:wasm && python3 -m http.server 8080 -d bindings/procgeo-wasm",
+    "check": "cargo check --workspace && cargo check -p procgeo-node && cargo check -p procgeo-py"
+  }
+}
