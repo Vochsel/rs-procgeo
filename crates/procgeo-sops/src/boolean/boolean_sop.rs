@@ -892,4 +892,238 @@ mod tests {
             "BooleanSop should error with zero inputs"
         );
     }
+
+    // ── Additional tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn shatter_operation() {
+        // Two overlapping boxes with Shatter should produce fragments
+        // (all triangles from both meshes, split at intersections).
+        let a = make_box(Vec3::ZERO, Vec3::ONE);
+        let b = make_box(Vec3::new(0.5, 0.0, 0.0), Vec3::ONE);
+
+        let sop = BooleanSop;
+        let params = BooleanParams {
+            operation: BooleanOp::Shatter,
+            ..Default::default()
+        };
+
+        let result = sop.execute(&[&a, &b], &params).unwrap();
+
+        // Shatter keeps all fragments (both inside and outside), so we should
+        // get at least as many prims as the inputs combined.
+        let input_prims = a.num_prims() + b.num_prims();
+        assert!(
+            result.num_prims() >= input_prims,
+            "Shatter should produce at least {} prims (from both inputs), got {}",
+            input_prims,
+            result.num_prims()
+        );
+        assert!(
+            result.num_points() > 0,
+            "Shatter should produce points"
+        );
+
+        println!(
+            "Shatter: {} points, {} prims (inputs had {})",
+            result.num_points(),
+            result.num_prims(),
+            input_prims,
+        );
+    }
+
+    #[test]
+    fn custom_depth_operation() {
+        // Custom mode with match=A, keeping all A fragments at any depth.
+        // This is effectively a Resolve on A: all A fragments are kept.
+        let a = make_box(Vec3::ZERO, Vec3::ONE);
+        let b = make_box(Vec3::new(0.5, 0.0, 0.0), Vec3::ONE);
+
+        let sop = BooleanSop;
+
+        // Custom mode keeping only A fragments at any depth
+        let params_a_all = BooleanParams {
+            operation: BooleanOp::Custom,
+            b_depth_range: [0, 9999],
+            a_depth_range: [0, 9999],
+            custom_match: CustomMatch::A,
+            ..Default::default()
+        };
+
+        let result_a_all = sop.execute(&[&a, &b], &params_a_all).unwrap();
+
+        assert!(
+            result_a_all.num_points() > 0,
+            "Custom match=A with full depth range should produce geometry"
+        );
+        assert!(
+            result_a_all.num_prims() > 0,
+            "Custom match=A with full depth range should produce prims"
+        );
+
+        // Custom mode keeping A fragments outside B (depth [0, 0]).
+        // This should produce fewer prims than the all-depth version
+        // since some A fragments are inside B and get excluded.
+        let params_a_outside_b = BooleanParams {
+            operation: BooleanOp::Custom,
+            b_depth_range: [0, 0],
+            a_depth_range: [0, 9999],
+            custom_match: CustomMatch::A,
+            ..Default::default()
+        };
+
+        let result_a_outside_b = sop.execute(&[&a, &b], &params_a_outside_b).unwrap();
+
+        // A fragments outside B should produce some geometry (the non-overlapping part of A)
+        assert!(
+            result_a_outside_b.num_points() > 0,
+            "Custom A-outside-B should produce geometry"
+        );
+
+        // The all-depth result should have at least as many prims as the filtered one
+        assert!(
+            result_a_all.num_prims() >= result_a_outside_b.num_prims(),
+            "all-depth ({}) should have >= prims than outside-only ({})",
+            result_a_all.num_prims(),
+            result_a_outside_b.num_prims()
+        );
+
+        println!(
+            "Custom A-all: {} pts {} prims; A-outside-B: {} pts {} prims",
+            result_a_all.num_points(),
+            result_a_all.num_prims(),
+            result_a_outside_b.num_points(),
+            result_a_outside_b.num_prims(),
+        );
+    }
+
+    #[test]
+    fn detect_operation() {
+        // Detect mode: output has same point/prim count as input A, with
+        // an intersection prim group.
+        let a = make_box(Vec3::ZERO, Vec3::ONE);
+        let b = make_box(Vec3::new(0.5, 0.0, 0.0), Vec3::ONE);
+
+        let sop = BooleanSop;
+        let params = BooleanParams {
+            operation: BooleanOp::Detect,
+            ..Default::default()
+        };
+
+        let result = sop.execute(&[&a, &b], &params).unwrap();
+
+        // Same topology as A
+        assert_eq!(
+            result.num_points(),
+            a.num_points(),
+            "Detect should preserve A's point count"
+        );
+        assert_eq!(
+            result.num_prims(),
+            a.num_prims(),
+            "Detect should preserve A's prim count"
+        );
+
+        // Should have an intersection group
+        let group = result.groups().prim_group("axb_intersecting");
+        assert!(
+            group.is_some(),
+            "Detect should create 'axb_intersecting' prim group"
+        );
+
+        // At least some prims should be in the group (the boxes overlap)
+        let grp = group.unwrap();
+        let intersecting_count = (0..result.num_prims())
+            .filter(|&i| grp.contains(i))
+            .count();
+        assert!(
+            intersecting_count > 0,
+            "overlapping boxes should have intersecting prims, got 0"
+        );
+
+        println!(
+            "Detect: {} intersecting prims out of {}",
+            intersecting_count,
+            result.num_prims()
+        );
+    }
+
+    #[test]
+    fn concentric_boxes_intersect() {
+        // One box fully inside another. Intersect should produce the inner box.
+        let outer = make_box(Vec3::ZERO, Vec3::splat(2.0));
+        let inner = make_box(Vec3::ZERO, Vec3::splat(0.5));
+
+        let sop = BooleanSop;
+        let params = BooleanParams {
+            operation: BooleanOp::Intersect,
+            ..Default::default()
+        };
+
+        let result = sop.execute(&[&outer, &inner], &params).unwrap();
+
+        assert!(
+            result.num_points() > 0,
+            "Intersect of concentric boxes should produce geometry"
+        );
+        assert!(
+            result.num_prims() > 0,
+            "Intersect of concentric boxes should produce prims"
+        );
+
+        // The bounding box of the result should be approximately the inner box size
+        let bb = result.bounding_box();
+        let extent_x = bb.max.x - bb.min.x;
+        assert!(
+            extent_x < 1.0,
+            "intersection extent ({extent_x}) should be near the inner box size (0.5)"
+        );
+
+        println!(
+            "Concentric intersect: {} points, {} prims, extent_x={}",
+            result.num_points(),
+            result.num_prims(),
+            extent_x,
+        );
+    }
+
+    #[test]
+    fn identical_boxes_union() {
+        // Union of the same box twice should produce approximately the same geometry
+        // as a single box (no duplicated interior faces).
+        let a = make_box(Vec3::ZERO, Vec3::ONE);
+        let b = make_box(Vec3::ZERO, Vec3::ONE);
+
+        let sop = BooleanSop;
+        let params = BooleanParams {
+            operation: BooleanOp::Union,
+            ..Default::default()
+        };
+
+        let result = sop.execute(&[&a, &b], &params).unwrap();
+
+        // The result should have geometry (not empty)
+        assert!(
+            result.num_points() > 0,
+            "Union of identical boxes should produce geometry"
+        );
+
+        // The bounding box should be the same as a single box
+        let bb = result.bounding_box();
+        let a_bb = a.bounding_box();
+        let extent_x = bb.max.x - bb.min.x;
+        let a_extent_x = a_bb.max.x - a_bb.min.x;
+        assert!(
+            (extent_x - a_extent_x).abs() < 0.1,
+            "union of identical boxes should have same extent, got {} vs {}",
+            extent_x,
+            a_extent_x
+        );
+
+        println!(
+            "Identical union: {} points, {} prims",
+            result.num_points(),
+            result.num_prims()
+        );
+    }
 }

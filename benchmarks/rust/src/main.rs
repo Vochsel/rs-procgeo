@@ -304,6 +304,488 @@ fn bench_procgeo(results: &mut Vec<BenchResult>) {
 }
 
 // ---------------------------------------------------------------------------
+// Deform benchmarks
+// ---------------------------------------------------------------------------
+
+fn bench_deform(results: &mut Vec<BenchResult>) {
+    // ── Bend ─────────────────────────────────────────────────────────────
+    let bend_scales: &[(u32, u32)] = &[(100, 10), (10_000, 100), (100_000, 317)];
+
+    for &(scale, rc) in bend_scales {
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                rows: rc,
+                cols: rc,
+                size: [10.0, 10.0],
+                orientation: GridOrientation::XY,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let (mean, std, iters) = bench(|| {
+            let _ = grid.clone().apply(
+                &BendSop,
+                &BendParams {
+                    bend_enable: true,
+                    bend_angle: 90.0,
+                    capture_origin: Vec3::ZERO,
+                    capture_direction: Vec3::Y,
+                    capture_length: 5.0,
+                    up_vector: Vec3::Z,
+                    limit_to_capture_region: false,
+                    ..BendParams::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "deform",
+            operation: "bend",
+            scale,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── Twist ────────────────────────────────────────────────────────────
+    {
+        let rc = 100;
+        let scale = 10_000;
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                rows: rc,
+                cols: rc,
+                size: [10.0, 10.0],
+                orientation: GridOrientation::XY,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let (mean, std, iters) = bench(|| {
+            let _ = grid.clone().apply(
+                &BendSop,
+                &BendParams {
+                    twist_enable: true,
+                    twist_angle: 360.0,
+                    capture_origin: Vec3::ZERO,
+                    capture_direction: Vec3::Y,
+                    capture_length: 5.0,
+                    up_vector: Vec3::Z,
+                    limit_to_capture_region: false,
+                    ..BendParams::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "deform",
+            operation: "twist",
+            scale,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── Length Scale ──────────────────────────────────────────────────────
+    {
+        let rc = 100;
+        let scale = 10_000;
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                rows: rc,
+                cols: rc,
+                size: [10.0, 10.0],
+                orientation: GridOrientation::XY,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let (mean, std, iters) = bench(|| {
+            let _ = grid.clone().apply(
+                &BendSop,
+                &BendParams {
+                    length_scale_enable: true,
+                    length_scale: 2.0,
+                    preserve_volume: true,
+                    capture_origin: Vec3::ZERO,
+                    capture_direction: Vec3::Y,
+                    capture_length: 5.0,
+                    up_vector: Vec3::Z,
+                    limit_to_capture_region: false,
+                    ..BendParams::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "deform",
+            operation: "length_scale",
+            scale,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── Taper ────────────────────────────────────────────────────────────
+    {
+        let rc = 100;
+        let scale = 10_000;
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                rows: rc,
+                cols: rc,
+                size: [10.0, 10.0],
+                orientation: GridOrientation::XY,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let (mean, std, iters) = bench(|| {
+            let _ = grid.clone().apply(
+                &BendSop,
+                &BendParams {
+                    taper_enable: true,
+                    taper_value: 0.5,
+                    taper_along: [true, true],
+                    capture_origin: Vec3::ZERO,
+                    capture_direction: Vec3::Y,
+                    capture_length: 5.0,
+                    up_vector: Vec3::Z,
+                    limit_to_capture_region: false,
+                    ..BendParams::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "deform",
+            operation: "taper",
+            scale,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── PointDeform ──────────────────────────────────────────────────────
+    let pd_scales: &[(u32, u32)] = &[(100, 10), (10_000, 100)];
+
+    for &(scale, rc) in pd_scales {
+        let mesh = generate(
+            &GridSop,
+            &GridParams {
+                rows: rc,
+                cols: rc,
+                size: [2.0, 2.0],
+                orientation: GridOrientation::XY,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        // 8-point lattice cube surrounding the mesh
+        let lattice_pts: Vec<Vec3> = vec![
+            Vec3::new(-2.0, -2.0, -2.0),
+            Vec3::new(2.0, -2.0, -2.0),
+            Vec3::new(2.0, 2.0, -2.0),
+            Vec3::new(-2.0, 2.0, -2.0),
+            Vec3::new(-2.0, -2.0, 2.0),
+            Vec3::new(2.0, -2.0, 2.0),
+            Vec3::new(2.0, 2.0, 2.0),
+            Vec3::new(-2.0, 2.0, 2.0),
+        ];
+
+        let mut rest_geo = Geometry::new();
+        let rest_handles: Vec<_> = lattice_pts.iter().map(|&p| rest_geo.add_point(p)).collect();
+        if rest_handles.len() >= 3 {
+            rest_geo.add_polygon(
+                &rest_handles[..3],
+                PolyType::Closed,
+            );
+        }
+
+        // Translate the deformed lattice
+        let offset = Vec3::new(1.0, 0.5, 0.0);
+        let deformed_pts: Vec<Vec3> = lattice_pts.iter().map(|&p| p + offset).collect();
+        let mut def_geo = Geometry::new();
+        let def_handles: Vec<_> = deformed_pts.iter().map(|&p| def_geo.add_point(p)).collect();
+        if def_handles.len() >= 3 {
+            def_geo.add_polygon(
+                &def_handles[..3],
+                PolyType::Closed,
+            );
+        }
+
+        let params = PointDeformParams {
+            radius: 5.0,
+            max_points: 8,
+            ..Default::default()
+        };
+
+        let (mean, std, iters) = bench(|| {
+            let _ = PointDeformSop.execute(&[&mesh, &rest_geo, &def_geo], &params);
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "deform",
+            operation: "point_deform",
+            scale,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Boolean benchmarks
+// ---------------------------------------------------------------------------
+
+fn bench_boolean(results: &mut Vec<BenchResult>) {
+    use procgeo::sops::boolean::bvh::{Triangle, TriangleBvh};
+    use procgeo::sops::boolean::classification::is_inside_mesh;
+
+    // ── Helper: make box geometry ────────────────────────────────────────
+    let make_box = |center: Vec3, size: Vec3| -> Geometry {
+        generate(&BoxSop, &BoxParams { size, center }).unwrap()
+    };
+
+    // ── Helper: subdivided box (more triangles) ─────────────────────────
+    let make_subdivided_box = |center: Vec3, size: Vec3, depth: u32| -> Geometry {
+        let b = make_box(center, size);
+        b.apply(&SubdivideSop, &SubdivideParams { depth, ..Default::default() })
+            .unwrap()
+    };
+
+    // ── Union/small ──────────────────────────────────────────────────────
+    {
+        let a = make_box(Vec3::ZERO, Vec3::ONE);
+        let b = make_box(Vec3::new(0.5, 0.0, 0.0), Vec3::ONE);
+
+        let (mean, std, iters) = bench(|| {
+            let _ = BooleanSop.execute(
+                &[&a, &b],
+                &BooleanParams {
+                    operation: BooleanOp::Union,
+                    ..Default::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "boolean",
+            operation: "union_small",
+            scale: 8,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── Union/medium ─────────────────────────────────────────────────────
+    {
+        let a = make_subdivided_box(Vec3::ZERO, Vec3::ONE, 3);
+        let b = make_subdivided_box(Vec3::new(0.5, 0.0, 0.0), Vec3::ONE, 3);
+
+        let (mean, std, iters) = bench(|| {
+            let _ = BooleanSop.execute(
+                &[&a, &b],
+                &BooleanParams {
+                    operation: BooleanOp::Union,
+                    ..Default::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "boolean",
+            operation: "union_medium",
+            scale: a.num_prims() as u32 + b.num_prims() as u32,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── Intersect/medium ─────────────────────────────────────────────────
+    {
+        let a = make_subdivided_box(Vec3::ZERO, Vec3::ONE, 3);
+        let b = make_subdivided_box(Vec3::new(0.5, 0.0, 0.0), Vec3::ONE, 3);
+
+        let (mean, std, iters) = bench(|| {
+            let _ = BooleanSop.execute(
+                &[&a, &b],
+                &BooleanParams {
+                    operation: BooleanOp::Intersect,
+                    ..Default::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "boolean",
+            operation: "intersect_medium",
+            scale: a.num_prims() as u32 + b.num_prims() as u32,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── Subtract/medium ──────────────────────────────────────────────────
+    {
+        let a = make_subdivided_box(Vec3::ZERO, Vec3::ONE, 3);
+        let b = make_subdivided_box(Vec3::new(0.5, 0.0, 0.0), Vec3::ONE, 3);
+
+        let (mean, std, iters) = bench(|| {
+            let _ = BooleanSop.execute(
+                &[&a, &b],
+                &BooleanParams {
+                    operation: BooleanOp::Subtract,
+                    ..Default::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "boolean",
+            operation: "subtract_medium",
+            scale: a.num_prims() as u32 + b.num_prims() as u32,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── BVH Build/1000 ──────────────────────────────────────────────────
+    {
+        let tris_1000: Vec<Triangle> = (0..1000)
+            .map(|i| {
+                let x = (i % 32) as f32;
+                let z = (i / 32) as f32;
+                Triangle {
+                    v0: Vec3::new(x, 0.0, z),
+                    v1: Vec3::new(x + 1.0, 0.0, z),
+                    v2: Vec3::new(x, 0.0, z + 1.0),
+                    index: i,
+                }
+            })
+            .collect();
+
+        let (mean, std, iters) = bench(|| {
+            let _ = TriangleBvh::build(&tris_1000);
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "boolean",
+            operation: "bvh_build",
+            scale: 1000,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── BVH Build/10000 ─────────────────────────────────────────────────
+    {
+        let tris_10k: Vec<Triangle> = (0..10_000)
+            .map(|i| {
+                let x = (i % 100) as f32;
+                let z = (i / 100) as f32;
+                Triangle {
+                    v0: Vec3::new(x, 0.0, z),
+                    v1: Vec3::new(x + 1.0, 0.0, z),
+                    v2: Vec3::new(x, 0.0, z + 1.0),
+                    index: i,
+                }
+            })
+            .collect();
+
+        let (mean, std, iters) = bench(|| {
+            let _ = TriangleBvh::build(&tris_10k);
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "boolean",
+            operation: "bvh_build",
+            scale: 10_000,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // ── Classification/1000 ──────────────────────────────────────────────
+    {
+        // Build a unit cube as 12 triangles for classification
+        let h = 0.5_f32;
+        let mut cube_tris: Vec<Triangle> = Vec::with_capacity(12);
+        let mut idx = 0usize;
+        let mut push_quad = |a: Vec3, b: Vec3, c: Vec3, d: Vec3| {
+            cube_tris.push(Triangle { v0: a, v1: b, v2: c, index: idx });
+            idx += 1;
+            cube_tris.push(Triangle { v0: a, v1: c, v2: d, index: idx });
+            idx += 1;
+        };
+        push_quad(Vec3::new(-h,-h,h), Vec3::new(h,-h,h), Vec3::new(h,h,h), Vec3::new(-h,h,h));
+        push_quad(Vec3::new(h,-h,-h), Vec3::new(-h,-h,-h), Vec3::new(-h,h,-h), Vec3::new(h,h,-h));
+        push_quad(Vec3::new(h,-h,h), Vec3::new(h,-h,-h), Vec3::new(h,h,-h), Vec3::new(h,h,h));
+        push_quad(Vec3::new(-h,-h,-h), Vec3::new(-h,-h,h), Vec3::new(-h,h,h), Vec3::new(-h,h,-h));
+        push_quad(Vec3::new(-h,h,h), Vec3::new(h,h,h), Vec3::new(h,h,-h), Vec3::new(-h,h,-h));
+        push_quad(Vec3::new(-h,-h,-h), Vec3::new(h,-h,-h), Vec3::new(h,-h,h), Vec3::new(-h,-h,h));
+
+        // Generate 1000 random-ish test points in [-2, 2]^3
+        let test_points: Vec<Vec3> = (0..1000)
+            .map(|i| {
+                let t = i as f32 / 1000.0;
+                let x = ((t * 137.0).sin() * 2.0).clamp(-2.0, 2.0);
+                let y = ((t * 251.0).sin() * 2.0).clamp(-2.0, 2.0);
+                let z = ((t * 389.0).sin() * 2.0).clamp(-2.0, 2.0);
+                Vec3::new(x, y, z)
+            })
+            .collect();
+
+        let (mean, std, iters) = bench(|| {
+            for pt in &test_points {
+                let _ = is_inside_mesh(*pt, &cube_tris);
+            }
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "boolean",
+            operation: "classification",
+            scale: 1000,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
 // parry3d benchmarks
 // ---------------------------------------------------------------------------
 
@@ -464,6 +946,12 @@ fn main() {
 
     eprintln!("Running procgeo benchmarks...");
     bench_procgeo(&mut results);
+
+    eprintln!("Running deform benchmarks...");
+    bench_deform(&mut results);
+
+    eprintln!("Running boolean benchmarks...");
+    bench_boolean(&mut results);
 
     eprintln!("Running parry3d benchmarks...");
     bench_parry3d(&mut results);

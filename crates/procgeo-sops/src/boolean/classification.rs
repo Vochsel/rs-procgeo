@@ -221,4 +221,110 @@ mod tests {
         let depth = classify_depth(Vec3::new(5.0, 0.0, 0.0), &tris);
         assert_eq!(depth, 0, "depth far outside the cube should be 0, got {depth}");
     }
+
+    // ── Additional tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn point_on_surface_is_boundary() {
+        // A point exactly on a face of the cube should have a winding number
+        // near 0.5 (the boundary case for a closed mesh).
+        let tris = unit_cube_triangles();
+        // Point on the +X face at the center
+        let on_surface = Vec3::new(0.5, 0.0, 0.0);
+        let wn = generalized_winding_number(on_surface, &tris);
+
+        // On the boundary, the winding number should be approximately 0.5
+        assert!(
+            (wn - 0.5).abs() < 0.15,
+            "point on surface should have winding number near 0.5, got {wn}"
+        );
+    }
+
+    #[test]
+    fn far_point_winding_near_zero() {
+        // A point very far away from the cube should have a winding number
+        // approximately 0.0.
+        let tris = unit_cube_triangles();
+        let far_point = Vec3::new(1000.0, 1000.0, 1000.0);
+        let wn = generalized_winding_number(far_point, &tris);
+
+        assert!(
+            wn.abs() < 0.01,
+            "very far point should have winding number near 0.0, got {wn}"
+        );
+    }
+
+    #[test]
+    fn nested_cubes_depth() {
+        // Two concentric cubes: outer at half-extent 1.0, inner at half-extent 0.25.
+        // A point inside both should have depth 2.
+        let outer = unit_cube_triangles(); // half-extent 0.5
+
+        // Build a larger outer cube at half-extent 1.0
+        let mut large_tris = Vec::with_capacity(12);
+        let mut idx: usize = 100;
+        let push_quad = |a: Vec3, b: Vec3, c: Vec3, d: Vec3, tris: &mut Vec<Triangle>, idx: &mut usize| {
+            tris.push(Triangle { v0: a, v1: b, v2: c, index: *idx });
+            *idx += 1;
+            tris.push(Triangle { v0: a, v1: c, v2: d, index: *idx });
+            *idx += 1;
+        };
+
+        let h = 1.0;
+        // +Z face
+        push_quad(
+            Vec3::new(-h, -h, h), Vec3::new(h, -h, h),
+            Vec3::new(h, h, h), Vec3::new(-h, h, h),
+            &mut large_tris, &mut idx,
+        );
+        // -Z face
+        push_quad(
+            Vec3::new(h, -h, -h), Vec3::new(-h, -h, -h),
+            Vec3::new(-h, h, -h), Vec3::new(h, h, -h),
+            &mut large_tris, &mut idx,
+        );
+        // +X face
+        push_quad(
+            Vec3::new(h, -h, h), Vec3::new(h, -h, -h),
+            Vec3::new(h, h, -h), Vec3::new(h, h, h),
+            &mut large_tris, &mut idx,
+        );
+        // -X face
+        push_quad(
+            Vec3::new(-h, -h, -h), Vec3::new(-h, -h, h),
+            Vec3::new(-h, h, h), Vec3::new(-h, h, -h),
+            &mut large_tris, &mut idx,
+        );
+        // +Y face
+        push_quad(
+            Vec3::new(-h, h, h), Vec3::new(h, h, h),
+            Vec3::new(h, h, -h), Vec3::new(-h, h, -h),
+            &mut large_tris, &mut idx,
+        );
+        // -Y face
+        push_quad(
+            Vec3::new(-h, -h, -h), Vec3::new(h, -h, -h),
+            Vec3::new(h, -h, h), Vec3::new(-h, -h, h),
+            &mut large_tris, &mut idx,
+        );
+
+        // Combine both cubes: inner (half-extent 0.5) + outer (half-extent 1.0)
+        let mut all_tris = large_tris;
+        all_tris.extend_from_slice(&outer);
+
+        // Point at origin is inside both cubes
+        let depth = classify_depth(Vec3::ZERO, &all_tris);
+        assert_eq!(
+            depth, 2,
+            "point inside two nested cubes should have depth 2, got {depth}"
+        );
+
+        // Point between the cubes (inside outer, outside inner)
+        let between = Vec3::new(0.75, 0.0, 0.0);
+        let depth_between = classify_depth(between, &all_tris);
+        assert_eq!(
+            depth_between, 1,
+            "point between nested cubes should have depth 1, got {depth_between}"
+        );
+    }
 }

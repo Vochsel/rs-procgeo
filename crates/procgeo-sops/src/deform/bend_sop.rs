@@ -1027,4 +1027,412 @@ mod tests {
         // The local XY (world X offset) should be scaled by 1/sqrt(4)=0.5: X = 2.0 * 0.5 = 1.0
         assert_relative_eq!(pos.x, 1.0, epsilon = 0.1);
     }
+
+    // ── Additional tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn bend_both_directions() {
+        // Create points on both sides of origin along Y: [-1..1]
+        let mut geo = Geometry::new();
+        for i in 0..11 {
+            let y = (i as f32 / 10.0) * 2.0 - 1.0; // -1.0 to 1.0
+            geo.add_point(Vec3::new(0.0, y, 0.0));
+        }
+
+        let params = BendParams {
+            bend_enable: true,
+            bend_angle: 45.0,
+            deform_both_directions: true,
+            capture_origin: Vec3::ZERO,
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: true,
+            ..BendParams::default()
+        };
+
+        let result = BendSop.execute(&[&geo], &params).unwrap();
+
+        // Points on negative Y side (indices 0..5) should have moved (deformed)
+        let neg_y_moved = (0..5).any(|i| {
+            let orig = geo.point_pos(PointHandle::from_index(i));
+            let res = result.point_pos(PointHandle::from_index(i));
+            (orig - res).length() > 1e-4
+        });
+        assert!(
+            neg_y_moved,
+            "with deform_both_directions, negative-Y points should be deformed"
+        );
+
+        // Points on positive Y side (indices 6..11) should also have moved
+        let pos_y_moved = (6..11).any(|i| {
+            let orig = geo.point_pos(PointHandle::from_index(i));
+            let res = result.point_pos(PointHandle::from_index(i));
+            (orig - res).length() > 1e-4
+        });
+        assert!(
+            pos_y_moved,
+            "with deform_both_directions, positive-Y points should be deformed"
+        );
+    }
+
+    #[test]
+    fn twist_both_directions_continuous() {
+        // Create points on both sides of origin with an offset from the spine
+        let mut geo = Geometry::new();
+        for i in 0..11 {
+            let y = (i as f32 / 10.0) * 2.0 - 1.0; // -1.0 to 1.0
+            geo.add_point(Vec3::new(1.0, y, 0.0)); // 1 unit offset in X
+        }
+
+        let params = BendParams {
+            twist_enable: true,
+            twist_angle: 180.0,
+            deform_both_directions: true,
+            twist_continuous_both: true,
+            capture_origin: Vec3::ZERO,
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: true,
+            ..BendParams::default()
+        };
+
+        let result = BendSop.execute(&[&geo], &params).unwrap();
+
+        // With continuous_both, backward twist should be negative of forward.
+        // Forward side (positive Y) at t=1 gets +180 twist
+        // Backward side (negative Y) at t=-1 (mirrored to t=1) gets -180 twist
+        // Due to continuous mode, both endpoints should twist in opposite directions.
+        let tip_pos = result.point_pos(PointHandle::from_index(10)); // Y=+1
+        let tip_neg = result.point_pos(PointHandle::from_index(0));  // Y=-1
+
+        // Both should have moved from original X=1 position
+        let moved_pos = (tip_pos - Vec3::new(1.0, 1.0, 0.0)).length();
+        let moved_neg = (tip_neg - Vec3::new(1.0, -1.0, 0.0)).length();
+        assert!(moved_pos > 0.5, "positive tip should twist significantly, moved {moved_pos}");
+        assert!(moved_neg > 0.5, "negative tip should twist significantly, moved {moved_neg}");
+    }
+
+    #[test]
+    fn taper_smooth_mode() {
+        // Compare Smooth taper vs Linear taper at a non-midpoint parametric
+        // position where hermite_smooth(t) != t.
+        // hermite_smooth(t) = 3t^2 - 2t^3. For t=0.25: smooth=0.15625 vs linear=0.25
+        // Use squish=0.5, squish_pivot=0.5, so in the first half segment (0..0.5),
+        // local_t = t / 0.5. At t=0.125, local_t = 0.25, smooth vs linear differ.
+        let mut geo = Geometry::new();
+        geo.add_point(Vec3::new(1.0, 0.125, 0.0)); // At t=0.125 inside capture
+
+        let linear_params = BendParams {
+            taper_enable: true,
+            taper_value: 0.0,
+            taper_along: [true, true],
+            taper_mode: TaperMode::Linear,
+            squish: 0.5,
+            squish_pivot: 0.5,
+            capture_origin: Vec3::ZERO,
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: false,
+            ..BendParams::default()
+        };
+
+        let smooth_params = BendParams {
+            taper_mode: TaperMode::Smooth,
+            ..linear_params.clone()
+        };
+
+        let result_linear = BendSop.execute(&[&geo], &linear_params).unwrap();
+        let result_smooth = BendSop.execute(&[&geo], &smooth_params).unwrap();
+
+        let pos_linear = result_linear.point_pos(PointHandle::from_index(0));
+        let pos_smooth = result_smooth.point_pos(PointHandle::from_index(0));
+
+        // Both should differ from the original (taper is active)
+        let orig = geo.point_pos(PointHandle::from_index(0));
+        assert!(
+            (pos_linear - orig).length() > 1e-4,
+            "linear taper should move the point"
+        );
+        assert!(
+            (pos_smooth - orig).length() > 1e-4,
+            "smooth taper should move the point"
+        );
+
+        // Smooth and linear should produce different results at non-midpoint positions
+        let diff = (pos_linear - pos_smooth).length();
+        assert!(
+            diff > 1e-5,
+            "smooth and linear taper should differ, got diff={diff}"
+        );
+    }
+
+    #[test]
+    fn taper_ramp() {
+        // Custom ramp: [(0.0, 0.5), (0.5, 0.0), (1.0, 1.0)]
+        // Ramp values are mapped: 0.5 = no scale (1x), 0.0 = scale to 0x, 1.0 = 2x
+        // At t=0.0: ramp value=0.5 -> scale = 0.5*2 = 1.0 (no scaling)
+        // At t=0.5: ramp value=0.0 -> scale = 0.0*2 = 0.0 (collapse)
+        // At t=1.0: ramp value=1.0 -> scale = 1.0*2 = 2.0 (double)
+        let mut geo = Geometry::new();
+        geo.add_point(Vec3::new(1.0, 0.0, 0.0));  // t=0
+        geo.add_point(Vec3::new(1.0, 0.5, 0.0));  // t=0.5
+        geo.add_point(Vec3::new(1.0, 1.0, 0.0));  // t=1.0
+
+        let params = BendParams {
+            taper_enable: true,
+            taper_ramp_enable: true,
+            taper_ramp: vec![(0.0, 0.5), (0.5, 0.0), (1.0, 1.0)],
+            taper_along: [true, true],
+            capture_origin: Vec3::ZERO,
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: false,
+            ..BendParams::default()
+        };
+
+        let result = BendSop.execute(&[&geo], &params).unwrap();
+
+        // At t=0: scale=1.0, point X offset should stay ~1.0
+        let p0 = result.point_pos(PointHandle::from_index(0));
+        assert_relative_eq!(p0.x, 1.0, epsilon = 0.1);
+
+        // At t=0.5: scale=0.0, point X offset should collapse to ~0.0
+        let p1 = result.point_pos(PointHandle::from_index(1));
+        assert!(
+            p1.x.abs() < 0.1,
+            "at t=0.5, ramp scale=0, X should collapse, got {}",
+            p1.x
+        );
+
+        // At t=1.0: scale=2.0, point X offset should double to ~2.0
+        let p2 = result.point_pos(PointHandle::from_index(2));
+        assert_relative_eq!(p2.x, 2.0, epsilon = 0.1);
+    }
+
+    #[test]
+    fn bend_direction_mode() {
+        // Use BendMode::Direction with a goal direction.
+        // Capture direction is Y, goal direction is Z.
+        // The spine should bend toward Z.
+        let geo = make_line_along_y(11, 1.0);
+
+        let params = BendParams {
+            bend_enable: true,
+            bend_mode: BendMode::Direction,
+            bend_goal_direction: Vec3::Z,
+            capture_origin: Vec3::ZERO,
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: true,
+            ..BendParams::default()
+        };
+
+        let result = geo.apply(&BendSop, &params).unwrap();
+
+        // The tip should have moved toward Z
+        let tip = result.point_pos(PointHandle::from_index(10));
+        let base = result.point_pos(PointHandle::from_index(0));
+
+        // Base should be unchanged
+        assert_relative_eq!(base.x, 0.0, epsilon = 1e-4);
+        assert_relative_eq!(base.y, 0.0, epsilon = 1e-4);
+        assert_relative_eq!(base.z, 0.0, epsilon = 1e-4);
+
+        // Tip should have moved from (0, 1, 0) -- it should have a nonzero Z or
+        // reduced Y indicating bend.
+        let dist_from_original = (tip - Vec3::new(0.0, 1.0, 0.0)).length();
+        assert!(
+            dist_from_original > 0.1,
+            "direction mode should bend the spine, tip still at {:?}",
+            tip
+        );
+    }
+
+    #[test]
+    fn mask_attrib_partial_deform() {
+        // Create geometry with a "mask" attribute set to 0.5 on all points.
+        // Bend should only deform halfway compared to full deformation.
+        let geo = make_line_along_y(11, 1.0);
+
+        // Add a mask attribute with value 0.5
+        let mut geo_with_mask = geo.clone();
+        geo_with_mask
+            .add_attrib(
+                AttribClass::Point,
+                "mask",
+                AttribDefault::Float(0.5),
+                TypeQualifier::None,
+            )
+            .unwrap();
+
+        let base_params = BendParams {
+            bend_enable: true,
+            bend_angle: 90.0,
+            capture_origin: Vec3::ZERO,
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: true,
+            ..BendParams::default()
+        };
+
+        // Full deformation (no mask)
+        let orig_tip = geo.point_pos(PointHandle::from_index(10));
+        let result_full = geo.apply(&BendSop, &base_params).unwrap();
+
+        // Partial deformation (mask=0.5)
+        let masked_params = BendParams {
+            mask_attrib: Some("mask".to_string()),
+            ..base_params.clone()
+        };
+        let result_masked = geo_with_mask.apply(&BendSop, &masked_params).unwrap();
+
+        // The masked result should be somewhere between original and full deformation
+        // Check the tip point (index 10)
+        let full_tip = result_full.point_pos(PointHandle::from_index(10));
+        let masked_tip = result_masked.point_pos(PointHandle::from_index(10));
+
+        // The masked displacement should be about half of the full displacement
+        let full_disp = (full_tip - orig_tip).length();
+        let masked_disp = (masked_tip - orig_tip).length();
+
+        assert!(
+            full_disp > 0.01,
+            "full deformation should move the tip"
+        );
+        assert!(
+            masked_disp > 0.01,
+            "masked deformation should also move the tip"
+        );
+        assert!(
+            masked_disp < full_disp * 0.8,
+            "mask=0.5 displacement ({masked_disp}) should be less than full ({full_disp})"
+        );
+    }
+
+    #[test]
+    fn capture_region_not_at_origin() {
+        // Set capture_origin off-center at (0, 1, 0).
+        // Only points near that origin should be deformed.
+        let mut geo = Geometry::new();
+        geo.add_point(Vec3::new(0.0, 0.0, 0.0)); // Below origin, t < 0
+        geo.add_point(Vec3::new(0.0, 1.0, 0.0)); // At origin, t = 0
+        geo.add_point(Vec3::new(0.0, 1.5, 0.0)); // In capture region, t = 0.5
+        geo.add_point(Vec3::new(0.0, 2.0, 0.0)); // At end, t = 1.0
+        geo.add_point(Vec3::new(0.0, 3.0, 0.0)); // Beyond capture, t = 2.0
+
+        let params = BendParams {
+            bend_enable: true,
+            bend_angle: 90.0,
+            capture_origin: Vec3::new(0.0, 1.0, 0.0),
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: true,
+            ..BendParams::default()
+        };
+
+        let result = BendSop.execute(&[&geo], &params).unwrap();
+
+        // Point 0 (below origin, t < 0) should be unchanged
+        let p0 = result.point_pos(PointHandle::from_index(0));
+        assert_relative_eq!(p0.y, 0.0, epsilon = 1e-4);
+
+        // Point 2 (in capture region, t = 0.5) should have moved
+        let orig_p2 = geo.point_pos(PointHandle::from_index(2));
+        let p2 = result.point_pos(PointHandle::from_index(2));
+        assert!(
+            (p2 - orig_p2).length() > 0.01,
+            "point inside off-center capture region should deform"
+        );
+
+        // Point 4 (beyond capture, t > 1) should be unchanged
+        let orig_p4 = geo.point_pos(PointHandle::from_index(4));
+        let p4 = result.point_pos(PointHandle::from_index(4));
+        assert_relative_eq!(p4.x, orig_p4.x, epsilon = 1e-4);
+        assert_relative_eq!(p4.y, orig_p4.y, epsilon = 1e-4);
+        assert_relative_eq!(p4.z, orig_p4.z, epsilon = 1e-4);
+    }
+
+    #[test]
+    fn combined_bend_and_twist() {
+        // Enable both bend (45 degrees) and twist (90 degrees) simultaneously.
+        // Verify both effects are present.
+        let mut geo = Geometry::new();
+        // Point offset from the spine at the middle of the capture region
+        geo.add_point(Vec3::new(1.0, 0.5, 0.0));
+
+        let bend_only_params = BendParams {
+            bend_enable: true,
+            bend_angle: 45.0,
+            capture_origin: Vec3::ZERO,
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: false,
+            ..BendParams::default()
+        };
+
+        let twist_only_params = BendParams {
+            twist_enable: true,
+            twist_angle: 90.0,
+            capture_origin: Vec3::ZERO,
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: false,
+            ..BendParams::default()
+        };
+
+        let combined_params = BendParams {
+            bend_enable: true,
+            bend_angle: 45.0,
+            twist_enable: true,
+            twist_angle: 90.0,
+            capture_origin: Vec3::ZERO,
+            capture_direction: Vec3::Y,
+            capture_length: 1.0,
+            up_vector: Vec3::Z,
+            limit_to_capture_region: false,
+            ..BendParams::default()
+        };
+
+        let result_bend = BendSop.execute(&[&geo], &bend_only_params).unwrap();
+        let result_twist = BendSop.execute(&[&geo], &twist_only_params).unwrap();
+        let result_combined = BendSop.execute(&[&geo], &combined_params).unwrap();
+
+        let pos_bend = result_bend.point_pos(PointHandle::from_index(0));
+        let pos_twist = result_twist.point_pos(PointHandle::from_index(0));
+        let pos_combined = result_combined.point_pos(PointHandle::from_index(0));
+        let orig = geo.point_pos(PointHandle::from_index(0));
+
+        // All should differ from original
+        assert!(
+            (pos_bend - orig).length() > 0.01,
+            "bend only should move the point"
+        );
+        assert!(
+            (pos_twist - orig).length() > 0.01,
+            "twist only should move the point"
+        );
+        assert!(
+            (pos_combined - orig).length() > 0.01,
+            "combined should move the point"
+        );
+
+        // Combined result should differ from both bend-only and twist-only
+        assert!(
+            (pos_combined - pos_bend).length() > 0.01,
+            "combined should differ from bend-only"
+        );
+        assert!(
+            (pos_combined - pos_twist).length() > 0.01,
+            "combined should differ from twist-only"
+        );
+    }
 }

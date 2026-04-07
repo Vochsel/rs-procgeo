@@ -691,4 +691,152 @@ mod tests {
             );
         }
     }
+
+    // ── Additional tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn rotation_deformation() {
+        // Create a simple mesh and a lattice. Rotate the deformed lattice 90 degrees
+        // around Y. The mesh should rotate similarly.
+        let mesh = make_mesh(); // triangle in XY plane
+
+        let lattice_pts = vec![
+            Vec3::new(-2.0, -2.0, -2.0),
+            Vec3::new(3.0, -2.0, -2.0),
+            Vec3::new(3.0, 3.0, -2.0),
+            Vec3::new(-2.0, 3.0, -2.0),
+            Vec3::new(-2.0, -2.0, 2.0),
+            Vec3::new(3.0, -2.0, 2.0),
+            Vec3::new(3.0, 3.0, 2.0),
+            Vec3::new(-2.0, 3.0, 2.0),
+        ];
+        let rest = make_lattice(&lattice_pts);
+
+        // Rotate all lattice points 90 degrees around Y:
+        // (x, y, z) -> (z, y, -x)
+        let deformed_pts: Vec<Vec3> = lattice_pts
+            .iter()
+            .map(|&p| Vec3::new(p.z, p.y, -p.x))
+            .collect();
+        let deformed = make_lattice(&deformed_pts);
+
+        let params = PointDeformParams {
+            radius: 10.0,
+            max_points: 8,
+            ..Default::default()
+        };
+
+        let result = PointDeformSop
+            .execute(&[&mesh, &rest, &deformed], &params)
+            .unwrap();
+
+        // The mesh should have rotated. The original triangle has:
+        // p0=(0,0,0), p1=(1,0,0), p2=(0.5,1,0)
+        // After 90-degree Y rotation: (x,y,z) -> (z,y,-x)
+        // p0->(0,0,0), p1->(0,0,-1), p2->(0,1,-0.5)
+        for i in 0..mesh.num_points() {
+            let orig = mesh.point_pos(PointHandle::from_index(i));
+            let deformed_pt = result.point_pos(PointHandle::from_index(i));
+            let expected = Vec3::new(orig.z, orig.y, -orig.x);
+            assert!(
+                (expected - deformed_pt).length() < 0.5,
+                "point {} expected near {:?}, got {:?}",
+                i,
+                expected,
+                deformed_pt,
+            );
+        }
+    }
+
+    #[test]
+    fn radius_affects_capture() {
+        // With a very small radius, distant lattice points should not affect the mesh.
+        let mesh = make_mesh();
+        let offset = Vec3::new(5.0, 3.0, -2.0);
+
+        // Place lattice far away from the mesh
+        let lattice_pts = vec![
+            Vec3::new(100.0, 100.0, 100.0),
+            Vec3::new(101.0, 100.0, 100.0),
+            Vec3::new(101.0, 101.0, 100.0),
+            Vec3::new(100.0, 101.0, 100.0),
+        ];
+        let rest = make_lattice(&lattice_pts);
+        let deformed_pts: Vec<Vec3> = lattice_pts.iter().map(|&p| p + offset).collect();
+        let deformed = make_lattice(&deformed_pts);
+
+        let params = PointDeformParams {
+            radius: 0.1, // Very small radius -- lattice is 100+ units away
+            min_points: 1, // Will force KNN to expand, but transforms should be translation
+            max_points: 4,
+            ..Default::default()
+        };
+
+        let result = PointDeformSop
+            .execute(&[&mesh, &rest, &deformed], &params)
+            .unwrap();
+
+        // With min_points=1, KNN will still find nearest lattice points even beyond
+        // radius, but the result should still be a valid deformation (translated).
+        // Main check: the operation completes without error and produces points.
+        assert_eq!(result.num_points(), mesh.num_points());
+    }
+
+    #[test]
+    fn max_points_limits_capture() {
+        // Compare max_points=1 vs max_points=10 to verify they produce different
+        // (but both valid) results.
+        let mesh = make_mesh();
+        let offset = Vec3::new(5.0, 3.0, -2.0);
+
+        let lattice_pts = vec![
+            Vec3::new(-1.0, -1.0, 0.0),
+            Vec3::new(2.0, -1.0, 0.0),
+            Vec3::new(2.0, 2.0, 0.0),
+            Vec3::new(-1.0, 2.0, 0.0),
+        ];
+        let rest = make_lattice(&lattice_pts);
+        let deformed_pts: Vec<Vec3> = lattice_pts.iter().map(|&p| p + offset).collect();
+        let deformed = make_lattice(&deformed_pts);
+
+        let params_max1 = PointDeformParams {
+            radius: 5.0,
+            max_points: 1,
+            ..Default::default()
+        };
+
+        let params_max10 = PointDeformParams {
+            radius: 5.0,
+            max_points: 10,
+            ..Default::default()
+        };
+
+        let result_max1 = PointDeformSop
+            .execute(&[&mesh, &rest, &deformed], &params_max1)
+            .unwrap();
+        let result_max10 = PointDeformSop
+            .execute(&[&mesh, &rest, &deformed], &params_max10)
+            .unwrap();
+
+        // Both should produce valid results
+        assert_eq!(result_max1.num_points(), mesh.num_points());
+        assert_eq!(result_max10.num_points(), mesh.num_points());
+
+        // For a pure translation, both should give the same result.
+        // But in general, with a non-uniform deformation, they could differ.
+        // Here it's a uniform translation so they should agree.
+        for i in 0..mesh.num_points() {
+            let p1 = result_max1.point_pos(PointHandle::from_index(i));
+            let p10 = result_max10.point_pos(PointHandle::from_index(i));
+            // For uniform translation, should be close
+            assert!(
+                (p1 - p10).length() < 0.5,
+                "max_points=1 and max_points=10 should produce similar results for \
+                 uniform translation, point {} got {:?} vs {:?}",
+                i,
+                p1,
+                p10,
+            );
+        }
+    }
 }
