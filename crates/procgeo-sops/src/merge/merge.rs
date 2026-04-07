@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use procgeo_core::{Geometry, PrimHandle};
+use procgeo_core::{AttribClass, Geometry, PrimHandle};
 
 use crate::{Sop, SopError};
 
@@ -28,6 +28,7 @@ impl Sop for MergeSop {
 
         for &input in inputs {
             let point_offset = out.num_points();
+            let prim_offset = out.num_prims();
 
             // Copy all points from this input
             for pt in input.points() {
@@ -57,6 +58,47 @@ impl Sop for MergeSop {
                             PolyType::Closed => { out.add_face(&remapped); }
                             PolyType::Open => { out.add_polyline(&remapped); }
                         }
+                    }
+                }
+            }
+
+            // Copy point attributes (skip "P" — handled by add_point).
+            // Note: add_point auto-resizes existing attrs with defaults,
+            // so for existing attrs we overwrite the range; for new attrs we create + set.
+            for name in input.attrib_names(AttribClass::Point) {
+                if name == "P" { continue; }
+                let src_attr = input.attributes().get_raw(AttribClass::Point, name).unwrap();
+                if let Some(dst_attr) = out.attributes_mut().get_raw_mut(AttribClass::Point, name) {
+                    // Already auto-resized by add_point — overwrite the new slots
+                    dst_attr.storage.copy_from_at(point_offset, &src_attr.storage);
+                } else {
+                    // New attribute — create it (auto-sizes to current point count with defaults)
+                    out.attributes_mut().create(
+                        AttribClass::Point, name,
+                        src_attr.default.clone(), src_attr.qualifier,
+                    ).ok();
+                    let count = out.num_points();
+                    out.attributes_mut().resize_class(AttribClass::Point, count);
+                    if let Some(dst) = out.attributes_mut().get_raw_mut(AttribClass::Point, name) {
+                        dst.storage.copy_from_at(point_offset, &src_attr.storage);
+                    }
+                }
+            }
+
+            // Copy primitive attributes (same logic — add_face auto-resizes)
+            for name in input.attrib_names(AttribClass::Primitive) {
+                let src_attr = input.attributes().get_raw(AttribClass::Primitive, name).unwrap();
+                if let Some(dst_attr) = out.attributes_mut().get_raw_mut(AttribClass::Primitive, name) {
+                    dst_attr.storage.copy_from_at(prim_offset, &src_attr.storage);
+                } else {
+                    out.attributes_mut().create(
+                        AttribClass::Primitive, name,
+                        src_attr.default.clone(), src_attr.qualifier,
+                    ).ok();
+                    let count = out.num_prims();
+                    out.attributes_mut().resize_class(AttribClass::Primitive, count);
+                    if let Some(dst) = out.attributes_mut().get_raw_mut(AttribClass::Primitive, name) {
+                        dst.storage.copy_from_at(prim_offset, &src_attr.storage);
                     }
                 }
             }
@@ -104,6 +146,82 @@ mod tests {
 
         assert_eq!(result.num_points(), 8);
         assert_eq!(result.num_prims(), 6);
+    }
+
+    #[test]
+    fn merge_propagates_point_attribs() {
+        use crate::color::color::{ColorSop, ColorParams};
+
+        let sop = MergeSop;
+        let b1 = ColorSop.execute(
+            &[&make_box()],
+            &ColorParams { color: [1.0, 0.0, 0.0] },
+        ).unwrap();
+        let b2 = ColorSop.execute(
+            &[&make_box()],
+            &ColorParams { color: [0.0, 0.0, 1.0] },
+        ).unwrap();
+        let result = sop.execute(&[&b1, &b2], &MergeParams).unwrap();
+
+        // Cd attribute should exist on all 16 points
+        let handle = result.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").unwrap();
+        // First box points → red
+        for i in 0..8 {
+            let c = result.get_attrib(&handle, i).unwrap();
+            assert_eq!(c, [1.0, 0.0, 0.0], "point {i} should be red");
+        }
+        // Second box points → blue
+        for i in 8..16 {
+            let c = result.get_attrib(&handle, i).unwrap();
+            assert_eq!(c, [0.0, 0.0, 1.0], "point {i} should be blue");
+        }
+    }
+
+    #[test]
+    fn merge_backfills_missing_attribs() {
+        use crate::color::color::{ColorSop, ColorParams};
+
+        let sop = MergeSop;
+        // b1 has Cd, b2 does NOT
+        let b1 = ColorSop.execute(
+            &[&make_box()],
+            &ColorParams { color: [1.0, 0.5, 0.0] },
+        ).unwrap();
+        let b2 = make_box(); // no Cd
+        let result = sop.execute(&[&b1, &b2], &MergeParams).unwrap();
+
+        // Cd should still exist — b2's points get the attribute's stored default
+        let handle = result.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").unwrap();
+        // First box → orange
+        let c0 = result.get_attrib(&handle, 0).unwrap();
+        assert_eq!(c0, [1.0, 0.5, 0.0]);
+        // Second box → attribute default (white, as ColorSop creates Cd with [1,1,1] default)
+        let c8 = result.get_attrib(&handle, 8).unwrap();
+        // Just verify Cd exists for all points and first box kept its values
+        assert_eq!(result.attrib_names(AttribClass::Point).contains(&"Cd"), true);
+        assert_ne!(c0, c8, "merged geos with different Cd should differ");
+    }
+
+    #[test]
+    fn merge_chain_preserves_attribs() {
+        use crate::color::color::{ColorSop, ColorParams};
+
+        let sop = MergeSop;
+        let colors = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let boxes: Vec<_> = colors.iter().map(|&c| {
+            ColorSop.execute(&[&make_box()], &ColorParams { color: c }).unwrap()
+        }).collect();
+
+        // Chain: merge(merge(r, g), b) — simulates WASM binary merge
+        let m1 = sop.execute(&[&boxes[0], &boxes[1]], &MergeParams).unwrap();
+        let m2 = sop.execute(&[&m1, &boxes[2]], &MergeParams).unwrap();
+
+        assert_eq!(m2.num_points(), 24);
+        let handle = m2.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").unwrap();
+        // Spot check: point 0 red, point 8 green, point 16 blue
+        assert_eq!(m2.get_attrib(&handle, 0).unwrap(), [1.0, 0.0, 0.0]);
+        assert_eq!(m2.get_attrib(&handle, 8).unwrap(), [0.0, 1.0, 0.0]);
+        assert_eq!(m2.get_attrib(&handle, 16).unwrap(), [0.0, 0.0, 1.0]);
     }
 
     #[test]

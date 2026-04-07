@@ -150,6 +150,43 @@ impl AttribStorage {
         }
     }
 
+    /// Append all elements from `other` storage. Panics if types don't match.
+    pub fn extend_from(&mut self, other: &AttribStorage) {
+        match (self, other) {
+            (AttribStorage::Int(a), AttribStorage::Int(b)) => a.extend_from_slice(b),
+            (AttribStorage::Int64(a), AttribStorage::Int64(b)) => a.extend_from_slice(b),
+            (AttribStorage::Float(a), AttribStorage::Float(b)) => a.extend_from_slice(b),
+            (AttribStorage::Float64(a), AttribStorage::Float64(b)) => a.extend_from_slice(b),
+            (AttribStorage::Vector2(a), AttribStorage::Vector2(b)) => a.extend_from_slice(b),
+            (AttribStorage::Vector3(a), AttribStorage::Vector3(b)) => a.extend_from_slice(b),
+            (AttribStorage::Vector4(a), AttribStorage::Vector4(b)) => a.extend_from_slice(b),
+            (AttribStorage::Matrix3(a), AttribStorage::Matrix3(b)) => a.extend_from_slice(b),
+            (AttribStorage::Matrix4(a), AttribStorage::Matrix4(b)) => a.extend_from_slice(b),
+            (AttribStorage::String(a), AttribStorage::String(b)) => a.extend(b.iter().cloned()),
+            _ => panic!("extend_from: type mismatch between storages"),
+        }
+    }
+
+    /// Copy values from `other` into `self[offset..offset+other.len()]`.
+    /// `self` must already be large enough. Panics on type mismatch or out of bounds.
+    pub fn copy_from_at(&mut self, offset: usize, other: &AttribStorage) {
+        match (self, other) {
+            (AttribStorage::Int(a), AttribStorage::Int(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::Int64(a), AttribStorage::Int64(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::Float(a), AttribStorage::Float(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::Float64(a), AttribStorage::Float64(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::Vector2(a), AttribStorage::Vector2(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::Vector3(a), AttribStorage::Vector3(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::Vector4(a), AttribStorage::Vector4(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::Matrix3(a), AttribStorage::Matrix3(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::Matrix4(a), AttribStorage::Matrix4(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::String(a), AttribStorage::String(b)) => {
+                for (i, v) in b.iter().enumerate() { a[offset + i] = v.clone(); }
+            }
+            _ => panic!("copy_from_at: type mismatch between storages"),
+        }
+    }
+
     /// Resize to `new_len`, filling new slots with `default`.
     pub fn resize_with_default(&mut self, new_len: usize, default: &AttribDefault) {
         match (self, default) {

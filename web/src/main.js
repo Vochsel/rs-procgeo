@@ -27,7 +27,7 @@ renderer.toneMappingExposure = 1.1;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x181820);
 
-const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
 camera.position.set(3, 2.2, 3.5);
 
 const controls = new OrbitControls(camera, canvas);

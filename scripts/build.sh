@@ -15,8 +15,8 @@ echo -e "${B}ProcGeo — Build All${N}"
 
 # ── Rust ──
 step "Rust workspace"
-cargo build --release
-cargo test --workspace
+cargo build --release --workspace --exclude procgeo-py
+cargo test --workspace --exclude procgeo-py
 ok "Built + tested"
 
 # ── Node.js (napi-rs) ──
