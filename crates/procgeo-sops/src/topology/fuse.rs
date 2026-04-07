@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use procgeo_core::{Geometry, PointHandle, PrimHandle};
@@ -18,6 +20,20 @@ impl Default for FuseParams {
 
 pub struct FuseSop;
 
+/// Spatial hash cell key for a 3D grid.
+#[derive(Hash, Eq, PartialEq, Clone, Copy)]
+struct CellKey(i32, i32, i32);
+
+impl CellKey {
+    fn from_pos(pos: glam::Vec3, inv_cell: f32) -> Self {
+        Self(
+            (pos.x * inv_cell).floor() as i32,
+            (pos.y * inv_cell).floor() as i32,
+            (pos.z * inv_cell).floor() as i32,
+        )
+    }
+}
+
 impl Sop for FuseSop {
     type Params = FuseParams;
 
@@ -35,25 +51,48 @@ impl Sop for FuseSop {
 
         let num_pts = geo.num_points();
         let dist_sq = params.distance * params.distance;
+        let cell_size = params.distance.max(f32::EPSILON);
+        let inv_cell = 1.0 / cell_size;
 
-        // Build merge map: for each point i, find lowest-index j (j < i) within distance
-        // If none found, map[i] = i (point maps to itself)
+        // Build merge map using spatial hash grid for O(n) average lookup.
+        // For each point, check only the 27 neighboring cells (3x3x3) instead
+        // of all previous points.
         let mut merge_map: Vec<usize> = (0..num_pts).collect();
+        let mut grid: HashMap<CellKey, Vec<usize>> =
+            HashMap::with_capacity(num_pts.min(1 << 20));
 
         for i in 0..num_pts {
             let pi = geo.point_pos(PointHandle::from_index(i));
-            for j in 0..i {
-                let pj = geo.point_pos(PointHandle::from_index(j));
-                let diff = pi - pj;
-                if diff.dot(diff) <= dist_sq {
-                    merge_map[i] = j;
-                    break;
+            let ci = CellKey::from_pos(pi, inv_cell);
+            let mut merged = false;
+
+            // Check 27 neighboring cells
+            'outer: for dz in -1..=1i32 {
+                for dy in -1..=1i32 {
+                    for dx in -1..=1i32 {
+                        let neighbor = CellKey(ci.0 + dx, ci.1 + dy, ci.2 + dz);
+                        if let Some(bucket) = grid.get(&neighbor) {
+                            for &j in bucket {
+                                let pj = geo.point_pos(PointHandle::from_index(j));
+                                let diff = pi - pj;
+                                if diff.dot(diff) <= dist_sq {
+                                    merge_map[i] = j;
+                                    merged = true;
+                                    break 'outer;
+                                }
+                            }
+                        }
+                    }
                 }
+            }
+
+            // Only insert into grid if this point is a representative (not merged)
+            if !merged {
+                grid.entry(ci).or_default().push(i);
             }
         }
 
-        // Follow chains: if i→j and j→k, then i→k
-        // Iterate until stable (max depth is num_pts, but typically short chains)
+        // Follow chains: if i→j and j→k, then i→k (path compression)
         for i in 0..num_pts {
             let mut current = merge_map[i];
             while merge_map[current] != current {
@@ -83,7 +122,6 @@ impl Sop for FuseSop {
         }
 
         // Final remap: old_pt_idx -> new geometry index
-        // First follow merge_map to find representative, then look up new_index
         let final_remap: Vec<usize> = (0..num_pts)
             .map(|i| new_index[merge_map[i]])
             .collect();

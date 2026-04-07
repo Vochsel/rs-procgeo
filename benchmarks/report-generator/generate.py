@@ -70,9 +70,9 @@ def get_system_info() -> dict:
     return info
 
 
-def format_ms(val: float) -> str:
+def format_ms(val: float | None) -> str:
     """Format milliseconds for display."""
-    if val != val:  # NaN
+    if val is None or val != val:  # None or NaN
         return "N/A"
     if val < 0.001:
         return f"{val * 1000:.1f}us"
@@ -128,6 +128,9 @@ def build_tables(results: list[dict]) -> dict:
     """Organize results into nested dict: category -> operation -> (fw, lang) -> scale -> result."""
     tables = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
     for r in results:
+        # Skip malformed entries
+        if not all(k in r for k in ("framework", "language", "category", "operation", "scale")):
+            continue
         key = (r["framework"], r["language"])
         tables[r["category"]][r["operation"]][key][r["scale"]] = r
     return tables
@@ -169,13 +172,13 @@ def generate_markdown(results: list[dict], system_info: dict) -> str:
             best_time = float("inf")
             for (fw, lang), scale_data in fw_data.items():
                 if 100_000 in scale_data:
-                    t = scale_data[100_000]["mean_ms"]
-                    if t == t and t < best_time:  # not NaN
+                    t = scale_data[100_000].get("mean_ms")
+                    if t is not None and t == t and t < best_time:  # not None/NaN
                         best_time = t
                         best_fw = framework_label(fw, lang)
                 elif 10_000 in scale_data:
-                    t = scale_data[10_000]["mean_ms"]
-                    if t == t and t < best_time:
+                    t = scale_data[10_000].get("mean_ms")
+                    if t is not None and t == t and t < best_time:
                         best_time = t
                         best_fw = framework_label(fw, lang)
             if best_fw:
@@ -204,8 +207,8 @@ def generate_markdown(results: list[dict], system_info: dict) -> str:
                 target_scale = 100_000 if 100_000 in scale_data else (10_000 if 10_000 in scale_data else None)
                 if target_scale is None:
                     continue
-                t = scale_data[target_scale]["mean_ms"]
-                if t != t:
+                t = scale_data[target_scale].get("mean_ms")
+                if t is None or t != t:
                     continue
                 if lang == "rust":
                     rust_time = t
@@ -254,7 +257,7 @@ def generate_markdown(results: list[dict], system_info: dict) -> str:
                 for s in SCALES:
                     if s in scale_data:
                         r = scale_data[s]
-                        t = r["mean_ms"]
+                        t = r.get("mean_ms")
                         cells.append(format_ms(t))
                     else:
                         cells.append("N/A")
@@ -375,8 +378,8 @@ def generate_html(results: list[dict], system_info: dict) -> str:
             for (fw, lang), scale_data in fw_data.items():
                 for s in [100_000, 10_000]:
                     if s in scale_data:
-                        t = scale_data[s]["mean_ms"]
-                        if t == t and t < best_time:
+                        t = scale_data[s].get("mean_ms")
+                        if t is not None and t == t and t < best_time:
                             best_time = t
                             best_fw = framework_label(fw, lang)
                         break
@@ -406,8 +409,8 @@ def generate_html(results: list[dict], system_info: dict) -> str:
             for (fw, lang), scale_data in fw_data.items():
                 for s in SCALES:
                     if s in scale_data:
-                        v = scale_data[s]["mean_ms"]
-                        if v == v:  # not NaN
+                        v = scale_data[s].get("mean_ms")
+                        if v is not None and v == v:  # not None/NaN
                             scale_vals[s].append(v)
 
             sorted_fws = sorted(fw_data.keys(), key=lambda k: FW_ORDER.get(k, 99))
@@ -419,8 +422,8 @@ def generate_html(results: list[dict], system_info: dict) -> str:
 
                 for s in SCALES:
                     if s in scale_data:
-                        v = scale_data[s]["mean_ms"]
-                        if v != v:
+                        v = scale_data[s].get("mean_ms")
+                        if v is None or v != v:
                             html_parts.append('<td class="na" style="text-align:right">N/A</td>')
                         else:
                             vals = scale_vals[s]
@@ -460,8 +463,8 @@ def generate_html(results: list[dict], system_info: dict) -> str:
                     continue
                 for s in [100_000, 10_000]:
                     if s in scale_data:
-                        t = scale_data[s]["mean_ms"]
-                        if t == t:
+                        t = scale_data[s].get("mean_ms")
+                        if t is not None and t == t:
                             if lang == "rust":
                                 rust_time = t
                             elif lang == "typescript":

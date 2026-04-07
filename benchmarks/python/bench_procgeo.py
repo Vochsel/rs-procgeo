@@ -5,9 +5,9 @@ sys.path.insert(0, ".")
 from bench_harness import bench, emit_result, grid_rc, SCALES
 
 try:
-    import procgeo_py as pg
+    import procgeo as pg
 except ImportError:
-    print('{"error": "procgeo_py not installed. Run: cd bindings/procgeo-py && maturin develop --release"}', file=sys.stderr)
+    print('{"error": "procgeo not installed. Build wheel and install it."}', file=sys.stderr)
     sys.exit(1)
 
 FW = "procgeo"
@@ -35,7 +35,7 @@ def run():
         # -- Transform --
         grid = pg.create_grid(rows=rc, cols=rc)
         mean, std, iters = bench(
-            lambda: pg.transform(grid, translate=[10.0, 0.0, 0.0], scale=[2.0, 2.0, 2.0])
+            lambda: pg.transform(grid, translate_x=10.0, scale_x=2.0, scale_y=2.0, scale_z=2.0)
         )
         emit_result(FW, LANG, "transform", "translate_scale", scale, mean, std, iters)
 
@@ -59,7 +59,7 @@ def run():
         # -- Full Pipeline --
         def pipeline():
             g = pg.create_grid(rows=rc, cols=rc)
-            g = pg.transform(g, translate=[0.0, 1.0, 0.0], scale=[2.0, 2.0, 2.0])
+            g = pg.transform(g, translate_y=1.0, scale_x=2.0, scale_y=2.0, scale_z=2.0)
             g = pg.smooth(g, iterations=2, strength=0.5)
             g = pg.fuse(g, distance=0.001)
             return g

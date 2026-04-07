@@ -96,7 +96,7 @@ def run():
         # -- Fuse (merge close vertices) --
         def fuse_mesh():
             ms = make_grid_ms(rc)
-            ms.apply_filter("meshing_merge_close_vertices", threshold=pymeshlab.AbsoluteValue(0.001))
+            ms.apply_filter("meshing_merge_close_vertices", threshold=pymeshlab.PercentageValue(0.01))
             return ms
 
         mean, std, iters = bench(fuse_mesh)
@@ -119,7 +119,7 @@ def run():
             ms.apply_filter("compute_matrix_from_scaling_or_normalization",
                             scalecenter="origin", axisx=2.0, axisy=2.0, axisz=2.0)
             ms.apply_filter("apply_coord_laplacian_smoothing", stepsmoothnum=2)
-            ms.apply_filter("meshing_merge_close_vertices", threshold=pymeshlab.AbsoluteValue(0.001))
+            ms.apply_filter("meshing_merge_close_vertices", threshold=pymeshlab.PercentageValue(0.01))
             return ms
 
         mean, std, iters = bench(pipeline)
