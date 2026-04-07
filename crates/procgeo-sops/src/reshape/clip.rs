@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
@@ -42,9 +44,25 @@ fn edge_plane_t(a: Vec3, b: Vec3, origin: Vec3, normal: Vec3) -> f32 {
     (origin - a).dot(normal) / denom
 }
 
-/// Clip a single polygon against the plane. Returns the clipped polygon's vertex positions,
-/// or None if the polygon is entirely discarded.
-fn clip_polygon(positions: &[Vec3], origin: Vec3, normal: Vec3, keep_above: bool) -> Option<Vec<Vec3>> {
+/// Identifies a clipped vertex as either an original point or an intersection on an edge.
+#[derive(Clone)]
+enum ClipVertex {
+    /// An original point that survived clipping.
+    Original(usize),
+    /// An intersection point on the edge between two original point indices.
+    /// The edge key is stored with the smaller index first for consistent hashing.
+    Intersection { edge: (usize, usize), pos: Vec3 },
+}
+
+/// Clip a single polygon against the plane. Returns the clipped polygon's vertices
+/// with identity information for point deduplication, or None if entirely discarded.
+fn clip_polygon(
+    positions: &[Vec3],
+    point_indices: &[usize],
+    origin: Vec3,
+    normal: Vec3,
+    keep_above: bool,
+) -> Option<Vec<ClipVertex>> {
     let n = positions.len();
     if n == 0 {
         return None;
@@ -61,14 +79,19 @@ fn clip_polygon(positions: &[Vec3], origin: Vec3, normal: Vec3, keep_above: bool
     let all_discarded = above.iter().all(|&a| a != keep_side);
 
     if all_kept {
-        return Some(positions.to_vec());
+        return Some(
+            point_indices
+                .iter()
+                .map(|&idx| ClipVertex::Original(idx))
+                .collect(),
+        );
     }
     if all_discarded {
         return None;
     }
 
     // Sutherland-Hodgman clipping against single plane
-    let mut output: Vec<Vec3> = Vec::new();
+    let mut output: Vec<ClipVertex> = Vec::new();
 
     for i in 0..n {
         let current = positions[i];
@@ -80,14 +103,24 @@ fn clip_polygon(positions: &[Vec3], origin: Vec3, normal: Vec3, keep_above: bool
         let next_kept = next_above == keep_side;
 
         if current_kept {
-            output.push(current);
+            output.push(ClipVertex::Original(point_indices[i]));
         }
 
         // If we cross the boundary, add intersection point
         if current_kept != next_kept {
             let t = edge_plane_t(current, next, origin, normal);
             let intersection = current + t * (next - current);
-            output.push(intersection);
+            let idx_a = point_indices[i];
+            let idx_b = point_indices[(i + 1) % n];
+            let edge = if idx_a < idx_b {
+                (idx_a, idx_b)
+            } else {
+                (idx_b, idx_a)
+            };
+            output.push(ClipVertex::Intersection {
+                edge,
+                pos: intersection,
+            });
         }
     }
 
@@ -116,6 +149,11 @@ impl Sop for ClipSop {
 
         let normal = params.normal.normalize_or_zero();
 
+        // Cache original surviving points by their source index
+        let mut orig_point_cache: HashMap<usize, PointHandle> = HashMap::new();
+        // Cache intersection points by their edge (sorted pair of source indices)
+        let mut edge_point_cache: HashMap<(usize, usize), PointHandle> = HashMap::new();
+
         for prim_idx in 0..geo.num_prims() {
             let ph = PrimHandle::from_index(prim_idx);
             let prim = geo.prim(ph);
@@ -127,16 +165,32 @@ impl Sop for ClipSop {
                         .iter()
                         .map(|&h| geo.point_pos(h))
                         .collect();
+                    let point_indices: Vec<usize> = orig_pts
+                        .iter()
+                        .map(|h| h.index())
+                        .collect();
 
                     if let Some(clipped) = clip_polygon(
                         &positions,
+                        &point_indices,
                         params.origin,
                         normal,
                         params.keep_above,
                     ) {
                         let new_handles: Vec<PointHandle> = clipped
                             .iter()
-                            .map(|&pos| out.add_point(pos))
+                            .map(|cv| match cv {
+                                ClipVertex::Original(idx) => {
+                                    *orig_point_cache.entry(*idx).or_insert_with(|| {
+                                        out.add_point(geo.point_pos(PointHandle::from_index(*idx)))
+                                    })
+                                }
+                                ClipVertex::Intersection { edge, pos } => {
+                                    *edge_point_cache.entry(*edge).or_insert_with(|| {
+                                        out.add_point(*pos)
+                                    })
+                                }
+                            })
                             .collect();
 
                         match poly.poly_type {
@@ -211,5 +265,28 @@ mod tests {
         let result = box_geo.apply(&ClipSop, &params).unwrap();
 
         assert_eq!(result.num_prims(), 0, "no faces should be kept");
+    }
+
+    #[test]
+    fn clip_shares_boundary_points() {
+        // Adjacent faces clipped by the same plane must share boundary points.
+        // A box clipped at y=0 has 4 side faces that each cross y=0, producing
+        // 4 intersection points (one per vertical edge). These must be shared,
+        // not duplicated per face. The top face (4 pts) + 4 boundary pts = 8 unique points.
+        let box_geo = make_box();
+        let params = ClipParams {
+            origin: Vec3::ZERO,
+            normal: Vec3::Y,
+            keep_above: true,
+        };
+        let result = box_geo.apply(&ClipSop, &params).unwrap();
+
+        // Box has 4 top corners (kept) + 4 edge intersections at y=0 = 8 unique points
+        assert_eq!(
+            result.num_points(),
+            8,
+            "clipped faces must share boundary points (got {} unique, expected 8)",
+            result.num_points()
+        );
     }
 }
