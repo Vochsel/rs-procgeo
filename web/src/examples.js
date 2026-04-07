@@ -304,7 +304,7 @@ rocks = pg.color(rocks, { color: [0.5, 0.48, 0.42] });
 
 // 3. Taller scattered pillars
 const pts2 = pg.scatter(terrain, { count: 120, seed: 77 });
-let pillar = pg.createTube({ radiusBottom: 0.05, radiusTop: 0.03, height: 0.4, cols: 6, rows: 1 });
+let pillar = pg.createTube({ radiusBottom: 0.05, radiusTop: 0.03, height: 0.4, cols: 6, rows: 2 });
 let pillars = pg.copyToPoints(pillar, pts2);
 pillars = pg.computeNormals(pillars);
 pillars = pg.color(pillars, { color: [0.45, 0.3, 0.15] });
@@ -326,5 +326,181 @@ geo = pg.smooth(geo, { iterations: 2, strength: 0.5 });
 geo = pg.computeNormals(geo);
 geo = pg.color(geo, { color: [0.5, 0.7, 0.9] });
 return geo;
+`,
+
+    // ── COP (Image Compositing) Examples ──────────────────
+
+    copTerrainHeightmap: `// Terrain heightmap — layered fBm noise
+// Broad hills + medium ridges + fine Worley detail
+const size = 256;
+
+const hills = pg.executeCopCreate('noise', {
+  noise_type: 'Simplex', frequency: 2.0, octaves: 4,
+  lacunarity: 2.0, gain: 0.5, amplitude: 1.0,
+  seed: 0, width: size, height: size,
+});
+
+const ridges = pg.executeCopCreate('noise', {
+  noise_type: 'Perlin', frequency: 6.0, octaves: 6,
+  lacunarity: 2.2, gain: 0.45, amplitude: 0.4,
+  seed: 42, width: size, height: size,
+});
+
+const detail = pg.executeCopCreate('noise', {
+  noise_type: 'Worley', frequency: 12.0, octaves: 2,
+  amplitude: 0.15, seed: 99, width: size, height: size,
+});
+
+let terrain = pg.executeCopComposite('composite', hills, ridges, {
+  operation: 'Add', mix: 0.6,
+});
+terrain = pg.executeCopComposite('composite', terrain, detail, {
+  operation: 'Screen', mix: 0.4,
+});
+terrain = pg.executeCop('blur', terrain, { radius_x: 2.0, radius_y: 2.0 });
+return terrain;
+`,
+
+    copNeonGrid: `// Neon grid — checkerboard + radial glow + swirl
+const size = 256;
+
+const checker = pg.executeCopCreate('checkerboard', {
+  color_a: [0.9, 0.1, 0.9, 1.0],
+  color_b: [0.1, 0.9, 0.9, 1.0],
+  frequency: [12.0, 12.0],
+  width: size, height: size,
+});
+
+const glow = pg.executeCopCreate('ramp', {
+  ramp_type: 'Radial',
+  stops: [
+    [0.0, [1.0, 1.0, 1.0, 1.0]],
+    [0.6, [0.4, 0.2, 0.6, 1.0]],
+    [1.0, [0.02, 0.01, 0.05, 1.0]],
+  ],
+  width: size, height: size,
+});
+
+let result = pg.executeCopComposite('composite', checker, glow, {
+  operation: 'Multiply', mix: 1.0,
+});
+result = pg.executeCop('swirl', result, {
+  center: [0.5, 0.5], angle: 120.0, radius: 0.6,
+});
+return result;
+`,
+
+    copMarbleTexture: `// Marble texture — Worley veins over tinted Perlin base
+const size = 256;
+
+const base = pg.executeCopCreate('noise', {
+  noise_type: 'Perlin', frequency: 3.0, octaves: 4,
+  amplitude: 1.0, seed: 7, width: size, height: size,
+});
+
+const veins = pg.executeCopCreate('noise', {
+  noise_type: 'Worley', frequency: 5.0, octaves: 3,
+  lacunarity: 2.5, gain: 0.6, amplitude: 1.0,
+  seed: 33, width: size, height: size,
+});
+
+const colorRamp = pg.executeCopCreate('ramp', {
+  ramp_type: 'Diagonal',
+  stops: [
+    [0.0, [0.92, 0.88, 0.82, 1.0]],
+    [0.35, [0.85, 0.78, 0.70, 1.0]],
+    [0.65, [0.70, 0.62, 0.55, 1.0]],
+    [1.0, [0.55, 0.48, 0.42, 1.0]],
+  ],
+  width: size, height: size,
+});
+
+let marble = pg.executeCopComposite('composite', colorRamp, base, {
+  operation: 'Multiply', mix: 0.7,
+});
+marble = pg.executeCopComposite('composite', marble, veins, {
+  operation: 'Screen', mix: 0.3,
+});
+marble = pg.executeCop('blur', marble, { radius_x: 1.5, radius_y: 1.5 });
+return marble;
+`,
+
+    copPlasmaShader: `// Plasma shader — custom WGSL interference pattern
+const size = 256;
+const source = \`
+@group(0) @binding(0) var output: texture_storage_2d<rgba32float, write>;
+
+fn psin(x: f32) -> f32 {
+    return sin(fract(x / 6.2831853) * 6.2831853);
+}
+
+@compute @workgroup_size(16, 16)
+fn main(@builtin(global_invocation_id) gid: vec3u) {
+    let dims = textureDimensions(output);
+    if gid.x >= dims.x || gid.y >= dims.y { return; }
+    let uv = vec2f(f32(gid.x), f32(gid.y)) / vec2f(f32(dims.x), f32(dims.y));
+    let p = uv * 8.0;
+
+    var v = 0.0;
+    v += psin(p.x + psin(p.y * 1.3 + 1.7));
+    v += psin(p.y * 0.9 + psin(p.x * 1.1 + 2.3));
+    v += psin(length(p - vec2f(4.0, 4.0)) * 1.5);
+    v += psin(length(p - vec2f(2.0, 6.0)) * 2.0 + 0.5);
+    v = v * 0.25 + 0.5;
+
+    let r = psin(v * 6.2831853) * 0.5 + 0.5;
+    let g = psin(v * 6.2831853 + 2.094) * 0.5 + 0.5;
+    let b = psin(v * 6.2831853 + 4.189) * 0.5 + 0.5;
+    textureStore(output, vec2i(gid.xy), vec4f(r, g, b, 1.0));
+}
+\`;
+return pg.executeCopCreate('custom_shader', {
+  source, language: 'Wgsl', width: size, height: size,
+});
+`,
+
+    copGlowEffect: `// Bloom / glow — dual-layer blur composited over source
+const size = 256;
+
+const checker = pg.executeCopCreate('checkerboard', {
+  color_a: [0.0, 0.0, 0.0, 1.0],
+  color_b: [1.0, 0.7, 0.2, 1.0],
+  frequency: [6.0, 6.0],
+  width: size, height: size,
+});
+
+const noise = pg.executeCopCreate('noise', {
+  noise_type: 'Simplex', frequency: 8.0, octaves: 3,
+  amplitude: 1.0, seed: 5, width: size, height: size,
+});
+
+let source = pg.executeCopComposite('composite', checker, noise, {
+  operation: 'Multiply', mix: 0.4,
+});
+
+const bloomWide = pg.executeCop('blur', source, { radius_x: 20, radius_y: 20 });
+const bloomTight = pg.executeCop('blur', source, { radius_x: 8, radius_y: 8 });
+
+let bloom = pg.executeCopComposite('composite', bloomWide, bloomTight, {
+  operation: 'Add', mix: 0.5,
+});
+
+let glowed = pg.executeCopComposite('composite', source, bloom, {
+  operation: 'Add', mix: 0.6,
+});
+
+const vignette = pg.executeCopCreate('ramp', {
+  ramp_type: 'Radial',
+  stops: [
+    [0.0, [1.0, 1.0, 1.0, 1.0]],
+    [0.5, [0.9, 0.9, 0.9, 1.0]],
+    [1.0, [0.15, 0.1, 0.05, 1.0]],
+  ],
+  width: size, height: size,
+});
+
+return pg.executeCopComposite('composite', glowed, vignette, {
+  operation: 'Multiply', mix: 1.0,
+});
 `,
 };
