@@ -12,6 +12,7 @@ napi-derive = "2"
 procgeo-core = { path = "../../crates/procgeo-core" }
 procgeo-sops = { path = "../../crates/procgeo-sops" }
 procgeo-io = { path = "../../crates/procgeo-io" }
+procgeo-cops = { path = "../../crates/procgeo-cops" }
 glam = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

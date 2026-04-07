@@ -7,10 +7,12 @@ edition.workspace = true
 procgeo-core = { path = "../procgeo-core" }
 procgeo-sops = { path = "../procgeo-sops" }
 procgeo-io = { path = "../procgeo-io" }
+procgeo-cops = { path = "../procgeo-cops" }
 glam = { workspace = true }
 
 [features]
-default = ["creation", "transform", "normals", "merge", "obj", "gltf", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops", "color"]
+default = ["creation", "transform", "normals", "merge", "obj", "gltf", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops", "color", "cops"]
+cops = ["procgeo-cops/default"]
 creation = ["procgeo-sops/creation"]
 transform = ["procgeo-sops/transform"]
 normals = ["procgeo-sops/normals"]

@@ -1,6 +1,8 @@
 pub use procgeo_core as core;
 pub use procgeo_sops as sops;
 pub use procgeo_io as io;
+#[cfg(feature = "cops")]
+pub use procgeo_cops as cops;
 
 pub mod prelude {
     pub use procgeo_core::{
@@ -38,4 +40,6 @@ pub mod prelude {
     pub use procgeo_sops::utility::*;
     #[cfg(feature = "color")]
     pub use procgeo_sops::color::*;
+    #[cfg(feature = "cops")]
+    pub use procgeo_cops::prelude::*;
 }

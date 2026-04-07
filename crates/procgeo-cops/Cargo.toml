@@ -1,0 +1,27 @@
+[package]
+name = "procgeo-cops"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+glam = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+bytemuck = { workspace = true }
+wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
+naga = { workspace = true, optional = true }
+image = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+pollster = { workspace = true }
+
+[features]
+default = ["gpu", "generator", "filter", "composite", "custom"]
+gpu = ["dep:wgpu", "dep:pollster"]
+generator = []
+filter = []
+composite = []
+custom = ["dep:naga"]

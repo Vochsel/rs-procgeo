@@ -1156,6 +1156,91 @@ fn write_glb(geo: &Geometry, path: &str) -> PyResult<()> {
         .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))
 }
 
+// ---------------------------------------------------------------------------
+// COP Registry
+// ---------------------------------------------------------------------------
+
+use procgeo_cops::registry::CopRegistry as PyCopRegistry;
+use procgeo_cops::context::GpuContext as PyCopGpuContext;
+
+static COP_REGISTRY: OnceLock<PyCopRegistry> = OnceLock::new();
+static PY_GPU_CONTEXT: OnceLock<std::sync::Arc<PyCopGpuContext>> = OnceLock::new();
+
+fn get_cop_registry() -> &'static PyCopRegistry {
+    COP_REGISTRY.get_or_init(procgeo_cops::registry::default_cop_registry)
+}
+
+fn get_py_gpu_context() -> PyResult<std::sync::Arc<PyCopGpuContext>> {
+    if let Some(ctx) = PY_GPU_CONTEXT.get() {
+        return Ok(std::sync::Arc::clone(ctx));
+    }
+    let ctx = PyCopGpuContext::new_blocking()
+        .map(std::sync::Arc::new)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("GPU init: {e}")))?;
+    let _ = PY_GPU_CONTEXT.set(std::sync::Arc::clone(&ctx));
+    Ok(ctx)
+}
+
+fn cop_err(e: procgeo_cops::CopError) -> PyErr {
+    pyo3::exceptions::PyRuntimeError::new_err(format!("{e}"))
+}
+
+#[pyclass]
+struct CopImage {
+    inner: procgeo_cops::image::Image,
+}
+
+#[pymethods]
+impl CopImage {
+    #[getter]
+    fn width(&self) -> u32 { self.inner.width() }
+    #[getter]
+    fn height(&self) -> u32 { self.inner.height() }
+    fn to_list(&self) -> PyResult<Vec<f32>> { self.inner.to_cpu().map_err(cop_err) }
+}
+
+#[pyfunction]
+#[pyo3(signature = (name, params_json="{}"))]
+fn execute_cop_create(name: &str, params_json: &str) -> PyResult<CopImage> {
+    let ctx = get_py_gpu_context()?;
+    let registry = get_cop_registry();
+    let inner = registry.execute(name, &ctx, &[], params_json).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (name, image, params_json="{}"))]
+fn execute_cop(name: &str, image: &CopImage, params_json: &str) -> PyResult<CopImage> {
+    let ctx = get_py_gpu_context()?;
+    let registry = get_cop_registry();
+    let inner = registry.execute(name, &ctx, &[&image.inner], params_json).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (name, image_a, image_b, params_json="{}"))]
+fn execute_cop_composite(name: &str, image_a: &CopImage, image_b: &CopImage, params_json: &str) -> PyResult<CopImage> {
+    let ctx = get_py_gpu_context()?;
+    let registry = get_cop_registry();
+    let inner = registry.execute(name, &ctx, &[&image_a.inner, &image_b.inner], params_json).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[pyfunction]
+fn list_cops() -> Vec<String> {
+    get_cop_registry().list().into_iter().map(|s| s.to_string()).collect()
+}
+
+#[pyfunction]
+#[pyo3(signature = (image, path))]
+fn save_cop_image(image: &CopImage, path: &str) -> PyResult<()> {
+    let params = procgeo_cops::io::SaveImageParams {
+        path: path.to_string(),
+        ..Default::default()
+    };
+    procgeo_cops::io::save_image(&image.inner, &params).map_err(cop_err)
+}
+
 /// The procgeo Python module.
 #[pymodule]
 fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1219,5 +1304,12 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // I/O
     m.add_function(wrap_pyfunction!(write_obj, m)?)?;
     m.add_function(wrap_pyfunction!(write_glb, m)?)?;
+    // COP Registry
+    m.add_class::<CopImage>()?;
+    m.add_function(wrap_pyfunction!(execute_cop_create, m)?)?;
+    m.add_function(wrap_pyfunction!(execute_cop, m)?)?;
+    m.add_function(wrap_pyfunction!(execute_cop_composite, m)?)?;
+    m.add_function(wrap_pyfunction!(list_cops, m)?)?;
+    m.add_function(wrap_pyfunction!(save_cop_image, m)?)?;
     Ok(())
 }

@@ -1114,3 +1114,101 @@ pub fn list_sops() -> Vec<String> {
         .map(|s| s.to_string())
         .collect()
 }
+
+// ---------------------------------------------------------------------------
+// COP Registry — GPU image compositing
+// ---------------------------------------------------------------------------
+
+use procgeo_cops::registry::CopRegistry;
+use procgeo_cops::context::GpuContext as CopGpuContext;
+
+static COP_REGISTRY: OnceLock<CopRegistry> = OnceLock::new();
+static GPU_CONTEXT: OnceLock<std::sync::Arc<CopGpuContext>> = OnceLock::new();
+
+fn get_cop_registry() -> &'static CopRegistry {
+    COP_REGISTRY.get_or_init(procgeo_cops::registry::default_cop_registry)
+}
+
+fn get_gpu_context() -> Result<std::sync::Arc<CopGpuContext>> {
+    if let Some(ctx) = GPU_CONTEXT.get() {
+        return Ok(std::sync::Arc::clone(ctx));
+    }
+    let ctx = CopGpuContext::new_blocking()
+        .map(std::sync::Arc::new)
+        .map_err(|e| napi::Error::from_reason(format!("GPU init failed: {e}")))?;
+    let _ = GPU_CONTEXT.set(std::sync::Arc::clone(&ctx));
+    Ok(ctx)
+}
+
+fn cop_err(e: procgeo_cops::CopError) -> napi::Error {
+    napi::Error::from_reason(format!("{e}"))
+}
+
+#[napi]
+pub struct CopImage {
+    inner: procgeo_cops::image::Image,
+}
+
+#[napi]
+impl CopImage {
+    #[napi(getter)]
+    pub fn width(&self) -> u32 { self.inner.width() }
+
+    #[napi(getter)]
+    pub fn height(&self) -> u32 { self.inner.height() }
+
+    #[napi(js_name = "toBuffer")]
+    pub fn to_buffer(&self) -> Result<Vec<f32>> {
+        self.inner.to_cpu().map_err(cop_err)
+    }
+}
+
+#[napi(js_name = "executeCopCreate")]
+pub fn execute_cop_create(name: String, params: Option<serde_json::Value>) -> Result<CopImage> {
+    let ctx = get_gpu_context()?;
+    let registry = get_cop_registry();
+    let params_json = match params {
+        Some(v) => serde_json::to_string(&v).unwrap_or_default(),
+        None => "{}".to_string(),
+    };
+    let inner = registry.execute(&name, &ctx, &[], &params_json).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[napi(js_name = "executeCop")]
+pub fn execute_cop(name: String, image: &CopImage, params: Option<serde_json::Value>) -> Result<CopImage> {
+    let ctx = get_gpu_context()?;
+    let registry = get_cop_registry();
+    let params_json = match params {
+        Some(v) => serde_json::to_string(&v).unwrap_or_default(),
+        None => "{}".to_string(),
+    };
+    let inner = registry.execute(&name, &ctx, &[&image.inner], &params_json).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[napi(js_name = "executeCopComposite")]
+pub fn execute_cop_composite(name: String, image_a: &CopImage, image_b: &CopImage, params: Option<serde_json::Value>) -> Result<CopImage> {
+    let ctx = get_gpu_context()?;
+    let registry = get_cop_registry();
+    let params_json = match params {
+        Some(v) => serde_json::to_string(&v).unwrap_or_default(),
+        None => "{}".to_string(),
+    };
+    let inner = registry.execute(&name, &ctx, &[&image_a.inner, &image_b.inner], &params_json).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[napi(js_name = "listCops")]
+pub fn list_cops() -> Vec<String> {
+    get_cop_registry().list().into_iter().map(|s| s.to_string()).collect()
+}
+
+#[napi(js_name = "saveCopImage")]
+pub fn save_cop_image(image: &CopImage, path: String) -> Result<()> {
+    let params = procgeo_cops::io::SaveImageParams {
+        path: path.clone(),
+        ..Default::default()
+    };
+    procgeo_cops::io::save_image(&image.inner, &params).map_err(cop_err)
+}
