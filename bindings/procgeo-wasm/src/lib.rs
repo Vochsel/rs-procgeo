@@ -1225,3 +1225,404 @@ pub fn wasm_execute_cop_composite(name: &str, image_a: &CopImage, image_b: &CopI
 pub fn list_cops_wasm() -> Vec<String> {
     get_wasm_cop_registry().list().into_iter().map(|s| s.to_string()).collect()
 }
+
+fn cop_err(e: procgeo_cops::CopError) -> JsError {
+    JsError::new(&format!("{e}"))
+}
+
+fn get_vec2_wasm(val: &JsValue, key: &str, default: [f32; 2]) -> [f32; 2] {
+    let arr = js_sys::Reflect::get(val, &key.into()).ok();
+    if let Some(arr) = arr {
+        if let Some(arr) = arr.dyn_ref::<js_sys::Array>() {
+            return [
+                arr.get(0).as_f64().unwrap_or(default[0] as f64) as f32,
+                arr.get(1).as_f64().unwrap_or(default[1] as f64) as f32,
+            ];
+        }
+    }
+    default
+}
+
+fn get_vec4_wasm(val: &JsValue, key: &str, default: [f32; 4]) -> [f32; 4] {
+    let arr = js_sys::Reflect::get(val, &key.into()).ok();
+    if let Some(arr) = arr {
+        if let Some(arr) = arr.dyn_ref::<js_sys::Array>() {
+            return [
+                arr.get(0).as_f64().unwrap_or(default[0] as f64) as f32,
+                arr.get(1).as_f64().unwrap_or(default[1] as f64) as f32,
+                arr.get(2).as_f64().unwrap_or(default[2] as f64) as f32,
+                arr.get(3).as_f64().unwrap_or(default[3] as f64) as f32,
+            ];
+        }
+    }
+    default
+}
+
+// ---------------------------------------------------------------------------
+// Dedicated COP functions
+// ---------------------------------------------------------------------------
+
+// --- Generators (0 inputs) ---
+
+#[wasm_bindgen(js_name = "copConstant")]
+pub fn cop_constant_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::generator::{ConstantCop, ConstantParams};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let cop_params = ConstantParams {
+        color: get_vec4_wasm(&p, "color", [0.0, 0.0, 0.0, 1.0]),
+        width: get_u32(&p, "width", 256),
+        height: get_u32(&p, "height", 256),
+    };
+
+    let ctx = get_wasm_gpu_context()?;
+    let carrier = procgeo_cops::image::Image::empty(ctx);
+    let inner = ConstantCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copCheckerboard")]
+pub fn cop_checkerboard_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::generator::{CheckerboardCop, CheckerboardParams};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let cop_params = CheckerboardParams {
+        color_a: get_vec4_wasm(&p, "colorA", [0.0, 0.0, 0.0, 1.0]),
+        color_b: get_vec4_wasm(&p, "colorB", [1.0, 1.0, 1.0, 1.0]),
+        frequency: get_vec2_wasm(&p, "frequency", [8.0, 8.0]),
+        width: get_u32(&p, "width", 256),
+        height: get_u32(&p, "height", 256),
+    };
+
+    let ctx = get_wasm_gpu_context()?;
+    let carrier = procgeo_cops::image::Image::empty(ctx);
+    let inner = CheckerboardCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copNoise")]
+pub fn cop_noise_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::generator::{NoiseCop, NoiseParams, NoiseType};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let noise_type_str = get_str(&p, "noiseType", "perlin");
+    let noise_type = match noise_type_str.to_lowercase().as_str() {
+        "simplex" => NoiseType::Simplex,
+        "worley" => NoiseType::Worley,
+        _ => NoiseType::Perlin,
+    };
+
+    let cop_params = NoiseParams {
+        noise_type,
+        frequency: get_f32(&p, "frequency", 4.0),
+        octaves: get_u32(&p, "octaves", 4),
+        lacunarity: get_f32(&p, "lacunarity", 2.0),
+        gain: get_f32(&p, "gain", 0.5),
+        amplitude: get_f32(&p, "amplitude", 1.0),
+        offset: get_vec2_wasm(&p, "offset", [0.0, 0.0]),
+        seed: get_u32(&p, "seed", 0),
+        width: get_u32(&p, "width", 256),
+        height: get_u32(&p, "height", 256),
+    };
+
+    let ctx = get_wasm_gpu_context()?;
+    let carrier = procgeo_cops::image::Image::empty(ctx);
+    let inner = NoiseCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copRamp")]
+pub fn cop_ramp_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::generator::{RampCop, RampParams, RampType, RampStop};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let ramp_type_str = get_str(&p, "rampType", "linear");
+    let ramp_type = match ramp_type_str.to_lowercase().as_str() {
+        "radial" => RampType::Radial,
+        "box" => RampType::Box,
+        "diagonal" => RampType::Diagonal,
+        _ => RampType::Linear,
+    };
+
+    // Parse stops array: each element is { position: f32, color: [f32; 4] }
+    let stops: Vec<RampStop> = js_sys::Reflect::get(&p, &"stops".into())
+        .ok()
+        .and_then(|v| v.dyn_ref::<js_sys::Array>().map(|arr| {
+            arr.iter()
+                .filter_map(|item| {
+                    let pos = js_sys::Reflect::get(&item, &"position".into())
+                        .ok()
+                        .and_then(|v| v.as_f64())
+                        .map(|v| v as f32)
+                        .unwrap_or(0.0);
+                    let color = get_vec4_wasm(&item, "color", [0.0, 0.0, 0.0, 1.0]);
+                    Some((pos, color))
+                })
+                .collect()
+        }))
+        .unwrap_or_else(|| vec![
+            (0.0, [0.0, 0.0, 0.0, 1.0]),
+            (1.0, [1.0, 1.0, 1.0, 1.0]),
+        ]);
+
+    let cop_params = RampParams {
+        ramp_type,
+        stops,
+        width: get_u32(&p, "width", 256),
+        height: get_u32(&p, "height", 256),
+    };
+
+    let ctx = get_wasm_gpu_context()?;
+    let carrier = procgeo_cops::image::Image::empty(ctx);
+    let inner = RampCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copLoadImage")]
+pub fn cop_load_image_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::generator::{LoadImageCop, LoadImageParams};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let cop_params = LoadImageParams {
+        path: get_str(&p, "path", ""),
+    };
+
+    let ctx = get_wasm_gpu_context()?;
+    let carrier = procgeo_cops::image::Image::empty(ctx);
+    let inner = LoadImageCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+// --- Filters (1 input) ---
+
+#[wasm_bindgen(js_name = "copBlur")]
+pub fn cop_blur_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::filter::blur::{BlurCop, BlurParams, BlurType};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let blur_type_str = get_str(&p, "blurType", "gaussian");
+    let blur_type = match blur_type_str.to_lowercase().as_str() {
+        "box" => BlurType::Box,
+        _ => BlurType::Gaussian,
+    };
+
+    let cop_params = BlurParams {
+        blur_type,
+        radius_x: get_f32(&p, "radiusX", 4.0),
+        radius_y: get_f32(&p, "radiusY", 4.0),
+    };
+
+    let inner = BlurCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copFlip")]
+pub fn cop_flip_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::filter::flip::{FlipCop, FlipParams};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let cop_params = FlipParams {
+        horizontal: get_bool(&p, "horizontal", false),
+        vertical: get_bool(&p, "vertical", true),
+    };
+
+    let inner = FlipCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copMirror")]
+pub fn cop_mirror_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::filter::mirror::{MirrorCop, MirrorParams, MirrorAxis};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let axis_str = get_str(&p, "axis", "x");
+    let axis = match axis_str.to_lowercase().as_str() {
+        "y" => MirrorAxis::Y,
+        _ => MirrorAxis::X,
+    };
+
+    let cop_params = MirrorParams {
+        axis,
+        offset: get_f32(&p, "offset", 0.5),
+    };
+
+    let inner = MirrorCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copChannelSwap")]
+pub fn cop_channel_swap_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::filter::channel_swap::{ChannelSwapCop, ChannelSwapParams, Channel};
+
+    fn parse_channel(s: &str) -> Channel {
+        match s.to_lowercase().as_str() {
+            "r" => Channel::R,
+            "g" => Channel::G,
+            "b" => Channel::B,
+            "a" => Channel::A,
+            "one" | "1" => Channel::One,
+            "zero" | "0" => Channel::Zero,
+            _ => Channel::R,
+        }
+    }
+
+    let p = params.unwrap_or_else(empty_obj);
+    let cop_params = ChannelSwapParams {
+        r: parse_channel(&get_str(&p, "r", "r")),
+        g: parse_channel(&get_str(&p, "g", "g")),
+        b: parse_channel(&get_str(&p, "b", "b")),
+        a: parse_channel(&get_str(&p, "a", "a")),
+    };
+
+    let inner = ChannelSwapCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copResize")]
+pub fn cop_resize_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::filter::resize::{ResizeCop, ResizeParams};
+    use procgeo_cops::FilterMode;
+
+    let p = params.unwrap_or_else(empty_obj);
+    let filter_str = get_str(&p, "filter", "nearest");
+    let filter = match filter_str.to_lowercase().as_str() {
+        "bilinear" => FilterMode::Bilinear,
+        _ => FilterMode::Nearest,
+    };
+
+    let cop_params = ResizeParams {
+        width: get_u32(&p, "width", 256),
+        height: get_u32(&p, "height", 256),
+        filter,
+    };
+
+    let inner = ResizeCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copRotate")]
+pub fn cop_rotate_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::filter::rotate::{RotateCop, RotateParams};
+    use procgeo_cops::FilterMode;
+
+    let p = params.unwrap_or_else(empty_obj);
+    let filter_str = get_str(&p, "filter", "nearest");
+    let filter = match filter_str.to_lowercase().as_str() {
+        "bilinear" => FilterMode::Bilinear,
+        _ => FilterMode::Nearest,
+    };
+
+    let cop_params = RotateParams {
+        angle: get_f32(&p, "angle", 0.0),
+        center: get_vec2_wasm(&p, "center", [0.5, 0.5]),
+        filter,
+    };
+
+    let inner = RotateCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "copSwirl")]
+pub fn cop_swirl_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::filter::swirl::{SwirlCop, SwirlParams};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let cop_params = SwirlParams {
+        center: get_vec2_wasm(&p, "center", [0.5, 0.5]),
+        angle: get_f32(&p, "angle", 90.0),
+        radius: get_f32(&p, "radius", 0.5),
+    };
+
+    let inner = SwirlCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+// --- Composite (2 inputs) ---
+
+#[wasm_bindgen(js_name = "copComposite")]
+pub fn cop_composite_wasm(a: &CopImage, b: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::composite::{CompositeCop, CompositeParams, CompOp};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let op_str = get_str(&p, "operation", "over");
+    let operation = match op_str.to_lowercase().as_str() {
+        "add" => CompOp::Add,
+        "multiply" => CompOp::Multiply,
+        "screen" => CompOp::Screen,
+        "subtract" => CompOp::Subtract,
+        "difference" => CompOp::Difference,
+        "min" => CompOp::Min,
+        "max" => CompOp::Max,
+        _ => CompOp::Over,
+    };
+
+    let cop_params = CompositeParams {
+        operation,
+        mix: get_f32(&p, "mix", 1.0),
+    };
+
+    let inner = CompositeCop.execute(&[&a.inner, &b.inner], &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
+
+// --- Custom ---
+
+#[wasm_bindgen(js_name = "copCustomShader")]
+pub fn cop_custom_shader_wasm(
+    input_a: Option<CopImage>,
+    input_b: Option<CopImage>,
+    params: Option<JsValue>,
+) -> Result<CopImage, JsError> {
+    use procgeo_cops::Cop;
+    use procgeo_cops::custom::{CustomShaderCop, CustomShaderParams, ShaderLang};
+
+    let p = params.unwrap_or_else(empty_obj);
+    let lang_str = get_str(&p, "language", "wgsl");
+    let language = match lang_str.to_lowercase().as_str() {
+        "glsl" => ShaderLang::Glsl,
+        _ => ShaderLang::Wgsl,
+    };
+
+    let cop_params = CustomShaderParams {
+        source: get_str(&p, "source", ""),
+        language,
+        uniforms: std::collections::HashMap::new(),
+        width: get_u32(&p, "width", 256),
+        height: get_u32(&p, "height", 256),
+    };
+
+    // Build the inputs slice from optional images, or fall back to a carrier.
+    let ctx = get_wasm_gpu_context()?;
+    let carrier = procgeo_cops::image::Image::empty(ctx);
+
+    let mut input_refs: Vec<&procgeo_cops::image::Image> = Vec::new();
+    match (&input_a, &input_b) {
+        (Some(a), Some(b)) => {
+            input_refs.push(&a.inner);
+            input_refs.push(&b.inner);
+        }
+        (Some(a), None) => {
+            input_refs.push(&a.inner);
+        }
+        _ => {
+            // No image inputs — use carrier so the COP gets a GPU context.
+            input_refs.push(&carrier);
+        }
+    }
+
+    let inner = CustomShaderCop.execute(&input_refs, &cop_params).map_err(cop_err)?;
+    Ok(CopImage { inner })
+}
