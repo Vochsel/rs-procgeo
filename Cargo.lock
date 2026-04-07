@@ -1322,6 +1322,7 @@ version = "0.1.0"
 dependencies = [
  "approx",
  "glam",
+ "procgeo-cops",
  "procgeo-core",
  "procgeo-io",
  "procgeo-sops",
@@ -1390,6 +1391,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "procgeo-cops",
  "procgeo-core",
  "procgeo-io",
  "procgeo-sops",
@@ -1402,6 +1404,7 @@ name = "procgeo-py"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "procgeo-cops",
  "procgeo-core",
  "procgeo-io",
  "procgeo-sops",
@@ -1429,6 +1432,7 @@ dependencies = [
  "getrandom",
  "glam",
  "js-sys",
+ "procgeo-cops",
  "procgeo-core",
  "procgeo-io",
  "procgeo-sops",

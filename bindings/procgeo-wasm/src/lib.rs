@@ -768,3 +768,97 @@ pub fn list_sops() -> Vec<String> {
         .map(|s| s.to_string())
         .collect()
 }
+
+// ---------------------------------------------------------------------------
+// COP Registry
+// ---------------------------------------------------------------------------
+
+use procgeo_cops::registry::CopRegistry as WasmCopRegistry;
+use procgeo_cops::context::GpuContext as WasmCopGpuContext;
+
+static WASM_COP_REGISTRY: OnceLock<WasmCopRegistry> = OnceLock::new();
+static WASM_GPU_CONTEXT: OnceLock<std::sync::Arc<WasmCopGpuContext>> = OnceLock::new();
+
+fn get_wasm_cop_registry() -> &'static WasmCopRegistry {
+    WASM_COP_REGISTRY.get_or_init(procgeo_cops::registry::default_cop_registry)
+}
+
+fn get_wasm_gpu_context() -> Result<std::sync::Arc<WasmCopGpuContext>, JsError> {
+    if let Some(ctx) = WASM_GPU_CONTEXT.get() {
+        return Ok(std::sync::Arc::clone(ctx));
+    }
+    let ctx = WasmCopGpuContext::new_blocking()
+        .map(std::sync::Arc::new)
+        .map_err(|e| JsError::new(&format!("GPU init: {e}")))?;
+    let _ = WASM_GPU_CONTEXT.set(std::sync::Arc::clone(&ctx));
+    Ok(ctx)
+}
+
+#[wasm_bindgen]
+pub struct CopImage {
+    inner: procgeo_cops::image::Image,
+}
+
+#[wasm_bindgen]
+impl CopImage {
+    #[wasm_bindgen(getter)]
+    pub fn width(&self) -> u32 { self.inner.width() }
+
+    #[wasm_bindgen(getter)]
+    pub fn height(&self) -> u32 { self.inner.height() }
+
+    #[wasm_bindgen(js_name = "getPixels")]
+    pub fn get_pixels(&self) -> Result<Vec<f32>, JsError> {
+        self.inner.to_cpu().map_err(|e| JsError::new(&format!("{e}")))
+    }
+}
+
+#[wasm_bindgen(js_name = "executeCopCreate")]
+pub fn execute_cop_create(name: &str, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    let ctx = get_wasm_gpu_context()?;
+    let registry = get_wasm_cop_registry();
+    let params_json = match params {
+        Some(v) => {
+            let obj: serde_json::Value = serde_wasm_bindgen::from_value(v).unwrap_or(serde_json::Value::Object(Default::default()));
+            serde_json::to_string(&obj).unwrap_or_default()
+        }
+        None => "{}".to_string(),
+    };
+    let inner = registry.execute(name, &ctx, &[], &params_json).map_err(|e| JsError::new(&format!("{e}")))?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "executeCop")]
+pub fn wasm_execute_cop(name: &str, image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    let ctx = get_wasm_gpu_context()?;
+    let registry = get_wasm_cop_registry();
+    let params_json = match params {
+        Some(v) => {
+            let obj: serde_json::Value = serde_wasm_bindgen::from_value(v).unwrap_or(serde_json::Value::Object(Default::default()));
+            serde_json::to_string(&obj).unwrap_or_default()
+        }
+        None => "{}".to_string(),
+    };
+    let inner = registry.execute(name, &ctx, &[&image.inner], &params_json).map_err(|e| JsError::new(&format!("{e}")))?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "executeCopComposite")]
+pub fn wasm_execute_cop_composite(name: &str, image_a: &CopImage, image_b: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    let ctx = get_wasm_gpu_context()?;
+    let registry = get_wasm_cop_registry();
+    let params_json = match params {
+        Some(v) => {
+            let obj: serde_json::Value = serde_wasm_bindgen::from_value(v).unwrap_or(serde_json::Value::Object(Default::default()));
+            serde_json::to_string(&obj).unwrap_or_default()
+        }
+        None => "{}".to_string(),
+    };
+    let inner = registry.execute(name, &ctx, &[&image_a.inner, &image_b.inner], &params_json).map_err(|e| JsError::new(&format!("{e}")))?;
+    Ok(CopImage { inner })
+}
+
+#[wasm_bindgen(js_name = "listCops")]
+pub fn list_cops_wasm() -> Vec<String> {
+    get_wasm_cop_registry().list().into_iter().map(|s| s.to_string()).collect()
+}
