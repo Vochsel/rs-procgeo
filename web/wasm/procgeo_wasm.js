@@ -22,6 +22,39 @@ export class Geometry {
         wasm.__wbg_geometry_free(ptr, 0);
     }
     /**
+     * Create a closed face (polygon) from an array of point indices. Returns the primitive index.
+     * @param {Uint32Array} point_indices
+     * @returns {number}
+     */
+    addFace(point_indices) {
+        const ptr0 = passArray32ToWasm0(point_indices, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.geometry_addFace(this.__wbg_ptr, ptr0, len0);
+        return ret >>> 0;
+    }
+    /**
+     * Add a point at position [x, y, z]. Returns the point index.
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     * @returns {number}
+     */
+    addPoint(x, y, z) {
+        const ret = wasm.geometry_addPoint(this.__wbg_ptr, x, y, z);
+        return ret >>> 0;
+    }
+    /**
+     * Create an open polyline from an array of point indices. Returns the primitive index.
+     * @param {Uint32Array} point_indices
+     * @returns {number}
+     */
+    addPolyline(point_indices) {
+        const ptr0 = passArray32ToWasm0(point_indices, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.geometry_addPolyline(this.__wbg_ptr, ptr0, len0);
+        return ret >>> 0;
+    }
+    /**
      * Get all values of a numeric attribute as a flat Float64Array.
      * Components interleaved: for vec3 → [x0,y0,z0, x1,y1,z1, ...].
      * @param {string} _class
@@ -219,6 +252,16 @@ export class Geometry {
         return ret >>> 0;
     }
     /**
+     * Set the position of an existing point.
+     * @param {number} index
+     * @param {number} x
+     * @param {number} y
+     * @param {number} z
+     */
+    setPointPos(index, x, y, z) {
+        wasm.geometry_setPointPos(this.__wbg_ptr, index, x, y, z);
+    }
+    /**
      * Write geometry as GLB bytes (Uint8Array).
      * @returns {Uint8Array}
      */
@@ -304,6 +347,34 @@ export function attribCopy(dest, source, params) {
  * @param {any | null} [params]
  * @returns {Geometry}
  */
+export function attribCreate(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.attribCreate(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function attribDelete(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.attribDelete(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
 export function attribFill(geo, params) {
     _assertClass(geo, Geometry);
     const ret = wasm.attribFill(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
@@ -332,9 +403,37 @@ export function attribNoise(geo, params) {
  * @param {any | null} [params]
  * @returns {Geometry}
  */
+export function attribPromote(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.attribPromote(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
 export function attribRandomize(geo, params) {
     _assertClass(geo, Geometry);
     const ret = wasm.attribRandomize(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function attribRename(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.attribRename(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -376,6 +475,20 @@ export function attribTransfer(dest, source, params) {
  * @param {any | null} [params]
  * @returns {Geometry}
  */
+export function blast(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.blast(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
 export function clip(geo, params) {
     _assertClass(geo, Geometry);
     const ret = wasm.clip(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
@@ -406,6 +519,20 @@ export function color(geo, params) {
 export function computeNormals(geo) {
     _assertClass(geo, Geometry);
     const ret = wasm.computeNormals(geo.__wbg_ptr);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function connectivity(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.connectivity(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -479,6 +606,18 @@ export function createLine(params) {
  * @param {any | null} [params]
  * @returns {Geometry}
  */
+export function createMetaball(params) {
+    const ret = wasm.createMetaball(isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
 export function createSphere(params) {
     const ret = wasm.createSphere(isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
@@ -505,6 +644,34 @@ export function createTorus(params) {
  */
 export function createTube(params) {
     const ret = wasm.createTube(isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function deleteSop(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.deleteSop(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function enumerateAttrib(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.enumerateAttrib(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -561,6 +728,34 @@ export function fuse(geo, params) {
 }
 
 /**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function groupCombine(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.groupCombine(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function groupCreate(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.groupCreate(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
  * List all registered SOP names.
  * @returns {string[]}
  */
@@ -569,6 +764,51 @@ export function listSops() {
     var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
     return v1;
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function measure(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.measure(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * Merge two geometries into one. Chain calls to merge more:
+ * `merge(merge(a, b), c)`.
+ * @param {Geometry} a
+ * @param {Geometry} b
+ * @returns {Geometry}
+ */
+export function merge(a, b) {
+    _assertClass(a, Geometry);
+    _assertClass(b, Geometry);
+    const ret = wasm.merge(a.__wbg_ptr, b.__wbg_ptr);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function polyBevel(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.polyBevel(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
 }
 
 /**
@@ -587,11 +827,81 @@ export function polyExtrude(geo, params) {
 
 /**
  * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function polyFill(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.polyFill(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function polyReduce(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.polyReduce(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function polyWire(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.polyWire(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function resample(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.resample(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
  * @returns {Geometry}
  */
 export function reverse(geo) {
     _assertClass(geo, Geometry);
     const ret = wasm.reverse(geo.__wbg_ptr);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function revolve(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.revolve(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -620,6 +930,20 @@ export function scatter(geo, params) {
 export function smooth(geo, params) {
     _assertClass(geo, Geometry);
     const ret = wasm.smooth(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function sort(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.sort(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -722,8 +1046,16 @@ function __wbg_get_imports() {
             const ret = Reflect.get(arg0, arg1);
             return ret;
         }, arguments); },
+        __wbg_get_unchecked_7d7babe32e9e6a54: function(arg0, arg1) {
+            const ret = arg0[arg1 >>> 0];
+            return ret;
+        },
         __wbg_isArray_db61795ad004c139: function(arg0) {
             const ret = Array.isArray(arg0);
+            return ret;
+        },
+        __wbg_length_6e821edde497a532: function(arg0) {
+            const ret = arg0.length;
             return ret;
         },
         __wbg_new_4f9fafbb3909af72: function() {
@@ -931,6 +1263,13 @@ function handleError(f, args) {
 
 function isLikeNone(x) {
     return x === undefined || x === null;
+}
+
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {

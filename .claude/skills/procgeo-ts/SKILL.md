@@ -45,7 +45,17 @@ geo.numPoints   // number
 geo.numPrims    // number
 geo.numVertices // number
 
-// Methods (both bindings)
+// Construction (build geometry from scratch)
+const g = new pg.Geometry();
+const p0 = g.addPoint(0, 0, 0);       // returns point index
+const p1 = g.addPoint(1, 0, 0);
+const p2 = g.addPoint(1, 1, 0);
+const p3 = g.addPoint(0, 1, 0);
+g.setPointPos(p0, 0.5, 0, 0);         // move a point
+g.addFace([p0, p1, p2, p3]);          // closed polygon, returns prim index
+g.addPolyline([p0, p1, p2]);          // open polyline, returns prim index
+
+// Introspection (both bindings)
 geo.pointPos(index: number)          // [x, y, z] (Node: number[], WASM: Float32Array)
 geo.boundingBox()                    // { min: [x,y,z], max: [x,y,z] }
 geo.attribNames(class: string)       // string[] — class: "point"|"vertex"|"primitive"|"detail"
@@ -79,7 +89,7 @@ geo.toGlb()               // Uint8Array — GLB binary
 | `createTorus(params?)` | `radiusOuter`/`radiusInner` (WASM) or `radius_outer`/`radius_inner` (Node), `rows`, `cols` | Torus |
 | `createCircle(params?)` | `radius`, `divisions`, `center` | Closed polygon |
 | `createLine(params?)` | `origin`, `direction`, `length`, `points` | Open polyline |
-| `createMetaball(params?)` | `balls: [{center, radius, weight}]`, `threshold`, `kernel`, `resolution` | *Node only* |
+| `createMetaball(params?)` | `balls: [{center, radius, weight}]`, `threshold`, `kernel`, `resolution` | Metaball mesh |
 
 ### Modifiers (geometry in, geometry out)
 
@@ -95,27 +105,35 @@ geo.toGlb()               // Uint8Array — GLB binary
 | `scatter(geo, params?)` | `count`, `seed` | Random points on surface |
 | `reverse(geo)` | *(none)* | Flip winding order |
 | `fuse(geo, params?)` | `distance` | Merge coincident points |
-| `polyBevel(geo, params?)` | `offset`, `divisions` | *Node only* |
-| `polyWire(geo, params?)` | `radius`, `divisions` | *Node only* |
-| `polyReduce(geo, params?)` | `target_percent`, `preserve_boundaries` | *Node only* |
-| `polyFill(geo, params?)` | `mode: "single"\|"fan"`, `smooth` | *Node only* |
-| `resample(geo, params?)` | `length`, `max_segments` | *Node only* |
-| `sort(geo, params?)` | `seed` | *Node only* |
-| `connectivity(geo, params?)` | `attrib_name` | *Node only* |
-| `revolve(geo, params?)` | `origin`, `axis`, `divisions`, `start_angle`, `end_angle` | *Node only* |
+| `polyBevel(geo, params?)` | `offset`, `divisions` | Bevel edges |
+| `polyWire(geo, params?)` | `radius`, `divisions` | Wireframe tubes |
+| `polyReduce(geo, params?)` | `targetPercent`/`target_percent`, `preserveBoundaries`/`preserve_boundaries` | Decimate mesh |
+| `polyFill(geo, params?)` | `mode: "single"\|"fan"`, `smooth` | Fill holes |
+| `resample(geo, params?)` | `length`, `maxSegments`/`max_segments` | Resample curves |
+| `sort(geo, params?)` | `seed` | Randomize element order |
+| `connectivity(geo, params?)` | `attribName`/`attrib_name` | Label connected components |
+| `revolve(geo, params?)` | `origin`, `axis`, `divisions`, `startAngle`/`start_angle`, `endAngle`/`end_angle` | Revolve curve |
+| `blast(geo, params?)` | `groupName`/`group_name`, `entity: "primitives"\|"points"`, `negate` | Delete by group |
+| `deleteSop(geo, params?)` | `entity`, `rangeStart`/`range_start`, `rangeEnd`/`range_end` | Delete by range |
 
 ### Multi-input
 
 | Function | Signature | Effect |
 |----------|-----------|--------|
-| `merge(geometries)` | `merge([geo1, geo2, ...])` (Node) | Concatenate geometries |
+| `merge(geometries)` | Node: `merge([geo1, geo2, ...])`, WASM: `merge(a, b)` — binary only, chain for more | Concatenate geometries |
 | `copyToPoints(source, target)` | Both bindings | Instance source at each target point |
-| `voronoiFracture(geo, points, params?)` | WASM only — `cutPlaneOffset`, `createInsideFaces` | Fracture mesh |
+| `voronoiFracture(geo, points, params?)` | `cutPlaneOffset`/`cut_plane_offset`, `createInsideFaces`/`create_inside_faces` | Fracture mesh |
+
+> **WASM merge limitation:** `wasm_bindgen` cannot pass arrays of custom structs across the WASM boundary, so `merge()` takes exactly 2 geometries. Chain calls to merge more: `pg.merge(pg.merge(a, b), c)`. The Node binding accepts an array.
 
 ### Attribute SOPs
 
 | Function | Key Params | Effect |
 |----------|-----------|--------|
+| `attribCreate(geo, params?)` | `name`, `class`, `attribType`, `valueFloat`, `valueInt`, `valueVector3`, `valueString` | Create attribute |
+| `attribDelete(geo, params?)` | `name`, `class` | Remove attribute |
+| `attribRename(geo, params?)` | `fromName`/`from_name`, `toName`/`to_name`, `class` | Rename attribute |
+| `attribPromote(geo, params?)` | `name`, `fromClass`/`from_class`, `toClass`/`to_class`, `method`, `deleteOriginal`/`delete_original` | Promote between classes |
 | `attribNoise(geo, params?)` | `attribName`, `noiseType`, `elementSize`, `amplitude`, `fractal`, `octaves` | Procedural noise |
 | `attribRandomize(geo, params?)` | `attribName`, `class`, `attribType`, `distribution`, `seed` | Random values |
 | `attribTransfer(dest, source, params?)` | `attribName`, `class`, `attribType`, `maxSamples` | Transfer by proximity |
@@ -123,8 +141,15 @@ geo.toGlb()               // Uint8Array — GLB binary
 | `attribSort(geo, params?)` | `attribName`, `order: "Ascending"\|"Descending"` | Sort elements by attrib |
 | `attribBlur(geo, params?)` | `attribName`, `iterations`, `stepSize` | Smooth attrib values |
 | `attribFill(geo, params?)` | `attribName`, `boundaryGroup`, `iterations` | Fill missing values |
-| `enumerateAttrib(geo, params?)` | `name`, `start` | Sequential index attrib (*Node only*) |
-| `measure(geo, params?)` | `attrib_name` | Compute prim measurements (*Node only*) |
+| `enumerateAttrib(geo, params?)` | `name`, `start` | Sequential index attrib |
+| `measure(geo, params?)` | `attribName`/`attrib_name` | Compute prim measurements |
+
+### Group SOPs
+
+| Function | Key Params | Effect |
+|----------|-----------|--------|
+| `groupCreate(geo, params?)` | `name`, `groupType`/`group_type`, `mode: "range"\|"boundingBox"\|"normal"`, range/bbox/normal params | Create point/prim group |
+| `groupCombine(geo, params?)` | `nameA`/`name_a`, `nameB`/`name_b`, `result`, `operation: "union"\|"intersect"\|"subtract"` | Boolean combine groups |
 
 ### I/O
 
@@ -165,8 +190,11 @@ geo = pg.color(geo, { color: [0.2, 0.6, 1.0] });
 For multi-input SOPs, call directly:
 
 ```ts
-// Merge any number of geometries
+// Merge geometries
+// Node: accepts array
 const merged = pg.merge([boxGeo, sphereGeo, gridGeo]);
+// WASM: binary only — chain for more
+const merged = pg.merge(pg.merge(boxGeo, sphereGeo), gridGeo);
 
 // Copy source onto each point of target
 const instances = pg.copyToPoints(sourceGeo, targetPoints);
@@ -332,7 +360,7 @@ const glbBlob = new Blob([geo.toGlb()], { type: 'model/gltf-binary' });
 | Using camelCase params with Node binding | Node uses snake_case: `size_x` not `sizeX` |
 | Using snake_case params with WASM binding | WASM uses camelCase: `sizeX` not `size_x` |
 | Forgetting `computeNormals()` before render | Always call before Three.js display |
-| Using `merge()` in WASM | WASM has no merge — use Node or merge Three.js meshes |
+| Passing array to WASM `merge()` | WASM merge is binary: `merge(a, b)`. Chain for more: `merge(merge(a, b), c)`. Node accepts arrays. |
 | Passing `params` to `computeNormals` | It takes no params, just `computeNormals(geo)` |
 | Expecting `toMesh()` to work with Node geo | Three.js bridge needs WASM `Geometry` (with `getPositions()`) |
 | Not freeing WASM Geometry | Call `geo.free()` or use `using geo = ...` (Symbol.dispose) |
