@@ -1359,6 +1359,38 @@ fn bend(
     Ok(Geometry { inner })
 }
 
+#[pyfunction]
+#[pyo3(signature = (geo, rest_lattice, deformed_lattice, radius=1.0, min_points=1, max_points=10, rigid_projection=true, mask=1.0))]
+fn point_deform(
+    geo: &Geometry,
+    rest_lattice: &Geometry,
+    deformed_lattice: &Geometry,
+    radius: f32,
+    min_points: u32,
+    max_points: u32,
+    rigid_projection: bool,
+    mask: f32,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::deform::PointDeformParams {
+        group: None,
+        mode: procgeo_sops::deform::PointDeformMode::CaptureAndDeform,
+        radius,
+        min_points,
+        max_points,
+        piece_attrib: None,
+        rigid_projection,
+        mask,
+        mask_attrib: None,
+        recompute_normals: true,
+        attribs_to_transform: "*".into(),
+        delete_capture_attribs: true,
+    };
+    let inner = procgeo_sops::deform::PointDeformSop
+        .execute(&[&geo.inner, &rest_lattice.inner, &deformed_lattice.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 /// The procgeo Python module.
 #[pymodule]
 fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1376,6 +1408,7 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Manipulation
     m.add_function(wrap_pyfunction!(transform, m)?)?;
     m.add_function(wrap_pyfunction!(bend, m)?)?;
+    m.add_function(wrap_pyfunction!(point_deform, m)?)?;
     m.add_function(wrap_pyfunction!(compute_normals, m)?)?;
     m.add_function(wrap_pyfunction!(merge, m)?)?;
     m.add_function(wrap_pyfunction!(subdivide, m)?)?;

@@ -447,6 +447,38 @@ pub fn bend(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometr
 }
 
 #[napi]
+pub fn point_deform(
+    geo: &Geometry,
+    rest_lattice: &Geometry,
+    deformed_lattice: &Geometry,
+    params: Option<serde_json::Value>,
+) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::deform::PointDeformParams {
+        group: p.get("group").and_then(|v| v.as_str()).map(String::from),
+        mode: match get_str(&p, "mode", "capture_and_deform") {
+            "capture" => procgeo_sops::deform::PointDeformMode::Capture,
+            "deform" => procgeo_sops::deform::PointDeformMode::Deform,
+            _ => procgeo_sops::deform::PointDeformMode::CaptureAndDeform,
+        },
+        radius: get_f32(&p, "radius", 1.0),
+        min_points: get_u32(&p, "min_points", 1),
+        max_points: get_u32(&p, "max_points", 10),
+        piece_attrib: p.get("piece_attrib").and_then(|v| v.as_str()).map(String::from),
+        rigid_projection: get_bool(&p, "rigid_projection", true),
+        mask: get_f32(&p, "mask", 1.0),
+        mask_attrib: p.get("mask_attrib").and_then(|v| v.as_str()).map(String::from),
+        recompute_normals: get_bool(&p, "recompute_normals", true),
+        attribs_to_transform: get_str(&p, "attribs_to_transform", "*").to_string(),
+        delete_capture_attribs: get_bool(&p, "delete_capture_attribs", true),
+    };
+    let inner = procgeo_sops::deform::PointDeformSop
+        .execute(&[&geo.inner, &rest_lattice.inner, &deformed_lattice.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
 pub fn compute_normals(geo: &Geometry) -> Result<Geometry> {
     let inner = procgeo_sops::normals::NormalSop
         .execute(

@@ -259,6 +259,7 @@ pub fn default_registry() -> SopRegistry {
     #[cfg(feature = "deform")]
     {
         r.add(crate::deform::BendSop);
+        r.add(crate::deform::PointDeformSop);
     }
 
     r
