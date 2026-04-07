@@ -1147,14 +1147,25 @@ fn get_wasm_cop_registry() -> &'static WasmCopRegistry {
 }
 
 fn get_wasm_gpu_context() -> Result<std::sync::Arc<WasmCopGpuContext>, JsError> {
-    if let Some(ctx) = WASM_GPU_CONTEXT.get() {
-        return Ok(std::sync::Arc::clone(ctx));
+    WASM_GPU_CONTEXT
+        .get()
+        .map(std::sync::Arc::clone)
+        .ok_or_else(|| JsError::new("GPU not initialized — call await pg.initCopGpu() first"))
+}
+
+/// Initialize the GPU context for COP image processing.
+/// Must be called (and awaited) before using any cop* functions.
+#[wasm_bindgen(js_name = "initCopGpu")]
+pub async fn init_cop_gpu() -> Result<(), JsError> {
+    if WASM_GPU_CONTEXT.get().is_some() {
+        return Ok(());
     }
-    let ctx = WasmCopGpuContext::new_blocking()
+    let ctx = WasmCopGpuContext::new()
+        .await
         .map(std::sync::Arc::new)
-        .map_err(|e| JsError::new(&format!("GPU init: {e}")))?;
-    let _ = WASM_GPU_CONTEXT.set(std::sync::Arc::clone(&ctx));
-    Ok(ctx)
+        .map_err(|e| JsError::new(&format!("GPU init failed: {e}")))?;
+    let _ = WASM_GPU_CONTEXT.set(ctx);
+    Ok(())
 }
 
 #[wasm_bindgen]

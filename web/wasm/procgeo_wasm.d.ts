@@ -1,6 +1,15 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export class CopImage {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    getPixels(): Float32Array;
+    readonly height: number;
+    readonly width: number;
+}
+
 /**
  * Geometry wrapper exposed to JS via WASM.
  */
@@ -122,6 +131,34 @@ export function computeNormals(geo: Geometry): Geometry;
 
 export function connectivity(geo: Geometry, params?: any | null): Geometry;
 
+export function copBlur(image: CopImage, params?: any | null): CopImage;
+
+export function copChannelSwap(image: CopImage, params?: any | null): CopImage;
+
+export function copCheckerboard(params?: any | null): CopImage;
+
+export function copComposite(a: CopImage, b: CopImage, params?: any | null): CopImage;
+
+export function copConstant(params?: any | null): CopImage;
+
+export function copCustomShader(input_a?: CopImage | null, input_b?: CopImage | null, params?: any | null): CopImage;
+
+export function copFlip(image: CopImage, params?: any | null): CopImage;
+
+export function copLoadImage(params?: any | null): CopImage;
+
+export function copMirror(image: CopImage, params?: any | null): CopImage;
+
+export function copNoise(params?: any | null): CopImage;
+
+export function copRamp(params?: any | null): CopImage;
+
+export function copResize(image: CopImage, params?: any | null): CopImage;
+
+export function copRotate(image: CopImage, params?: any | null): CopImage;
+
+export function copSwirl(image: CopImage, params?: any | null): CopImage;
+
 export function copyToPoints(source: Geometry, target: Geometry): Geometry;
 
 export function createBox(params?: any | null): Geometry;
@@ -144,6 +181,12 @@ export function deleteSop(geo: Geometry, params?: any | null): Geometry;
 
 export function enumerateAttrib(geo: Geometry, params?: any | null): Geometry;
 
+export function executeCop(name: string, image: CopImage, params?: any | null): CopImage;
+
+export function executeCopComposite(name: string, image_a: CopImage, image_b: CopImage, params?: any | null): CopImage;
+
+export function executeCopCreate(name: string, params?: any | null): CopImage;
+
 /**
  * Execute any registered SOP by name. Params are a JSON-compatible JS object.
  * Uses Rust/snake_case field names for params (matching serde serialization).
@@ -160,6 +203,14 @@ export function fuse(geo: Geometry, params?: any | null): Geometry;
 export function groupCombine(geo: Geometry, params?: any | null): Geometry;
 
 export function groupCreate(geo: Geometry, params?: any | null): Geometry;
+
+/**
+ * Initialize the GPU context for COP image processing.
+ * Must be called (and awaited) before using any cop* functions.
+ */
+export function initCopGpu(): Promise<void>;
+
+export function listCops(): string[];
 
 /**
  * List all registered SOP names.
@@ -206,6 +257,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly __wbg_copimage_free: (a: number, b: number) => void;
     readonly __wbg_geometry_free: (a: number, b: number) => void;
     readonly attribBlur: (a: number, b: number) => [number, number, number];
     readonly attribCopy: (a: number, b: number, c: number) => [number, number, number];
@@ -223,6 +275,23 @@ export interface InitOutput {
     readonly color: (a: number, b: number) => [number, number, number];
     readonly computeNormals: (a: number) => [number, number, number];
     readonly connectivity: (a: number, b: number) => [number, number, number];
+    readonly copBlur: (a: number, b: number) => [number, number, number];
+    readonly copChannelSwap: (a: number, b: number) => [number, number, number];
+    readonly copCheckerboard: (a: number) => [number, number, number];
+    readonly copComposite: (a: number, b: number, c: number) => [number, number, number];
+    readonly copConstant: (a: number) => [number, number, number];
+    readonly copCustomShader: (a: number, b: number, c: number) => [number, number, number];
+    readonly copFlip: (a: number, b: number) => [number, number, number];
+    readonly copLoadImage: (a: number) => [number, number, number];
+    readonly copMirror: (a: number, b: number) => [number, number, number];
+    readonly copNoise: (a: number) => [number, number, number];
+    readonly copRamp: (a: number) => [number, number, number];
+    readonly copResize: (a: number, b: number) => [number, number, number];
+    readonly copRotate: (a: number, b: number) => [number, number, number];
+    readonly copSwirl: (a: number, b: number) => [number, number, number];
+    readonly copimage_getPixels: (a: number) => [number, number, number, number];
+    readonly copimage_height: (a: number) => number;
+    readonly copimage_width: (a: number) => number;
     readonly copyToPoints: (a: number, b: number) => [number, number, number];
     readonly createBox: (a: number) => [number, number, number];
     readonly createCircle: (a: number) => [number, number, number];
@@ -234,6 +303,9 @@ export interface InitOutput {
     readonly createTube: (a: number) => [number, number, number];
     readonly deleteSop: (a: number, b: number) => [number, number, number];
     readonly enumerateAttrib: (a: number, b: number) => [number, number, number];
+    readonly executeCop: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly executeCopComposite: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly executeCopCreate: (a: number, b: number, c: number) => [number, number, number];
     readonly executeSop: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly executeSopCreate: (a: number, b: number, c: number) => [number, number, number];
     readonly fuse: (a: number, b: number) => [number, number, number];
@@ -263,6 +335,8 @@ export interface InitOutput {
     readonly geometry_vertexPoint: (a: number, b: number) => number;
     readonly groupCombine: (a: number, b: number) => [number, number, number];
     readonly groupCreate: (a: number, b: number) => [number, number, number];
+    readonly initCopGpu: () => any;
+    readonly listCops: () => [number, number];
     readonly listSops: () => [number, number];
     readonly measure: (a: number, b: number) => [number, number, number];
     readonly merge: (a: number, b: number) => [number, number, number];
@@ -280,11 +354,15 @@ export interface InitOutput {
     readonly subdivide: (a: number, b: number) => [number, number, number];
     readonly transform: (a: number, b: number) => [number, number, number];
     readonly voronoiFracture: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasm_bindgen__convert__closures_____invoke__h8d52734cc70625dc: (a: number, b: number, c: any) => [number, number];
+    readonly wasm_bindgen__convert__closures_____invoke__h67baf97aa0fae51e: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__hd28ba1d3b3161cad: (a: number, b: number, c: any) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;
     readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
+    readonly __wbindgen_destroy_closure: (a: number, b: number) => void;
     readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __externref_drop_slice: (a: number, b: number) => void;
