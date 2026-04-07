@@ -296,7 +296,7 @@ function scheduleRun() {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
         executeCode(editor.getValue());
-    }, 5000);
+    }, 1000);
 }
 
 editor.onDidChangeModelContent(scheduleRun);
@@ -327,6 +327,72 @@ document.getElementById('examples').addEventListener('change', (e) => {
 document.getElementById('run-btn').addEventListener('click', () => {
     clearTimeout(debounceTimer);
     executeCode(editor.getValue());
+});
+
+// ── URL Sharing (encode/decode code in query param) ──
+function toBase64Url(bytes) {
+    let binary = '';
+    for (const b of bytes) binary += String.fromCharCode(b);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(str) {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    const binary = atob(str);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+}
+
+async function compressCode(code) {
+    const stream = new Blob([new TextEncoder().encode(code)])
+        .stream()
+        .pipeThrough(new CompressionStream('deflate-raw'));
+    const buf = await new Response(stream).arrayBuffer();
+    return toBase64Url(new Uint8Array(buf));
+}
+
+async function decompressCode(encoded) {
+    const stream = new Blob([fromBase64Url(encoded)])
+        .stream()
+        .pipeThrough(new DecompressionStream('deflate-raw'));
+    const buf = await new Response(stream).arrayBuffer();
+    return new TextDecoder().decode(buf);
+}
+
+function showToast(message) {
+    const el = document.getElementById('toast');
+    el.textContent = message;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+async function getCodeFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get('code');
+    if (!encoded) return null;
+    try {
+        return await decompressCode(encoded);
+    } catch (e) {
+        console.warn('Failed to decode code from URL:', e);
+        return null;
+    }
+}
+
+document.getElementById('share-btn').addEventListener('click', async () => {
+    const code = editor.getValue();
+    try {
+        const encoded = await compressCode(code);
+        const url = new URL(window.location.href);
+        url.search = '?code=' + encoded;
+        await navigator.clipboard.writeText(url.toString());
+        window.history.replaceState(null, '', url);
+        showToast('Link copied to clipboard');
+    } catch (e) {
+        console.error('Share failed:', e);
+        showToast('Failed to copy link');
+    }
 });
 
 // ── Export buttons ────────────────────────────────────────
@@ -515,7 +581,11 @@ resizeViewer();
 render();
 
 setStatus('Loading WASM...', '');
-loadWasm().then(() => {
+loadWasm().then(async () => {
+    const urlCode = await getCodeFromUrl();
+    if (urlCode) {
+        editor.setValue(urlCode);
+    }
     executeCode(editor.getValue());
 }).catch(e => {
     setStatus(`Failed to load WASM: ${e.message}`, 'error');
