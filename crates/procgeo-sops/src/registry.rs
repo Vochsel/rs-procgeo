@@ -255,6 +255,12 @@ pub fn default_registry() -> SopRegistry {
         r.add(crate::utility::NullSop);
     }
 
+    // Deform
+    #[cfg(feature = "deform")]
+    {
+        r.add(crate::deform::BendSop);
+    }
+
     r
 }
 

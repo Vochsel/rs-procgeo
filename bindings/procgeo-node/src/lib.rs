@@ -375,6 +375,78 @@ pub fn transform(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Ge
 }
 
 #[napi]
+pub fn bend(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let bend_mode = match p.get("bend_mode").and_then(|v| v.as_str()).unwrap_or("angle") {
+        "direction" => procgeo_sops::deform::BendMode::Direction,
+        _ => procgeo_sops::deform::BendMode::Angle,
+    };
+    let taper_mode = match p.get("taper_mode").and_then(|v| v.as_str()).unwrap_or("linear") {
+        "smooth" => procgeo_sops::deform::TaperMode::Smooth,
+        _ => procgeo_sops::deform::TaperMode::Linear,
+    };
+    let taper_ramp = p
+        .get("taper_ramp")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|pair| {
+                    let pair = pair.as_array()?;
+                    let pos = pair.get(0)?.as_f64()? as f32;
+                    let val = pair.get(1)?.as_f64()? as f32;
+                    Some((pos, val))
+                })
+                .collect()
+        })
+        .unwrap_or_else(|| vec![(0.0, 0.5), (1.0, 0.5)]);
+    let params = procgeo_sops::deform::BendParams {
+        group: p.get("group").and_then(|v| v.as_str()).map(String::from),
+        mask_attrib: p.get("mask_attrib").and_then(|v| v.as_str()).map(String::from),
+        enable_deformation: get_bool(&p, "enable_deformation", true),
+        limit_to_capture_region: get_bool(&p, "limit_to_capture_region", true),
+        deform_both_directions: get_bool(&p, "deform_both_directions", false),
+        bend_enable: get_bool(&p, "bend_enable", false),
+        bend_mode,
+        bend_angle: get_f32(&p, "bend_angle", 0.0),
+        bend_goal_direction: get_vec3(&p, "bend_goal_direction", [0.0, 0.0, 1.0]),
+        twist_enable: get_bool(&p, "twist_enable", false),
+        twist_angle: get_f32(&p, "twist_angle", 0.0),
+        twist_continuous_both: get_bool(&p, "twist_continuous_both", false),
+        length_scale_enable: get_bool(&p, "length_scale_enable", false),
+        length_scale: get_f32(&p, "length_scale", 1.0),
+        preserve_volume: get_bool(&p, "preserve_volume", false),
+        taper_enable: get_bool(&p, "taper_enable", false),
+        taper_along: [
+            get_bool(&p, "taper_along_x", true),
+            get_bool(&p, "taper_along_z", true),
+        ],
+        taper_mode,
+        taper_value: get_f32(&p, "taper_value", 1.0),
+        squish: get_f32(&p, "squish", 1.0),
+        squish_pivot: get_f32(&p, "squish_pivot", 0.5),
+        taper_ramp_enable: get_bool(&p, "taper_ramp_enable", false),
+        taper_ramp,
+        up_vector: get_vec3(&p, "up_vector", [0.0, 1.0, 0.0]),
+        up_vector_angle: get_f32(&p, "up_vector_angle", 0.0),
+        capture_origin: get_vec3(&p, "capture_origin", [0.0, 0.0, 0.0]),
+        capture_direction: get_vec3(&p, "capture_direction", [0.0, 1.0, 0.0]),
+        capture_length: get_f32(&p, "capture_length", 1.0),
+        output_attrib: p.get("output_attrib").and_then(|v| v.as_str()).map(String::from),
+        attribs_to_transform: p
+            .get("attribs_to_transform")
+            .and_then(|v| v.as_str())
+            .unwrap_or("*")
+            .to_string(),
+        recompute_normals: get_bool(&p, "recompute_normals", true),
+        preserve_normal_length: get_bool(&p, "preserve_normal_length", false),
+    };
+    let inner = procgeo_sops::deform::BendSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
 pub fn compute_normals(geo: &Geometry) -> Result<Geometry> {
     let inner = procgeo_sops::normals::NormalSop
         .execute(

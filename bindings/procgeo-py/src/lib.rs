@@ -1241,6 +1241,124 @@ fn save_cop_image(image: &CopImage, path: &str) -> PyResult<()> {
     procgeo_cops::io::save_image(&image.inner, &params).map_err(cop_err)
 }
 
+// ---- Deform SOPs ----
+
+#[pyfunction]
+#[pyo3(signature = (
+    geo,
+    group=None,
+    enable_deformation=true,
+    limit_to_capture_region=true,
+    deform_both_directions=false,
+    bend_enable=false,
+    bend_mode="angle",
+    bend_angle=0.0,
+    twist_enable=false,
+    twist_angle=0.0,
+    length_scale_enable=false,
+    length_scale=1.0,
+    preserve_volume=false,
+    taper_enable=false,
+    taper_value=1.0,
+    squish=1.0,
+    squish_pivot=0.5,
+    taper_mode="linear",
+    up_vector_x=0.0,
+    up_vector_y=1.0,
+    up_vector_z=0.0,
+    up_vector_angle=0.0,
+    capture_origin_x=0.0,
+    capture_origin_y=0.0,
+    capture_origin_z=0.0,
+    capture_direction_x=0.0,
+    capture_direction_y=1.0,
+    capture_direction_z=0.0,
+    capture_length=1.0,
+    mask_attrib=None,
+    output_attrib=None,
+))]
+#[allow(clippy::too_many_arguments)]
+fn bend(
+    geo: &Geometry,
+    group: Option<String>,
+    enable_deformation: bool,
+    limit_to_capture_region: bool,
+    deform_both_directions: bool,
+    bend_enable: bool,
+    bend_mode: &str,
+    bend_angle: f32,
+    twist_enable: bool,
+    twist_angle: f32,
+    length_scale_enable: bool,
+    length_scale: f32,
+    preserve_volume: bool,
+    taper_enable: bool,
+    taper_value: f32,
+    squish: f32,
+    squish_pivot: f32,
+    taper_mode: &str,
+    up_vector_x: f32,
+    up_vector_y: f32,
+    up_vector_z: f32,
+    up_vector_angle: f32,
+    capture_origin_x: f32,
+    capture_origin_y: f32,
+    capture_origin_z: f32,
+    capture_direction_x: f32,
+    capture_direction_y: f32,
+    capture_direction_z: f32,
+    capture_length: f32,
+    mask_attrib: Option<String>,
+    output_attrib: Option<String>,
+) -> PyResult<Geometry> {
+    let bm = match bend_mode {
+        "direction" => procgeo_sops::deform::BendMode::Direction,
+        _ => procgeo_sops::deform::BendMode::Angle,
+    };
+    let tm = match taper_mode {
+        "smooth" => procgeo_sops::deform::TaperMode::Smooth,
+        _ => procgeo_sops::deform::TaperMode::Linear,
+    };
+    let params = procgeo_sops::deform::BendParams {
+        group,
+        mask_attrib,
+        enable_deformation,
+        limit_to_capture_region,
+        deform_both_directions,
+        bend_enable,
+        bend_mode: bm,
+        bend_angle,
+        bend_goal_direction: glam::Vec3::Z,
+        twist_enable,
+        twist_angle,
+        twist_continuous_both: false,
+        length_scale_enable,
+        length_scale,
+        preserve_volume,
+        taper_enable,
+        taper_along: [true, true],
+        taper_mode: tm,
+        taper_value,
+        squish,
+        squish_pivot,
+        taper_ramp_enable: false,
+        taper_ramp: vec![(0.0, 0.5), (1.0, 0.5)],
+        up_vector: glam::Vec3::new(up_vector_x, up_vector_y, up_vector_z),
+        up_vector_angle,
+        capture_origin: glam::Vec3::new(capture_origin_x, capture_origin_y, capture_origin_z),
+        capture_direction: glam::Vec3::new(capture_direction_x, capture_direction_y, capture_direction_z),
+        capture_length,
+        output_attrib,
+        attribs_to_transform: String::from("*"),
+        recompute_normals: true,
+        preserve_normal_length: false,
+    };
+    let inner = procgeo_sops::deform::BendSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 /// The procgeo Python module.
 #[pymodule]
 fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1257,6 +1375,7 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_metaball, m)?)?;
     // Manipulation
     m.add_function(wrap_pyfunction!(transform, m)?)?;
+    m.add_function(wrap_pyfunction!(bend, m)?)?;
     m.add_function(wrap_pyfunction!(compute_normals, m)?)?;
     m.add_function(wrap_pyfunction!(merge, m)?)?;
     m.add_function(wrap_pyfunction!(subdivide, m)?)?;
