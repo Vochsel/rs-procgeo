@@ -531,6 +531,160 @@ pub fn voronoi_fracture(geo: &Geometry, points: &Geometry, params: Option<JsValu
 }
 
 // ---------------------------------------------------------------------------
+// Deform SOPs
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen]
+pub fn bend(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::deform::BendParams {
+        group: js_sys::Reflect::get(&p, &"group".into()).ok().and_then(|v| v.as_string()),
+        mask_attrib: js_sys::Reflect::get(&p, &"maskAttrib".into()).ok().and_then(|v| v.as_string()),
+        enable_deformation: get_bool(&p, "enableDeformation", true),
+        limit_to_capture_region: get_bool(&p, "limitToCaptureRegion", true),
+        deform_both_directions: get_bool(&p, "deformBothDirections", false),
+        bend_enable: get_bool(&p, "bendEnable", false),
+        bend_mode: if get_str(&p, "bendMode", "angle") == "direction" {
+            procgeo_sops::deform::BendMode::Direction
+        } else {
+            procgeo_sops::deform::BendMode::Angle
+        },
+        bend_angle: get_f32(&p, "bendAngle", 0.0),
+        bend_goal_direction: get_vec3(&p, "bendGoalDirection", [0.0, 0.0, 1.0]),
+        twist_enable: get_bool(&p, "twistEnable", false),
+        twist_angle: get_f32(&p, "twistAngle", 0.0),
+        twist_continuous_both: get_bool(&p, "twistContinuousBoth", false),
+        length_scale_enable: get_bool(&p, "lengthScaleEnable", false),
+        length_scale: get_f32(&p, "lengthScale", 1.0),
+        preserve_volume: get_bool(&p, "preserveVolume", false),
+        taper_enable: get_bool(&p, "taperEnable", false),
+        taper_along: [get_bool(&p, "taperAlongX", true), get_bool(&p, "taperAlongY", true)],
+        taper_mode: if get_str(&p, "taperMode", "linear") == "smooth" {
+            procgeo_sops::deform::TaperMode::Smooth
+        } else {
+            procgeo_sops::deform::TaperMode::Linear
+        },
+        taper_value: get_f32(&p, "taperValue", 1.0),
+        squish: get_f32(&p, "squish", 1.0),
+        squish_pivot: get_f32(&p, "squishPivot", 0.5),
+        taper_ramp_enable: get_bool(&p, "taperRampEnable", false),
+        taper_ramp: vec![(0.0, 0.5), (1.0, 0.5)],
+        up_vector: get_vec3(&p, "upVector", [0.0, 1.0, 0.0]),
+        up_vector_angle: get_f32(&p, "upVectorAngle", 0.0),
+        capture_origin: get_vec3(&p, "captureOrigin", [0.0, 0.0, 0.0]),
+        capture_direction: get_vec3(&p, "captureDirection", [0.0, 1.0, 0.0]),
+        capture_length: get_f32(&p, "captureLength", 1.0),
+        output_attrib: js_sys::Reflect::get(&p, &"outputAttrib".into()).ok().and_then(|v| v.as_string()),
+        attribs_to_transform: get_str(&p, "attribsToTransform", "*"),
+        recompute_normals: get_bool(&p, "recomputeNormals", true),
+        preserve_normal_length: get_bool(&p, "preserveNormalLength", false),
+    };
+    let inner = procgeo_sops::deform::BendSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "pointDeform")]
+pub fn point_deform(
+    geo: &Geometry,
+    rest_lattice: &Geometry,
+    deformed_lattice: &Geometry,
+    params: Option<JsValue>,
+) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::deform::PointDeformParams {
+        group: js_sys::Reflect::get(&p, &"group".into()).ok().and_then(|v| v.as_string()),
+        mode: match get_str(&p, "mode", "captureAndDeform").as_str() {
+            "capture" => procgeo_sops::deform::PointDeformMode::Capture,
+            "deform" => procgeo_sops::deform::PointDeformMode::Deform,
+            _ => procgeo_sops::deform::PointDeformMode::CaptureAndDeform,
+        },
+        radius: get_f32(&p, "radius", 1.0),
+        min_points: get_u32(&p, "minPoints", 1),
+        max_points: get_u32(&p, "maxPoints", 10),
+        piece_attrib: js_sys::Reflect::get(&p, &"pieceAttrib".into()).ok().and_then(|v| v.as_string()),
+        rigid_projection: get_bool(&p, "rigidProjection", true),
+        mask: get_f32(&p, "mask", 1.0),
+        mask_attrib: js_sys::Reflect::get(&p, &"maskAttrib".into()).ok().and_then(|v| v.as_string()),
+        recompute_normals: get_bool(&p, "recomputeNormals", true),
+        attribs_to_transform: get_str(&p, "attribsToTransform", "*"),
+        delete_capture_attribs: get_bool(&p, "deleteCaptureAttribs", true),
+    };
+    let inner = procgeo_sops::deform::PointDeformSop
+        .execute(&[&geo.inner, &rest_lattice.inner, &deformed_lattice.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Boolean SOP
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen(js_name = "booleanOp")]
+pub fn boolean_op(a: &Geometry, b: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::boolean::BooleanParams {
+        group_a: js_sys::Reflect::get(&p, &"groupA".into()).ok().and_then(|v| v.as_string()),
+        group_b: js_sys::Reflect::get(&p, &"groupB".into()).ok().and_then(|v| v.as_string()),
+        treat_a_as: if get_str(&p, "treatAAs", "solid") == "surface" {
+            procgeo_sops::boolean::BooleanTreatAs::Surface
+        } else {
+            procgeo_sops::boolean::BooleanTreatAs::Solid
+        },
+        treat_b_as: if get_str(&p, "treatBAs", "solid") == "surface" {
+            procgeo_sops::boolean::BooleanTreatAs::Surface
+        } else {
+            procgeo_sops::boolean::BooleanTreatAs::Solid
+        },
+        resolve_self_a: get_bool(&p, "resolveSelfA", false),
+        resolve_self_b: get_bool(&p, "resolveSelfB", false),
+        operation: match get_str(&p, "operation", "union").as_str() {
+            "intersect" => procgeo_sops::boolean::BooleanOp::Intersect,
+            "subtract" => procgeo_sops::boolean::BooleanOp::Subtract,
+            "shatter" => procgeo_sops::boolean::BooleanOp::Shatter,
+            "seam" => procgeo_sops::boolean::BooleanOp::Seam,
+            "detect" => procgeo_sops::boolean::BooleanOp::Detect,
+            "resolve" => procgeo_sops::boolean::BooleanOp::Resolve,
+            "custom" => procgeo_sops::boolean::BooleanOp::Custom,
+            _ => procgeo_sops::boolean::BooleanOp::Union,
+        },
+        detriangulate: match get_str(&p, "detriangulate", "all").as_str() {
+            "onlyUnchanged" => procgeo_sops::boolean::Detriangulate::OnlyUnchanged,
+            "none" => procgeo_sops::boolean::Detriangulate::None,
+            _ => procgeo_sops::boolean::Detriangulate::All,
+        },
+        assume_seam_flat: get_bool(&p, "assumeSeamFlat", true),
+        unique_seam_points: get_bool(&p, "uniqueSeamPoints", false),
+        collapse_tiny_edges: get_bool(&p, "collapseTinyEdges", true),
+        edge_length_threshold: get_f32(&p, "edgeLengthThreshold", 1e-5),
+        a_depth_range: [get_u32(&p, "aDepthMin", 1) as i32, get_u32(&p, "aDepthMax", 9999) as i32],
+        b_depth_range: [get_u32(&p, "bDepthMin", 1) as i32, get_u32(&p, "bDepthMax", 9999) as i32],
+        custom_match: match get_str(&p, "customMatch", "both").as_str() {
+            "a" => procgeo_sops::boolean::CustomMatch::A,
+            "b" => procgeo_sops::boolean::CustomMatch::B,
+            "exactlyOne" => procgeo_sops::boolean::CustomMatch::ExactlyOne,
+            _ => procgeo_sops::boolean::CustomMatch::Both,
+        },
+        merge_adjacent: get_bool(&p, "mergeAdjacent", true),
+        generate_aa_seams: get_bool(&p, "generateAASeams", false),
+        generate_bb_seams: get_bool(&p, "generateBBSeams", false),
+        generate_ab_seams: get_bool(&p, "generateABSeams", true),
+        a_inside_b_group: js_sys::Reflect::get(&p, &"aInsideBGroup".into()).ok().and_then(|v| v.as_string()),
+        a_outside_b_group: js_sys::Reflect::get(&p, &"aOutsideBGroup".into()).ok().and_then(|v| v.as_string()),
+        b_inside_a_group: js_sys::Reflect::get(&p, &"bInsideAGroup".into()).ok().and_then(|v| v.as_string()),
+        b_outside_a_group: js_sys::Reflect::get(&p, &"bOutsideAGroup".into()).ok().and_then(|v| v.as_string()),
+        aa_seam_edge_group: js_sys::Reflect::get(&p, &"aaSeamEdgeGroup".into()).ok().and_then(|v| v.as_string()),
+        bb_seam_edge_group: js_sys::Reflect::get(&p, &"bbSeamEdgeGroup".into()).ok().and_then(|v| v.as_string()),
+        ab_seam_edge_group: js_sys::Reflect::get(&p, &"abSeamEdgeGroup".into()).ok().and_then(|v| v.as_string()),
+    };
+    let inner = procgeo_sops::boolean::BooleanSop
+        .execute(&[&a.inner, &b.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
 // Attribute SOPs
 // ---------------------------------------------------------------------------
 

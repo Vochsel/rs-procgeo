@@ -304,6 +304,31 @@ declare const pg: {
     /** Voronoi fracture a mesh into pieces using external seed points. */
     voronoiFracture(geo: ProcGeoGeometry, points: ProcGeoGeometry, params?: { cutPlaneOffset?: number; createInsideFaces?: boolean }): ProcGeoGeometry;
 
+    // ── Deform ──
+    /** Bend/twist/taper/length-scale deformation within a capture region. */
+    bend(geo: ProcGeoGeometry, params?: {
+        group?: string; maskAttrib?: string;
+        enableDeformation?: boolean; limitToCaptureRegion?: boolean; deformBothDirections?: boolean;
+        bendEnable?: boolean; bendMode?: "angle" | "direction"; bendAngle?: number; bendGoalDirection?: [number, number, number];
+        twistEnable?: boolean; twistAngle?: number; twistContinuousBoth?: boolean;
+        lengthScaleEnable?: boolean; lengthScale?: number; preserveVolume?: boolean;
+        taperEnable?: boolean; taperAlongX?: boolean; taperAlongY?: boolean; taperMode?: "linear" | "smooth";
+        taperValue?: number; squish?: number; squishPivot?: number;
+        upVector?: [number, number, number]; upVectorAngle?: number;
+        captureOrigin?: [number, number, number]; captureDirection?: [number, number, number]; captureLength?: number;
+    }): ProcGeoGeometry;
+    /** Deform geometry using a point lattice (rest → deformed comparison). */
+    pointDeform(geo: ProcGeoGeometry, restLattice: ProcGeoGeometry, deformedLattice: ProcGeoGeometry, params?: {
+        radius?: number; minPoints?: number; maxPoints?: number;
+        rigidProjection?: boolean; mask?: number;
+    }): ProcGeoGeometry;
+    /** Boolean/CSG operations between two polygonal meshes. */
+    booleanOp(a: ProcGeoGeometry, b: ProcGeoGeometry, params?: {
+        operation?: "union" | "intersect" | "subtract" | "shatter" | "seam" | "detect";
+        treatAAs?: "solid" | "surface"; treatBAs?: "solid" | "surface";
+        collapseTinyEdges?: boolean;
+    }): ProcGeoGeometry;
+
     // ── Merge ──
     /** Merge two geometries into one. Chain calls to merge more: merge(merge(a, b), c). */
     merge(a: ProcGeoGeometry, b: ProcGeoGeometry): ProcGeoGeometry;
