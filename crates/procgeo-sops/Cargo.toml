@@ -10,12 +10,14 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
+nalgebra = { workspace = true }
+robust = { workspace = true }
 
 [dev-dependencies]
 approx = { workspace = true }
 
 [features]
-default = ["creation", "transform", "normals", "merge", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops", "color", "voronoi"]
+default = ["creation", "transform", "normals", "merge", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops", "color", "voronoi", "deform", "boolean"]
 creation = []
 transform = []
 normals = []
@@ -31,3 +33,5 @@ measure_sops = []
 utility_sops = []
 color = []
 voronoi = ["reshape"]
+deform = []
+boolean = []

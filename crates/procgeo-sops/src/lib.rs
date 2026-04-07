@@ -36,6 +36,10 @@ pub mod utility;
 pub mod color;
 #[cfg(feature = "voronoi")]
 pub mod voronoi;
+#[cfg(feature = "deform")]
+pub mod deform;
+#[cfg(feature = "boolean")]
+pub mod boolean;
 
 #[derive(Debug, Error)]
 pub enum SopError {

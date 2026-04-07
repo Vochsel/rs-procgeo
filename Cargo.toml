@@ -38,3 +38,5 @@ pollster = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "hdr", "exr"] }
 naga = { version = "24", features = ["glsl-in", "wgsl-out"] }
 bytemuck = { version = "1.21", features = ["derive"] }
+nalgebra = "0.33"
+robust = "1.1"

@@ -42,4 +42,8 @@ pub mod prelude {
     pub use procgeo_sops::color::*;
     #[cfg(feature = "cops")]
     pub use procgeo_cops::prelude::*;
+    #[cfg(feature = "deform")]
+    pub use procgeo_sops::deform::*;
+    #[cfg(feature = "boolean")]
+    pub use procgeo_sops::boolean::*;
 }
