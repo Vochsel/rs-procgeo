@@ -211,6 +211,91 @@ impl Image {
         Ok(result)
     }
 
+    /// Async version of `to_cpu` that yields to the event loop for buffer mapping.
+    /// Required for WASM where `device.poll(Wait)` deadlocks the single thread.
+    pub async fn to_cpu_async(&self) -> Result<Vec<f32>, CopError> {
+        if self.width == 0 || self.height == 0 {
+            return Ok(Vec::new());
+        }
+
+        let unpadded_bytes_per_row = self.width * BYTES_PER_PIXEL;
+        let padded_bytes_per_row = align_up(unpadded_bytes_per_row, COPY_BYTES_PER_ROW_ALIGNMENT);
+        let buffer_size = (padded_bytes_per_row as u64) * (self.height as u64);
+
+        let staging = self
+            .ctx
+            .device()
+            .create_buffer(&wgpu::BufferDescriptor {
+                label: Some("readback_async"),
+                size: buffer_size,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            });
+
+        let mut encoder = self
+            .ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("readback_async"),
+            });
+
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &staging,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded_bytes_per_row),
+                    rows_per_image: Some(self.height),
+                },
+            },
+            wgpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        self.ctx.queue().submit(std::iter::once(encoder.finish()));
+
+        // Map the staging buffer asynchronously
+        let buffer_slice = staging.slice(..);
+        let (sender, receiver) = futures_channel::oneshot::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            let _ = sender.send(result);
+        });
+        // On native, poll drives the callback. On WASM/WebGPU the browser does it,
+        // so poll is a no-op but the future needs to yield until the callback fires.
+        self.ctx.device().poll(wgpu::Maintain::Poll);
+        receiver
+            .await
+            .map_err(|_| CopError::Gpu("buffer map channel cancelled".into()))?
+            .map_err(|e| CopError::Gpu(format!("buffer map failed: {e}")))?;
+
+        let mapped = buffer_slice.get_mapped_range();
+
+        let pixel_count = (self.width as usize) * (self.height as usize);
+        let mut result = Vec::with_capacity(pixel_count * 4);
+
+        for row in 0..self.height as usize {
+            let row_start = row * padded_bytes_per_row as usize;
+            let row_end = row_start + unpadded_bytes_per_row as usize;
+            let row_bytes = &mapped[row_start..row_end];
+            let row_floats: &[f32] = bytemuck::cast_slice(row_bytes);
+            result.extend_from_slice(row_floats);
+        }
+
+        drop(mapped);
+        staging.unmap();
+
+        Ok(result)
+    }
+
     /// Width of the image in pixels (0 for empty images).
     pub fn width(&self) -> u32 {
         self.width

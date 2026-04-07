@@ -61,13 +61,13 @@ let currentMode = 'geo'; // 'geo' or 'cop'
 const copCanvas = document.getElementById('cop-canvas');
 const copCtx2d = copCanvas.getContext('2d');
 
-function showCopImage(copImage) {
+async function showCopImage(copImage) {
     currentMode = 'cop';
     currentGeo = null;
 
     const w = copImage.width;
     const h = copImage.height;
-    const pixels = copImage.getPixels(); // Float32Array RGBA
+    const pixels = await copImage.getPixels(); // Float32Array RGBA
 
     // Convert RGBA f32 → RGBA u8
     const rgba8 = new Uint8ClampedArray(w * h * 4);
@@ -207,7 +207,7 @@ async function executeCode(code) {
             const el = document.getElementById('status');
             el.textContent += ` | ${elapsed}ms`;
         } else if (result && typeof result.getPixels === 'function') {
-            showCopImage(result);
+            await showCopImage(result);
             const el = document.getElementById('status');
             el.textContent += ` | ${elapsed}ms`;
         } else {

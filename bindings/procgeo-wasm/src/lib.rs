@@ -1182,8 +1182,8 @@ impl CopImage {
     pub fn height(&self) -> u32 { self.inner.height() }
 
     #[wasm_bindgen(js_name = "getPixels")]
-    pub fn get_pixels(&self) -> Result<Vec<f32>, JsError> {
-        self.inner.to_cpu().map_err(|e| JsError::new(&format!("{e}")))
+    pub async fn get_pixels(&self) -> Result<Vec<f32>, JsError> {
+        self.inner.to_cpu_async().await.map_err(|e| JsError::new(&format!("{e}")))
     }
 }
 

@@ -13,6 +13,7 @@ wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
 naga = { workspace = true, optional = true }
 image = { workspace = true }
+futures-channel = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -20,7 +21,7 @@ pollster = { workspace = true }
 
 [features]
 default = ["gpu", "generator", "filter", "composite", "custom"]
-gpu = ["dep:wgpu", "dep:pollster"]
+gpu = ["dep:wgpu", "dep:pollster", "dep:futures-channel"]
 generator = []
 filter = []
 composite = []

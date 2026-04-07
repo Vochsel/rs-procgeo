@@ -5,7 +5,7 @@ export class CopImage {
     private constructor();
     free(): void;
     [Symbol.dispose](): void;
-    getPixels(): Float32Array;
+    getPixels(): Promise<Float32Array>;
     readonly height: number;
     readonly width: number;
 }
@@ -289,7 +289,7 @@ export interface InitOutput {
     readonly copResize: (a: number, b: number) => [number, number, number];
     readonly copRotate: (a: number, b: number) => [number, number, number];
     readonly copSwirl: (a: number, b: number) => [number, number, number];
-    readonly copimage_getPixels: (a: number) => [number, number, number, number];
+    readonly copimage_getPixels: (a: number) => any;
     readonly copimage_height: (a: number) => number;
     readonly copimage_width: (a: number) => number;
     readonly copyToPoints: (a: number, b: number) => [number, number, number];
@@ -363,8 +363,8 @@ export interface InitOutput {
     readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_destroy_closure: (a: number, b: number) => void;
-    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __externref_table_dealloc: (a: number) => void;
     readonly __externref_drop_slice: (a: number, b: number) => void;
     readonly __wbindgen_start: () => void;
 }
