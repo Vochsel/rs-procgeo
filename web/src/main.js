@@ -49,6 +49,46 @@ const meshGroup = new THREE.Group();
 scene.add(meshGroup);
 
 let currentGeo = null;
+let currentMode = 'geo'; // 'geo' or 'cop'
+
+// ── COP Image Rendering ─────────────────────────────────
+const copCanvas = document.getElementById('cop-canvas');
+const copCtx2d = copCanvas.getContext('2d');
+
+function showCopImage(copImage) {
+    currentMode = 'cop';
+    currentGeo = null;
+
+    const w = copImage.width;
+    const h = copImage.height;
+    const pixels = copImage.getPixels(); // Float32Array RGBA
+
+    // Convert RGBA f32 → RGBA u8
+    const rgba8 = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < w * h * 4; i++) {
+        rgba8[i] = Math.round(Math.min(1, Math.max(0, pixels[i])) * 255);
+    }
+
+    copCanvas.width = w;
+    copCanvas.height = h;
+    const imageData = new ImageData(rgba8, w, h);
+    copCtx2d.putImageData(imageData, 0, 0);
+
+    // Show COP canvas, hide 3D
+    copCanvas.style.display = 'block';
+    canvas.style.display = 'none';
+
+    setStatus(`${w}x${h} image`, 'success');
+}
+
+function showGeometry() {
+    if (currentMode !== 'geo') {
+        currentMode = 'geo';
+        copCanvas.style.display = 'none';
+        canvas.style.display = 'block';
+        resizeViewer();
+    }
+}
 
 function resizeViewer() {
     const view = document.getElementById('viewport-view');
@@ -156,11 +196,16 @@ async function executeCode(code) {
         const elapsed = (performance.now() - t0).toFixed(1);
 
         if (result && typeof result.getPositions === 'function') {
+            showGeometry();
             updateScene(result);
             const el = document.getElementById('status');
             el.textContent += ` | ${elapsed}ms`;
+        } else if (result && typeof result.getPixels === 'function') {
+            showCopImage(result);
+            const el = document.getElementById('status');
+            el.textContent += ` | ${elapsed}ms`;
         } else {
-            setStatus('Code must return a Geometry object', 'error');
+            setStatus('Code must return a Geometry or CopImage', 'error');
         }
     } catch (e) {
         setStatus(`Error: ${e.message}`, 'error');
@@ -253,6 +298,26 @@ declare const pg: {
     /** Voronoi fracture a mesh into pieces using external seed points. */
     voronoiFracture(geo: ProcGeoGeometry, points: ProcGeoGeometry, params?: { cutPlaneOffset?: number; createInsideFaces?: boolean }): ProcGeoGeometry;
 
+    // ── Merge ──
+    /** Merge two geometries into one. Chain calls to merge more: merge(merge(a, b), c). */
+    merge(a: ProcGeoGeometry, b: ProcGeoGeometry): ProcGeoGeometry;
+
+    // ── Group SOPs ──
+    /** Create a named group on points or primitives by range, bounding box, or normal direction. */
+    groupCreate(geo: ProcGeoGeometry, params?: { name?: string; groupType?: "points" | "primitives"; mode?: "range" | "boundingBox" | "normal"; rangeStart?: number; rangeEnd?: number; bboxMin?: [number, number, number]; bboxMax?: [number, number, number]; normalDirection?: [number, number, number]; normalAngle?: number }): ProcGeoGeometry;
+    /** Boolean-combine two named groups: union, intersect, or subtract. */
+    groupCombine(geo: ProcGeoGeometry, params?: { nameA?: string; nameB?: string; result?: string; operation?: "union" | "intersect" | "subtract"; groupType?: "points" | "primitives" }): ProcGeoGeometry;
+
+    // ── Delete SOPs ──
+    /** Delete elements belonging to a named group (or keep them with negate). */
+    blast(geo: ProcGeoGeometry, params?: { groupName?: string; entity?: "points" | "primitives"; negate?: boolean }): ProcGeoGeometry;
+    /** Delete elements by index range. */
+    deleteSop(geo: ProcGeoGeometry, params?: { entity?: "points" | "primitives"; rangeStart?: number; rangeEnd?: number }): ProcGeoGeometry;
+
+    // ── Creation (additional) ──
+    /** Create implicit metaball surface via marching cubes. */
+    createMetaball(params?: { balls?: Array<{ center?: [number, number, number]; radius?: number; weight?: number }>; kernel?: "wyvill" | "blinn" | "hart"; threshold?: number; resolution?: number; padding?: number }): ProcGeoGeometry;
+
     // ── Attribute SOPs ──
     /** Apply procedural noise to an attribute. Default operation is "add" (stacks noise layers). */
     attribNoise(geo: ProcGeoGeometry, params?: { attribName?: string; noiseType?: "perlin" | "simplex" | "worley" | "worleyF2F1"; operation?: "setInitial" | "set" | "add" | "subtract" | "multiply" | "min" | "max"; elementSize?: number; amplitude?: number; seed?: number; dimensions?: number; fractal?: "none" | "standard" | "terrain"; octaves?: number; lacunarity?: number; roughness?: number; range?: "positive" | "zeroCentered" | "minMax"; minValue?: number; maxValue?: number; offset?: [number, number, number]; gain?: number; bias?: number }): ProcGeoGeometry;
@@ -264,7 +329,27 @@ declare const pg: {
     executeSopCreate(name: string, params?: Record<string, any>): ProcGeoGeometry;
     /** List all registered SOP names. */
     listSops(): string[];
+
+    // ── COP (Image Compositing) ──
+    /** Create a COP image with no inputs (generators). Params as JSON object. */
+    executeCopCreate(name: string, params?: Record<string, any>): CopImage;
+    /** Execute a single-input COP filter. */
+    executeCop(name: string, image: CopImage, params?: Record<string, any>): CopImage;
+    /** Execute a two-input COP composite. */
+    executeCopComposite(name: string, imageA: CopImage, imageB: CopImage, params?: Record<string, any>): CopImage;
+    /** List all registered COP names. */
+    listCops(): string[];
 };
+
+/** GPU-backed RGBA32Float image returned by COP operations. */
+interface CopImage {
+    /** Image width in pixels. */
+    readonly width: number;
+    /** Image height in pixels. */
+    readonly height: number;
+    /** Read pixel data back from GPU as Float32Array (RGBA per pixel). */
+    getPixels(): Float32Array;
+}
 `;
 
 // Create a TypeScript model so the TS worker can transpile it

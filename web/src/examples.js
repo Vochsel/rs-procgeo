@@ -215,6 +215,104 @@ scene = pg.computeNormals(scene);
 return scene;
 `,
 
+    groupBooleans: `// Group boolean operations: union, intersect, subtract
+// Each sphere shows a different boolean of "upper half" vs "front half"
+
+function boolOp(operation: string, offset: [number, number, number], col: [number, number, number]) {
+  let geo = pg.createSphere({ radius: 0.8, rows: 16, cols: 32 });
+
+  // Group A: primitives in the upper half (y > 0)
+  geo = pg.groupCreate(geo, {
+    name: 'upper', groupType: 'primitives',
+    mode: 'boundingBox', bboxMin: [-2, 0, -2], bboxMax: [2, 2, 2],
+  });
+
+  // Group B: primitives in the front half (z > 0)
+  geo = pg.groupCreate(geo, {
+    name: 'front', groupType: 'primitives',
+    mode: 'boundingBox', bboxMin: [-2, -2, 0], bboxMax: [2, 2, 2],
+  });
+
+  // Boolean combine the two groups
+  geo = pg.groupCombine(geo, {
+    nameA: 'upper', nameB: 'front', result: 'result',
+    operation, groupType: 'primitives',
+  });
+
+  // Keep only the result group (negate = delete everything NOT in group)
+  geo = pg.blast(geo, { groupName: 'result', entity: 'primitives', negate: true });
+  geo = pg.transform(geo, { translate: offset });
+  geo = pg.computeNormals(geo);
+  geo = pg.color(geo, { color: col });
+  return geo;
+}
+
+const union     = boolOp('union',     [-2, 0, 0], [0.2, 0.8, 0.3]);  // top OR front
+const intersect = boolOp('intersect', [ 0, 0, 0], [0.9, 0.6, 0.1]);  // top AND front
+const subtract  = boolOp('subtract',  [ 2, 0, 0], [0.3, 0.5, 0.9]);  // top AND NOT front
+
+let scene = pg.merge(pg.merge(union, intersect), subtract);
+return scene;
+`,
+
+    metaballs: `// Metaballs — implicit boolean union via field blending
+// Overlapping balls smoothly merge together
+let geo = pg.createMetaball({
+  balls: [
+    { center: [ 0,    0.5, 0], radius: 0.6, weight: 1.0 },
+    { center: [ 0.5,  0,   0], radius: 0.5, weight: 1.0 },
+    { center: [-0.5,  0,   0], radius: 0.5, weight: 1.0 },
+    { center: [ 0,   -0.4, 0.4], radius: 0.4, weight: 1.0 },
+    { center: [ 0.3,  0.8, 0.2], radius: 0.3, weight: 0.8 },
+  ],
+  kernel: 'wyvill',
+  threshold: 0.5,
+  resolution: 64,
+  padding: 0.3,
+});
+geo = pg.computeNormals(geo);
+geo = pg.color(geo, { color: [0.85, 0.35, 0.5] });
+return geo;
+`,
+
+    stressTest: `// Stress test — high-poly terrain + scattered instances
+// Pushes subdivision, noise layering, scatter, and copyToPoints
+
+// 1. Dense terrain grid with layered noise
+let terrain = pg.createGrid({ rows: 100, cols: 100, sizeX: 12, sizeY: 12 });
+
+terrain = pg.attribNoise(terrain, {
+  attribName: 'P', dimensions: 3,
+  noiseType: 'simplex', fractal: 'terrain',
+  octaves: 6, elementSize: 3.0, amplitude: 1.5,
+});
+terrain = pg.attribNoise(terrain, {
+  attribName: 'P', dimensions: 3,
+  noiseType: 'perlin', fractal: 'standard',
+  octaves: 4, elementSize: 0.6, amplitude: 0.1, seed: 42,
+});
+terrain = pg.computeNormals(terrain);
+terrain = pg.color(terrain, { color: [0.35, 0.5, 0.25] });
+
+// 2. Scatter subdivided rocks
+const pts = pg.scatter(terrain, { count: 800, seed: 13 });
+let rock = pg.createBox({ size: [0.06, 0.05, 0.06] });
+rock = pg.subdivide(rock, { depth: 1, mode: 'catmullClark' });
+let rocks = pg.copyToPoints(rock, pts);
+rocks = pg.computeNormals(rocks);
+rocks = pg.color(rocks, { color: [0.5, 0.48, 0.42] });
+
+// 3. Taller scattered pillars
+const pts2 = pg.scatter(terrain, { count: 120, seed: 77 });
+let pillar = pg.createTube({ radiusBottom: 0.05, radiusTop: 0.03, height: 0.4, cols: 6, rows: 1 });
+let pillars = pg.copyToPoints(pillar, pts2);
+pillars = pg.computeNormals(pillars);
+pillars = pg.color(pillars, { color: [0.45, 0.3, 0.15] });
+
+let scene = pg.merge(pg.merge(terrain, rocks), pillars);
+return scene;
+`,
+
     fusedCubes: `// Fused overlapping cubes
 let a = pg.createBox({ size: [1, 1, 1] });
 let b = pg.createBox({ size: [1, 1, 1] });

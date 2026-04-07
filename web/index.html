@@ -35,9 +35,21 @@
                     <option value="reversedGrid">Reversed Normals</option>
                     <option value="fusedCubes">Fused Cubes</option>
                 </optgroup>
+                <optgroup label="Booleans &amp; Groups">
+                    <option value="groupBooleans">Group Booleans</option>
+                    <option value="metaballs">Metaballs (Implicit Union)</option>
+                </optgroup>
                 <optgroup label="Advanced">
                     <option value="fracture">Voronoi Fracture</option>
                     <option value="building">Building (Merge + Colors)</option>
+                    <option value="stressTest">Stress Test</option>
+                </optgroup>
+                <optgroup label="Image COPs">
+                    <option value="copTerrainHeightmap">Terrain Heightmap</option>
+                    <option value="copNeonGrid">Neon Grid</option>
+                    <option value="copMarbleTexture">Marble Texture</option>
+                    <option value="copPlasmaShader">Plasma Shader</option>
+                    <option value="copGlowEffect">Glow Effect</option>
                 </optgroup>
             </select>
             <button id="export-obj" title="Export OBJ">OBJ</button>
@@ -58,6 +70,7 @@
                 </div>
                 <div id="viewport-view" class="viewer-view active">
                     <canvas id="canvas"></canvas>
+                    <canvas id="cop-canvas"></canvas>
                 </div>
                 <div id="spreadsheet-view" class="viewer-view">
                     <div id="spreadsheet-subtabs">
