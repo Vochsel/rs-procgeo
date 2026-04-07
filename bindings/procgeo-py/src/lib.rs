@@ -19,6 +19,27 @@ impl Geometry {
         }
     }
 
+    fn add_point(&mut self, x: f32, y: f32, z: f32) -> usize {
+        self.inner.add_point(glam::Vec3::new(x, y, z)).index()
+    }
+
+    fn set_point_pos(&mut self, index: usize, x: f32, y: f32, z: f32) {
+        self.inner.set_point_pos(
+            procgeo_core::PointHandle::from_index(index),
+            glam::Vec3::new(x, y, z),
+        );
+    }
+
+    fn add_face(&mut self, point_indices: Vec<usize>) -> usize {
+        let handles: Vec<procgeo_core::PointHandle> = point_indices.iter().map(|&i| procgeo_core::PointHandle::from_index(i)).collect();
+        self.inner.add_face(&handles).index()
+    }
+
+    fn add_polyline(&mut self, point_indices: Vec<usize>) -> usize {
+        let handles: Vec<procgeo_core::PointHandle> = point_indices.iter().map(|&i| procgeo_core::PointHandle::from_index(i)).collect();
+        self.inner.add_polyline(&handles).index()
+    }
+
     #[getter]
     fn num_points(&self) -> usize {
         self.inner.num_points()
@@ -558,6 +579,37 @@ fn measure_area(geo: &Geometry) -> PyResult<Geometry> {
     Ok(Geometry { inner })
 }
 
+#[pyfunction]
+#[pyo3(signature = (geo, seed=0))]
+fn sort(geo: &Geometry, seed: u64) -> PyResult<Geometry> {
+    let params = procgeo_sops::topology::SortParams {
+        seed,
+        ..Default::default()
+    };
+    let inner = procgeo_sops::topology::SortSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, points, cut_plane_offset=0.0, create_inside_faces=true))]
+fn voronoi_fracture(
+    geo: &Geometry,
+    points: &Geometry,
+    cut_plane_offset: f32,
+    create_inside_faces: bool,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::voronoi::VoronoiFractureParams {
+        cut_plane_offset,
+        create_inside_faces,
+    };
+    let inner = procgeo_sops::voronoi::VoronoiFractureSop
+        .execute(&[&geo.inner, &points.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---- Reshape SOPs (new) ----
 
 #[pyfunction]
@@ -602,6 +654,44 @@ fn poly_fill(geo: &Geometry, mode: &str, smooth: f32) -> PyResult<Geometry> {
     };
     let params = procgeo_sops::reshape::PolyFillParams { mode: m, smooth };
     let inner = procgeo_sops::reshape::PolyFillSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---- Delete SOPs ----
+
+#[pyfunction]
+#[pyo3(signature = (geo, group_name="", entity="primitives", negate=false))]
+fn blast(geo: &Geometry, group_name: &str, entity: &str, negate: bool) -> PyResult<Geometry> {
+    let entity = match entity {
+        "points" => procgeo_sops::delete::BlastEntity::Points,
+        _ => procgeo_sops::delete::BlastEntity::Primitives,
+    };
+    let params = procgeo_sops::delete::BlastParams {
+        group_name: group_name.to_string(),
+        entity,
+        negate,
+    };
+    let inner = procgeo_sops::delete::BlastSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, entity="primitives", range_start=0, range_end=0))]
+fn delete_geo(geo: &Geometry, entity: &str, range_start: usize, range_end: usize) -> PyResult<Geometry> {
+    let entity = match entity {
+        "points" => procgeo_sops::delete::DeleteEntity::Points,
+        _ => procgeo_sops::delete::DeleteEntity::Primitives,
+    };
+    let params = procgeo_sops::delete::DeleteParams {
+        entity,
+        range_start,
+        range_end,
+    };
+    let inner = procgeo_sops::delete::DeleteSop
         .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;
     Ok(Geometry { inner })
@@ -844,6 +934,173 @@ fn attrib_noise(
     Ok(Geometry { inner })
 }
 
+#[pyfunction]
+#[pyo3(signature = (geo, name="attrib1", class="Point", attrib_type="Float", value_int=0, value_float=0.0, value_vector3_x=0.0, value_vector3_y=0.0, value_vector3_z=0.0, value_string=""))]
+fn attrib_create(
+    geo: &Geometry,
+    name: &str,
+    class: &str,
+    attrib_type: &str,
+    value_int: i32,
+    value_float: f32,
+    value_vector3_x: f32,
+    value_vector3_y: f32,
+    value_vector3_z: f32,
+    value_string: &str,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::attributes::AttribCreateParams {
+        name: name.to_string(),
+        class: parse_attrib_class(class),
+        attrib_type: parse_attrib_type(attrib_type),
+        value_int,
+        value_float,
+        value_vector3: [value_vector3_x, value_vector3_y, value_vector3_z],
+        value_string: value_string.to_string(),
+        qualifier: Default::default(),
+    };
+    let inner = procgeo_sops::attributes::AttribCreateSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, name="attrib1", class="Point"))]
+fn attrib_delete(geo: &Geometry, name: &str, class: &str) -> PyResult<Geometry> {
+    let params = procgeo_sops::attributes::AttribDeleteParams {
+        name: name.to_string(),
+        class: parse_attrib_class(class),
+    };
+    let inner = procgeo_sops::attributes::AttribDeleteSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, from_name="attrib1", to_name="attrib2", class="Point"))]
+fn attrib_rename(geo: &Geometry, from_name: &str, to_name: &str, class: &str) -> PyResult<Geometry> {
+    let params = procgeo_sops::attributes::AttribRenameParams {
+        from_name: from_name.to_string(),
+        to_name: to_name.to_string(),
+        class: parse_attrib_class(class),
+    };
+    let inner = procgeo_sops::attributes::AttribRenameSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, name="attrib", from_class="Point", to_class="Primitive", method="average", delete_original=true))]
+fn attrib_promote(
+    geo: &Geometry,
+    name: &str,
+    from_class: &str,
+    to_class: &str,
+    method: &str,
+    delete_original: bool,
+) -> PyResult<Geometry> {
+    let method = match method {
+        "first" => procgeo_sops::attributes::PromoteMethod::First,
+        "last" => procgeo_sops::attributes::PromoteMethod::Last,
+        "min" => procgeo_sops::attributes::PromoteMethod::Min,
+        "max" => procgeo_sops::attributes::PromoteMethod::Max,
+        _ => procgeo_sops::attributes::PromoteMethod::Average,
+    };
+    let params = procgeo_sops::attributes::AttribPromoteParams {
+        name: name.to_string(),
+        from_class: parse_attrib_class(from_class),
+        to_class: parse_attrib_class(to_class),
+        method,
+        delete_original,
+    };
+    let inner = procgeo_sops::attributes::AttribPromoteSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---- Group SOPs ----
+
+#[pyfunction]
+#[pyo3(signature = (geo, name="group1", group_type="points", mode="range", range_start=0, range_end=usize::MAX, bbox_min_x=f32::NEG_INFINITY, bbox_min_y=f32::NEG_INFINITY, bbox_min_z=f32::NEG_INFINITY, bbox_max_x=f32::INFINITY, bbox_max_y=f32::INFINITY, bbox_max_z=f32::INFINITY, normal_dir_x=0.0, normal_dir_y=1.0, normal_dir_z=0.0, normal_angle=45.0))]
+fn group_create(
+    geo: &Geometry,
+    name: &str,
+    group_type: &str,
+    mode: &str,
+    range_start: usize,
+    range_end: usize,
+    bbox_min_x: f32,
+    bbox_min_y: f32,
+    bbox_min_z: f32,
+    bbox_max_x: f32,
+    bbox_max_y: f32,
+    bbox_max_z: f32,
+    normal_dir_x: f32,
+    normal_dir_y: f32,
+    normal_dir_z: f32,
+    normal_angle: f32,
+) -> PyResult<Geometry> {
+    let group_type = match group_type {
+        "primitives" | "prims" => procgeo_sops::groups::GroupType::Primitives,
+        _ => procgeo_sops::groups::GroupType::Points,
+    };
+    let mode = match mode {
+        "bounding_box" | "bbox" => procgeo_sops::groups::GroupCreateMode::BoundingBox,
+        "normal" => procgeo_sops::groups::GroupCreateMode::Normal,
+        _ => procgeo_sops::groups::GroupCreateMode::Range,
+    };
+    let params = procgeo_sops::groups::GroupCreateParams {
+        name: name.to_string(),
+        group_type,
+        mode,
+        range_start,
+        range_end,
+        bbox_min: glam::Vec3::new(bbox_min_x, bbox_min_y, bbox_min_z),
+        bbox_max: glam::Vec3::new(bbox_max_x, bbox_max_y, bbox_max_z),
+        normal_direction: glam::Vec3::new(normal_dir_x, normal_dir_y, normal_dir_z),
+        normal_angle,
+    };
+    let inner = procgeo_sops::groups::GroupCreateSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (geo, name_a="group_a", name_b="group_b", result="group_result", operation="union", group_type="points"))]
+fn group_combine(
+    geo: &Geometry,
+    name_a: &str,
+    name_b: &str,
+    result: &str,
+    operation: &str,
+    group_type: &str,
+) -> PyResult<Geometry> {
+    let operation = match operation {
+        "intersect" => procgeo_sops::groups::GroupBooleanOp::Intersect,
+        "subtract" => procgeo_sops::groups::GroupBooleanOp::Subtract,
+        _ => procgeo_sops::groups::GroupBooleanOp::Union,
+    };
+    let group_type = match group_type {
+        "primitives" | "prims" => procgeo_sops::groups::GroupType::Primitives,
+        _ => procgeo_sops::groups::GroupType::Points,
+    };
+    let params = procgeo_sops::groups::GroupCombineParams {
+        name_a: name_a.to_string(),
+        name_b: name_b.to_string(),
+        result: result.to_string(),
+        operation,
+        group_type,
+    };
+    let inner = procgeo_sops::groups::GroupCombineSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---- SOP Registry — generic execute ----
 
 static REGISTRY: OnceLock<procgeo_sops::SopRegistry> = OnceLock::new();
@@ -930,11 +1187,16 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(color, m)?)?;
     m.add_function(wrap_pyfunction!(enumerate_attrib, m)?)?;
     m.add_function(wrap_pyfunction!(measure_area, m)?)?;
+    m.add_function(wrap_pyfunction!(sort, m)?)?;
+    m.add_function(wrap_pyfunction!(voronoi_fracture, m)?)?;
     // Reshape SOPs
     m.add_function(wrap_pyfunction!(poly_bevel, m)?)?;
     m.add_function(wrap_pyfunction!(poly_wire, m)?)?;
     m.add_function(wrap_pyfunction!(poly_reduce, m)?)?;
     m.add_function(wrap_pyfunction!(poly_fill, m)?)?;
+    // Delete SOPs
+    m.add_function(wrap_pyfunction!(blast, m)?)?;
+    m.add_function(wrap_pyfunction!(delete_geo, m)?)?;
     // Attribute SOPs
     m.add_function(wrap_pyfunction!(attrib_transfer, m)?)?;
     m.add_function(wrap_pyfunction!(attrib_copy, m)?)?;
@@ -943,6 +1205,13 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(attrib_blur, m)?)?;
     m.add_function(wrap_pyfunction!(attrib_fill, m)?)?;
     m.add_function(wrap_pyfunction!(attrib_noise, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_create, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_delete, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_rename, m)?)?;
+    m.add_function(wrap_pyfunction!(attrib_promote, m)?)?;
+    // Group SOPs
+    m.add_function(wrap_pyfunction!(group_create, m)?)?;
+    m.add_function(wrap_pyfunction!(group_combine, m)?)?;
     // SOP Registry
     m.add_function(wrap_pyfunction!(execute_sop, m)?)?;
     m.add_function(wrap_pyfunction!(execute_sop_create, m)?)?;

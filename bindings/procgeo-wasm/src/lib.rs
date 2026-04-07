@@ -17,6 +17,35 @@ impl Geometry {
         Self { inner: procgeo_core::Geometry::new() }
     }
 
+    /// Add a point at position [x, y, z]. Returns the point index.
+    #[wasm_bindgen(js_name = "addPoint")]
+    pub fn add_point(&mut self, x: f32, y: f32, z: f32) -> u32 {
+        self.inner.add_point(glam::Vec3::new(x, y, z)).index() as u32
+    }
+
+    /// Set the position of an existing point.
+    #[wasm_bindgen(js_name = "setPointPos")]
+    pub fn set_point_pos(&mut self, index: u32, x: f32, y: f32, z: f32) {
+        self.inner.set_point_pos(
+            PointHandle::from_index(index as usize),
+            glam::Vec3::new(x, y, z),
+        );
+    }
+
+    /// Create a closed face (polygon) from an array of point indices. Returns the primitive index.
+    #[wasm_bindgen(js_name = "addFace")]
+    pub fn add_face(&mut self, point_indices: &[u32]) -> u32 {
+        let handles: Vec<PointHandle> = point_indices.iter().map(|&i| PointHandle::from_index(i as usize)).collect();
+        self.inner.add_face(&handles).index() as u32
+    }
+
+    /// Create an open polyline from an array of point indices. Returns the primitive index.
+    #[wasm_bindgen(js_name = "addPolyline")]
+    pub fn add_polyline(&mut self, point_indices: &[u32]) -> u32 {
+        let handles: Vec<PointHandle> = point_indices.iter().map(|&i| PointHandle::from_index(i as usize)).collect();
+        self.inner.add_polyline(&handles).index() as u32
+    }
+
     #[wasm_bindgen(getter, js_name = "numPoints")]
     pub fn num_points(&self) -> u32 {
         self.inner.num_points() as u32
@@ -695,6 +724,340 @@ pub fn attrib_noise(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry,
     let inner = procgeo_sops::attributes::AttribNoiseSop
         .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Creation SOPs (additional)
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen]
+pub fn revolve(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::creation::RevolveParams {
+        origin: get_vec3(&p, "origin", [0.0, 0.0, 0.0]),
+        axis: get_vec3(&p, "axis", [0.0, 1.0, 0.0]),
+        divisions: get_u32(&p, "divisions", 24),
+        start_angle: get_f32(&p, "startAngle", 0.0),
+        end_angle: get_f32(&p, "endAngle", 360.0),
+        end_caps: get_bool(&p, "endCaps", false),
+    };
+    let inner = procgeo_sops::creation::RevolveSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "createMetaball")]
+pub fn create_metaball(params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let balls = js_sys::Reflect::get(&p, &"balls".into())
+        .ok()
+        .and_then(|v| v.dyn_ref::<js_sys::Array>().map(|arr| {
+            arr.iter().map(|b| procgeo_sops::creation::MetaballDef {
+                center: get_vec3(&b, "center", [0.0, 0.0, 0.0]),
+                radius: get_f32(&b, "radius", 1.0),
+                weight: get_f32(&b, "weight", 1.0),
+            }).collect()
+        }))
+        .unwrap_or_else(|| vec![procgeo_sops::creation::MetaballDef::default()]);
+    let kernel_str = get_str(&p, "kernel", "wyvill");
+    let kernel = match kernel_str.as_str() {
+        "blinn" => procgeo_sops::creation::MetaballKernel::Blinn,
+        "hart" => procgeo_sops::creation::MetaballKernel::Hart,
+        _ => procgeo_sops::creation::MetaballKernel::Wyvill,
+    };
+    let params = procgeo_sops::creation::MetaballParams {
+        balls,
+        threshold: get_f32(&p, "threshold", 1.0),
+        kernel,
+        resolution: get_u32(&p, "resolution", 32),
+        padding: get_f32(&p, "padding", 0.2),
+    };
+    let inner = procgeo_sops::creation::MetaballSop.execute(&[], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Merge SOP
+// ---------------------------------------------------------------------------
+
+/// Merge two geometries into one. Chain calls to merge more:
+/// `merge(merge(a, b), c)`.
+#[wasm_bindgen]
+pub fn merge(a: &Geometry, b: &Geometry) -> Result<Geometry, JsError> {
+    let inner = procgeo_sops::merge::MergeSop
+        .execute(&[&a.inner, &b.inner], &procgeo_sops::merge::MergeParams)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Reshape SOPs (additional)
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen(js_name = "polyBevel")]
+pub fn poly_bevel(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::reshape::PolyBevelParams {
+        offset: get_f32(&p, "offset", 0.1),
+        divisions: get_u32(&p, "divisions", 1),
+    };
+    let inner = procgeo_sops::reshape::PolyBevelSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "polyWire")]
+pub fn poly_wire(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::reshape::PolyWireParams {
+        radius: get_f32(&p, "radius", 0.1),
+        divisions: get_u32(&p, "divisions", 8),
+    };
+    let inner = procgeo_sops::reshape::PolyWireSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "polyReduce")]
+pub fn poly_reduce(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::reshape::PolyReduceParams {
+        target_percent: get_f32(&p, "targetPercent", 0.5),
+        preserve_boundaries: get_bool(&p, "preserveBoundaries", true),
+    };
+    let inner = procgeo_sops::reshape::PolyReduceSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "polyFill")]
+pub fn poly_fill(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let mode = match get_str(&p, "mode", "single").as_str() {
+        "fan" | "triangleFan" => procgeo_sops::reshape::PolyFillMode::TriangleFan,
+        _ => procgeo_sops::reshape::PolyFillMode::SinglePolygon,
+    };
+    let params = procgeo_sops::reshape::PolyFillParams {
+        mode,
+        smooth: get_f32(&p, "smooth", 0.0),
+    };
+    let inner = procgeo_sops::reshape::PolyFillSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Topology SOPs (additional)
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen]
+pub fn sort(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::topology::SortParams {
+        seed: get_u64(&p, "seed", 0),
+        ..Default::default()
+    };
+    let inner = procgeo_sops::topology::SortSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen]
+pub fn resample(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::topology::ResampleParams {
+        length: get_f32(&p, "length", 0.1),
+        max_segments: get_u32(&p, "maxSegments", 1000),
+    };
+    let inner = procgeo_sops::topology::ResampleSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen]
+pub fn connectivity(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::topology::ConnectivityParams {
+        attrib_name: get_str(&p, "attribName", "class"),
+    };
+    let inner = procgeo_sops::topology::ConnectivitySop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Utility / Measure SOPs
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen(js_name = "enumerateAttrib")]
+pub fn enumerate_attrib(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::utility::EnumerateParams {
+        name: get_str(&p, "name", "index"),
+        start: get_f32(&p, "start", 0.0) as i32,
+        ..Default::default()
+    };
+    let inner = procgeo_sops::utility::EnumerateSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen]
+pub fn measure(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::measure::MeasureParams {
+        attrib_name: get_str(&p, "attribName", ""),
+        ..Default::default()
+    };
+    let inner = procgeo_sops::measure::MeasureSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Delete SOPs
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen]
+pub fn blast(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let entity = match get_str(&p, "entity", "primitives").as_str() {
+        "points" => procgeo_sops::delete::BlastEntity::Points,
+        _ => procgeo_sops::delete::BlastEntity::Primitives,
+    };
+    let params = procgeo_sops::delete::BlastParams {
+        group_name: get_str(&p, "groupName", ""),
+        entity,
+        negate: get_bool(&p, "negate", false),
+    };
+    let inner = procgeo_sops::delete::BlastSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "deleteSop")]
+pub fn delete_sop(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let entity = match get_str(&p, "entity", "primitives").as_str() {
+        "points" => procgeo_sops::delete::DeleteEntity::Points,
+        _ => procgeo_sops::delete::DeleteEntity::Primitives,
+    };
+    let params = procgeo_sops::delete::DeleteParams {
+        entity,
+        range_start: get_u32(&p, "rangeStart", 0) as usize,
+        range_end: get_u32(&p, "rangeEnd", 0) as usize,
+    };
+    let inner = procgeo_sops::delete::DeleteSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Attribute CRUD SOPs
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen(js_name = "attribCreate")]
+pub fn attrib_create(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let value_vector3_arr = get_vec3(&p, "valueVector3", [0.0, 0.0, 0.0]);
+    let params = procgeo_sops::attributes::AttribCreateParams {
+        name: get_str(&p, "name", "attrib1"),
+        class: parse_attrib_class(&get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(&get_str(&p, "attribType", "Float")),
+        value_int: get_f32(&p, "valueInt", 0.0) as i32,
+        value_float: get_f32(&p, "valueFloat", 0.0),
+        value_vector3: [value_vector3_arr.x, value_vector3_arr.y, value_vector3_arr.z],
+        value_string: get_str(&p, "valueString", ""),
+        qualifier: Default::default(),
+    };
+    let inner = procgeo_sops::attributes::AttribCreateSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "attribDelete")]
+pub fn attrib_delete(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::attributes::AttribDeleteParams {
+        name: get_str(&p, "name", "attrib1"),
+        class: parse_attrib_class(&get_str(&p, "class", "Point")),
+    };
+    let inner = procgeo_sops::attributes::AttribDeleteSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "attribRename")]
+pub fn attrib_rename(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::attributes::AttribRenameParams {
+        from_name: get_str(&p, "fromName", "attrib1"),
+        to_name: get_str(&p, "toName", "attrib2"),
+        class: parse_attrib_class(&get_str(&p, "class", "Point")),
+    };
+    let inner = procgeo_sops::attributes::AttribRenameSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "attribPromote")]
+pub fn attrib_promote(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let method = match get_str(&p, "method", "average").as_str() {
+        "first" => procgeo_sops::attributes::PromoteMethod::First,
+        "last" => procgeo_sops::attributes::PromoteMethod::Last,
+        "min" => procgeo_sops::attributes::PromoteMethod::Min,
+        "max" => procgeo_sops::attributes::PromoteMethod::Max,
+        _ => procgeo_sops::attributes::PromoteMethod::Average,
+    };
+    let params = procgeo_sops::attributes::AttribPromoteParams {
+        name: get_str(&p, "name", "attrib"),
+        from_class: parse_attrib_class(&get_str(&p, "fromClass", "Point")),
+        to_class: parse_attrib_class(&get_str(&p, "toClass", "Primitive")),
+        method,
+        delete_original: get_bool(&p, "deleteOriginal", true),
+    };
+    let inner = procgeo_sops::attributes::AttribPromoteSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Group SOPs
+// ---------------------------------------------------------------------------
+
+#[wasm_bindgen(js_name = "groupCreate")]
+pub fn group_create(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let group_type = match get_str(&p, "groupType", "points").as_str() {
+        "primitives" | "prims" => procgeo_sops::groups::GroupType::Primitives,
+        _ => procgeo_sops::groups::GroupType::Points,
+    };
+    let mode = match get_str(&p, "mode", "range").as_str() {
+        "boundingBox" | "bbox" => procgeo_sops::groups::GroupCreateMode::BoundingBox,
+        "normal" => procgeo_sops::groups::GroupCreateMode::Normal,
+        _ => procgeo_sops::groups::GroupCreateMode::Range,
+    };
+    let params = procgeo_sops::groups::GroupCreateParams {
+        name: get_str(&p, "name", "group1"),
+        group_type,
+        mode,
+        range_start: get_u32(&p, "rangeStart", 0) as usize,
+        range_end: get_u32(&p, "rangeEnd", u32::MAX) as usize,
+        bbox_min: get_vec3(&p, "bboxMin", [f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY]),
+        bbox_max: get_vec3(&p, "bboxMax", [f32::INFINITY, f32::INFINITY, f32::INFINITY]),
+        normal_direction: get_vec3(&p, "normalDirection", [0.0, 1.0, 0.0]),
+        normal_angle: get_f32(&p, "normalAngle", 45.0),
+    };
+    let inner = procgeo_sops::groups::GroupCreateSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "groupCombine")]
+pub fn group_combine(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let operation = match get_str(&p, "operation", "union").as_str() {
+        "intersect" => procgeo_sops::groups::GroupBooleanOp::Intersect,
+        "subtract" => procgeo_sops::groups::GroupBooleanOp::Subtract,
+        _ => procgeo_sops::groups::GroupBooleanOp::Union,
+    };
+    let group_type = match get_str(&p, "groupType", "points").as_str() {
+        "primitives" | "prims" => procgeo_sops::groups::GroupType::Primitives,
+        _ => procgeo_sops::groups::GroupType::Points,
+    };
+    let params = procgeo_sops::groups::GroupCombineParams {
+        name_a: get_str(&p, "nameA", "group_a"),
+        name_b: get_str(&p, "nameB", "group_b"),
+        result: get_str(&p, "result", "group_result"),
+        operation,
+        group_type,
+    };
+    let inner = procgeo_sops::groups::GroupCombineSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 

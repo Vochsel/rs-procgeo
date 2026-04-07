@@ -22,6 +22,31 @@ impl Geometry {
         }
     }
 
+    #[napi]
+    pub fn add_point(&mut self, x: f64, y: f64, z: f64) -> u32 {
+        self.inner.add_point(glam::Vec3::new(x as f32, y as f32, z as f32)).index() as u32
+    }
+
+    #[napi]
+    pub fn set_point_pos(&mut self, index: u32, x: f64, y: f64, z: f64) {
+        self.inner.set_point_pos(
+            procgeo_core::PointHandle::from_index(index as usize),
+            glam::Vec3::new(x as f32, y as f32, z as f32),
+        );
+    }
+
+    #[napi]
+    pub fn add_face(&mut self, point_indices: Vec<u32>) -> u32 {
+        let handles: Vec<procgeo_core::PointHandle> = point_indices.iter().map(|&i| procgeo_core::PointHandle::from_index(i as usize)).collect();
+        self.inner.add_face(&handles).index() as u32
+    }
+
+    #[napi]
+    pub fn add_polyline(&mut self, point_indices: Vec<u32>) -> u32 {
+        let handles: Vec<procgeo_core::PointHandle> = point_indices.iter().map(|&i| procgeo_core::PointHandle::from_index(i as usize)).collect();
+        self.inner.add_polyline(&handles).index() as u32
+    }
+
     #[napi(getter)]
     pub fn num_points(&self) -> u32 {
         self.inner.num_points() as u32
@@ -636,6 +661,63 @@ pub fn measure(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geom
 }
 
 // ---------------------------------------------------------------------------
+// Delete SOPs
+// ---------------------------------------------------------------------------
+
+#[napi]
+pub fn blast(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let entity = match get_str(&p, "entity", "primitives") {
+        "points" => procgeo_sops::delete::BlastEntity::Points,
+        _ => procgeo_sops::delete::BlastEntity::Primitives,
+    };
+    let params = procgeo_sops::delete::BlastParams {
+        group_name: get_str(&p, "group_name", "").to_string(),
+        entity,
+        negate: get_bool(&p, "negate", false),
+    };
+    let inner = procgeo_sops::delete::BlastSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn delete_geo(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let entity = match get_str(&p, "entity", "primitives") {
+        "points" => procgeo_sops::delete::DeleteEntity::Points,
+        _ => procgeo_sops::delete::DeleteEntity::Primitives,
+    };
+    let params = procgeo_sops::delete::DeleteParams {
+        entity,
+        range_start: get_u32(&p, "range_start", 0) as usize,
+        range_end: get_u32(&p, "range_end", 0) as usize,
+    };
+    let inner = procgeo_sops::delete::DeleteSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Voronoi Fracture
+// ---------------------------------------------------------------------------
+
+#[napi]
+pub fn voronoi_fracture(geo: &Geometry, points: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::voronoi::VoronoiFractureParams {
+        cut_plane_offset: get_f32(&p, "cut_plane_offset", 0.0),
+        create_inside_faces: get_bool(&p, "create_inside_faces", true),
+    };
+    let inner = procgeo_sops::voronoi::VoronoiFractureSop
+        .execute(&[&geo.inner, &points.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
 // Attribute SOPs
 // ---------------------------------------------------------------------------
 
@@ -828,6 +910,134 @@ pub fn attrib_noise(geo: &Geometry, params: Option<serde_json::Value>) -> Result
         bias: get_f32(&p, "bias", 0.5),
     };
     let inner = procgeo_sops::attributes::AttribNoiseSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn attrib_create(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let value_vector3 = get_vec3(&p, "value_vector3", [0.0, 0.0, 0.0]);
+    let params = procgeo_sops::attributes::AttribCreateParams {
+        name: get_str(&p, "name", "attrib1").to_string(),
+        class: parse_attrib_class(get_str(&p, "class", "Point")),
+        attrib_type: parse_attrib_type(get_str(&p, "attrib_type", "Float")),
+        value_int: get_f32(&p, "value_int", 0.0) as i32,
+        value_float: get_f32(&p, "value_float", 0.0),
+        value_vector3: [value_vector3.x, value_vector3.y, value_vector3.z],
+        value_string: get_str(&p, "value_string", "").to_string(),
+        qualifier: Default::default(),
+    };
+    let inner = procgeo_sops::attributes::AttribCreateSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn attrib_delete(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::attributes::AttribDeleteParams {
+        name: get_str(&p, "name", "attrib1").to_string(),
+        class: parse_attrib_class(get_str(&p, "class", "Point")),
+    };
+    let inner = procgeo_sops::attributes::AttribDeleteSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn attrib_rename(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let params = procgeo_sops::attributes::AttribRenameParams {
+        from_name: get_str(&p, "from_name", "attrib1").to_string(),
+        to_name: get_str(&p, "to_name", "attrib2").to_string(),
+        class: parse_attrib_class(get_str(&p, "class", "Point")),
+    };
+    let inner = procgeo_sops::attributes::AttribRenameSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn attrib_promote(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let method = match get_str(&p, "method", "average") {
+        "first" => procgeo_sops::attributes::PromoteMethod::First,
+        "last" => procgeo_sops::attributes::PromoteMethod::Last,
+        "min" => procgeo_sops::attributes::PromoteMethod::Min,
+        "max" => procgeo_sops::attributes::PromoteMethod::Max,
+        _ => procgeo_sops::attributes::PromoteMethod::Average,
+    };
+    let params = procgeo_sops::attributes::AttribPromoteParams {
+        name: get_str(&p, "name", "attrib").to_string(),
+        from_class: parse_attrib_class(get_str(&p, "from_class", "Point")),
+        to_class: parse_attrib_class(get_str(&p, "to_class", "Primitive")),
+        method,
+        delete_original: get_bool(&p, "delete_original", true),
+    };
+    let inner = procgeo_sops::attributes::AttribPromoteSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+// ---------------------------------------------------------------------------
+// Group SOPs
+// ---------------------------------------------------------------------------
+
+#[napi]
+pub fn group_create(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let group_type = match get_str(&p, "group_type", "points") {
+        "primitives" | "prims" => procgeo_sops::groups::GroupType::Primitives,
+        _ => procgeo_sops::groups::GroupType::Points,
+    };
+    let mode = match get_str(&p, "mode", "range") {
+        "bounding_box" | "bbox" => procgeo_sops::groups::GroupCreateMode::BoundingBox,
+        "normal" => procgeo_sops::groups::GroupCreateMode::Normal,
+        _ => procgeo_sops::groups::GroupCreateMode::Range,
+    };
+    let params = procgeo_sops::groups::GroupCreateParams {
+        name: get_str(&p, "name", "group1").to_string(),
+        group_type,
+        mode,
+        range_start: get_u32(&p, "range_start", 0) as usize,
+        range_end: get_u32(&p, "range_end", u32::MAX) as usize,
+        bbox_min: get_vec3(&p, "bbox_min", [f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY]),
+        bbox_max: get_vec3(&p, "bbox_max", [f32::INFINITY, f32::INFINITY, f32::INFINITY]),
+        normal_direction: get_vec3(&p, "normal_direction", [0.0, 1.0, 0.0]),
+        normal_angle: get_f32(&p, "normal_angle", 45.0),
+    };
+    let inner = procgeo_sops::groups::GroupCreateSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
+pub fn group_combine(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let operation = match get_str(&p, "operation", "union") {
+        "intersect" => procgeo_sops::groups::GroupBooleanOp::Intersect,
+        "subtract" => procgeo_sops::groups::GroupBooleanOp::Subtract,
+        _ => procgeo_sops::groups::GroupBooleanOp::Union,
+    };
+    let group_type = match get_str(&p, "group_type", "points") {
+        "primitives" | "prims" => procgeo_sops::groups::GroupType::Primitives,
+        _ => procgeo_sops::groups::GroupType::Points,
+    };
+    let params = procgeo_sops::groups::GroupCombineParams {
+        name_a: get_str(&p, "name_a", "group_a").to_string(),
+        name_b: get_str(&p, "name_b", "group_b").to_string(),
+        result: get_str(&p, "result", "group_result").to_string(),
+        operation,
+        group_type,
+    };
+    let inner = procgeo_sops::groups::GroupCombineSop
         .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;
     Ok(Geometry { inner })
