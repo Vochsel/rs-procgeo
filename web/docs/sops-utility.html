@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Utility &amp; Measure SOPs - ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html" class="active">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb">
+    <a href="index.html">Docs</a> / <a href="sops-utility.html">SOPs Reference</a> / Utility &amp; Measure
+  </div>
+
+  <h1>Utility &amp; Measure SOPs</h1>
+  <p class="subtitle">SOPs for attributes, groups, measurement, and utility operations.</p>
+
+  <div class="info-box">
+    These SOPs handle metadata &mdash; creating and manipulating attributes, groups, and
+    computed measurements. All take <strong>1 input</strong>. For detailed coverage of the
+    attribute and group systems, see the <a href="attributes.html">Attributes</a> and
+    <a href="groups.html">Groups</a> core pages.
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2>Color &amp; Labelling</h2>
+  <!-- ══════════════════════════════════════════════ -->
+
+  <!-- ── ColorSop ────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>ColorSop <span class="tag">color</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Assigns a uniform RGB color to all points by creating or updating a
+      <code>"Cd"</code> point attribute with the <code>Color</code> type qualifier.
+      Values are in the 0&ndash;1 range per channel.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>color</code></td><td><code>[f32; 3]</code></td><td><code>[1.0, 1.0, 1.0]</code></td><td>RGB color (0&ndash;1 range)</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> red = geo.<span class="fn">apply</span>(&amp;<span class="ty">ColorSop</span>, &amp;<span class="ty">ColorParams</span> {
+    color: [<span class="nu">1.0</span>, <span class="nu">0.2</span>, <span class="nu">0.1</span>],
+})?;</code></pre>
+  </div>
+
+  <!-- ── EnumerateSop ────────────────────────────── -->
+  <div class="sop-card">
+    <h3>EnumerateSop <span class="tag">utility_sops</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Creates a sequential integer attribute on each point, starting from
+      <code>start</code> and incrementing by 1. Useful for debugging, ordering, or
+      driving downstream lookups.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>name</code></td><td><code>String</code></td><td><code>"index"</code></td><td>Attribute name</td></tr>
+        <tr><td><code>start</code></td><td><code>i32</code></td><td><code>0</code></td><td>Starting value</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> numbered = geo.<span class="fn">apply</span>(&amp;<span class="ty">EnumerateSop</span>, &amp;<span class="ty">EnumerateParams</span> {
+    name: <span class="st">"id"</span>.<span class="fn">into</span>(),
+    start: <span class="nu">1</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── NullSop ─────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>NullSop <span class="tag">utility_sops</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      A pass-through that returns the input geometry unchanged. Useful as a named
+      anchor point in SOP chains, a no-op placeholder during development, or a
+      merge target that does nothing.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" style="text-align: center; color: var(--text-dim);"><em>No parameters</em></td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// Mark a named output point in the chain</span>
+<span class="kw">let</span> output = geo.<span class="fn">apply</span>(&amp;<span class="ty">NullSop</span>, &amp;<span class="ty">NullParams</span>::<span class="fn">default</span>())?;</code></pre>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2>Measurement</h2>
+  <!-- ══════════════════════════════════════════════ -->
+
+  <!-- ── MeasureSop ──────────────────────────────── -->
+  <div class="sop-card">
+    <h3>MeasureSop <span class="tag">measure_sops</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Computes geometric measurements (area, perimeter) for each primitive and
+      stores them as primitive attributes. If <code>attrib_name</code> is empty, the
+      default names <code>"area"</code> and <code>"perimeter"</code> are used.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>attrib_name</code></td><td><code>String</code></td><td><code>""</code></td><td>Optional custom attribute name</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> measured = geo.<span class="fn">apply</span>(&amp;<span class="ty">MeasureSop</span>, &amp;<span class="ty">MeasureParams</span>::<span class="fn">default</span>())?;</code></pre>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2>Attribute SOPs</h2>
+  <!-- ══════════════════════════════════════════════ -->
+
+  <p>
+    These SOPs create, remove, rename, and promote attributes on geometry. For a full
+    guide to the attribute system &mdash; classes, typed handles, type qualifiers &mdash;
+    see the <a href="attributes.html">Attributes</a> core page.
+  </p>
+
+  <!-- ── CreateAttributeSop ──────────────────────── -->
+  <div class="sop-card">
+    <h3>CreateAttributeSop <span class="tag">attributes</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Creates a new typed attribute on the specified attribute class (point, vertex,
+      primitive, or detail). If the attribute already exists, it is overwritten with
+      the new default value.
+    </p>
+    <pre><code><span class="kw">let</span> geo = geo.<span class="fn">apply</span>(&amp;<span class="ty">CreateAttributeSop</span>, &amp;<span class="ty">CreateAttributeParams</span> {
+    name: <span class="st">"density"</span>.<span class="fn">into</span>(),
+    class: <span class="ty">AttribClass</span>::<span class="fn">Point</span>,
+    default_value: <span class="ty">AttribValue</span>::<span class="fn">Float</span>(<span class="nu">1.0</span>),
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+  <!-- ── DeleteAttributeSop ──────────────────────── -->
+  <div class="sop-card">
+    <h3>DeleteAttributeSop <span class="tag">attributes</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Removes an attribute by name and class. Returns an error if the attribute does
+      not exist.
+    </p>
+    <pre><code><span class="kw">let</span> geo = geo.<span class="fn">apply</span>(&amp;<span class="ty">DeleteAttributeSop</span>, &amp;<span class="ty">DeleteAttributeParams</span> {
+    name: <span class="st">"temp"</span>.<span class="fn">into</span>(),
+    class: <span class="ty">AttribClass</span>::<span class="fn">Point</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── PromoteAttributeSop ─────────────────────── -->
+  <div class="sop-card">
+    <h3>PromoteAttributeSop <span class="tag">attributes</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Changes the class of an attribute (e.g., point to primitive). Values are
+      aggregated or distributed as needed during the conversion.
+    </p>
+    <pre><code><span class="kw">let</span> geo = geo.<span class="fn">apply</span>(&amp;<span class="ty">PromoteAttributeSop</span>, &amp;<span class="ty">PromoteAttributeParams</span> {
+    name: <span class="st">"Cd"</span>.<span class="fn">into</span>(),
+    from_class: <span class="ty">AttribClass</span>::<span class="fn">Point</span>,
+    to_class: <span class="ty">AttribClass</span>::<span class="fn">Primitive</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── RenameAttributeSop ──────────────────────── -->
+  <div class="sop-card">
+    <h3>RenameAttributeSop <span class="tag">attributes</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Renames an attribute while preserving its data, type, and class.
+    </p>
+    <pre><code><span class="kw">let</span> geo = geo.<span class="fn">apply</span>(&amp;<span class="ty">RenameAttributeSop</span>, &amp;<span class="ty">RenameAttributeParams</span> {
+    old_name: <span class="st">"Cd"</span>.<span class="fn">into</span>(),
+    new_name: <span class="st">"color"</span>.<span class="fn">into</span>(),
+    class: <span class="ty">AttribClass</span>::<span class="fn">Point</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2>Group SOPs</h2>
+  <!-- ══════════════════════════════════════════════ -->
+
+  <p>
+    These SOPs create and combine element groups. Groups are stored as compact bitsets
+    and are the primary selection mechanism for downstream SOPs like Blast and Delete.
+    See the <a href="groups.html">Groups</a> core page for the full API.
+  </p>
+
+  <!-- ── GroupCreateSop ──────────────────────────── -->
+  <div class="sop-card">
+    <h3>GroupCreateSop <span class="tag">groups_sops</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Creates a named element group on points or primitives. Elements can be added
+      to the group by index range, bounding box, or expression.
+    </p>
+    <pre><code><span class="kw">let</span> geo = geo.<span class="fn">apply</span>(&amp;<span class="ty">GroupCreateSop</span>, &amp;<span class="ty">GroupCreateParams</span> {
+    name: <span class="st">"top_half"</span>.<span class="fn">into</span>(),
+    entity: <span class="ty">GroupEntity</span>::<span class="fn">Points</span>,
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+  <!-- ── GroupCombineSop ──────────────────────────── -->
+  <div class="sop-card">
+    <h3>GroupCombineSop <span class="tag">groups_sops</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Combines two groups using boolean operations: union, intersect, or subtract.
+      The result is stored in a new or existing group.
+    </p>
+    <pre><code><span class="kw">let</span> geo = geo.<span class="fn">apply</span>(&amp;<span class="ty">GroupCombineSop</span>, &amp;<span class="ty">GroupCombineParams</span> {
+    group_a: <span class="st">"left"</span>.<span class="fn">into</span>(),
+    group_b: <span class="st">"top"</span>.<span class="fn">into</span>(),
+    operation: <span class="ty">GroupOp</span>::<span class="fn">Intersect</span>,
+    result_name: <span class="st">"top_left"</span>.<span class="fn">into</span>(),
+})?;</code></pre>
+  </div>
+
+</main>
+
+</body>
+</html>

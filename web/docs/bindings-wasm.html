@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebAssembly API — ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html" class="active">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb"><a href="index.html">Docs</a> &rsaquo; Bindings</div>
+
+  <h1>WebAssembly API</h1>
+  <p class="subtitle">Browser-based usage via wasm-bindgen.</p>
+
+  <!-- ── Building ─────────────────────────────── -->
+  <h2>Building</h2>
+  <p>
+    The WASM binding lives in <code>bindings/procgeo-wasm</code>. Build it with
+    <code>wasm-pack</code>:
+  </p>
+  <pre><code>wasm-pack build bindings/procgeo-wasm --target web</code></pre>
+  <p>
+    This produces an ES module in <code>bindings/procgeo-wasm/pkg/</code> ready to import
+    with Vite, Webpack, or a plain <code>&lt;script type="module"&gt;</code> tag.
+  </p>
+
+  <!-- ── Loading ──────────────────────────────── -->
+  <h2>Loading</h2>
+  <p>Import and initialise the WASM module before calling any functions:</p>
+  <pre><code><span class="kw">import</span> <span class="fn">init</span>, * <span class="kw">as</span> pg <span class="kw">from</span> <span class="st">'procgeo-wasm'</span>;
+
+<span class="kw">await</span> <span class="fn">init</span>();
+
+<span class="cm">// Now ready to use</span>
+<span class="kw">const</span> box = pg.<span class="fn">createBox</span>({ size: [<span class="nu">1</span>, <span class="nu">1</span>, <span class="nu">1</span>] });</code></pre>
+
+  <!-- ── Geometry Object ──────────────────────── -->
+  <h2>Geometry Object</h2>
+  <p>
+    All creation and manipulation functions return a <code>Geometry</code> object with the
+    following properties and methods:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Property / Method</th><th>Returns</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>numPoints</code></td>
+        <td><code>number</code></td>
+        <td>Number of points in the geometry (getter).</td>
+      </tr>
+      <tr>
+        <td><code>numPrims</code></td>
+        <td><code>number</code></td>
+        <td>Number of primitives (getter).</td>
+      </tr>
+      <tr>
+        <td><code>numVertices</code></td>
+        <td><code>number</code></td>
+        <td>Number of vertices (getter).</td>
+      </tr>
+      <tr>
+        <td><code>pointPos(index)</code></td>
+        <td><code>Float32Array</code></td>
+        <td>Position of a single point as <code>[x, y, z]</code>.</td>
+      </tr>
+      <tr>
+        <td><code>boundingBox()</code></td>
+        <td><code>{ min: Float32Array, max: Float32Array }</code></td>
+        <td>Axis-aligned bounding box corners.</td>
+      </tr>
+      <tr>
+        <td><code>getPositions()</code></td>
+        <td><code>Float32Array</code></td>
+        <td>All point positions as flat <code>[x0,y0,z0, x1,y1,z1, ...]</code>.</td>
+      </tr>
+      <tr>
+        <td><code>getTriangleIndices()</code></td>
+        <td><code>Uint32Array</code></td>
+        <td>Fan-triangulated face indices for WebGL index buffers.</td>
+      </tr>
+      <tr>
+        <td><code>getNormals()</code></td>
+        <td><code>Float32Array | undefined</code></td>
+        <td>Point normals (<code>"N"</code> attribute) if present.</td>
+      </tr>
+      <tr>
+        <td><code>getColors()</code></td>
+        <td><code>Float32Array | undefined</code></td>
+        <td>Point colors (<code>"Cd"</code> attribute) if present.</td>
+      </tr>
+      <tr>
+        <td><code>toObj()</code></td>
+        <td><code>string</code></td>
+        <td>Serialize geometry as Wavefront OBJ text.</td>
+      </tr>
+      <tr>
+        <td><code>toGlb()</code></td>
+        <td><code>Uint8Array</code></td>
+        <td>Serialize geometry as binary glTF (GLB).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── Creation Functions ───────────────────── -->
+  <h2>Creation Functions</h2>
+  <p>
+    All creation functions accept an optional params object. Omitted fields use Houdini-style
+    defaults.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Function</th><th>Params</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>createBox(params?)</code></td>
+        <td><code>size: [x,y,z]</code>, <code>center: [x,y,z]</code></td>
+        <td>Axis-aligned box. Default size <code>[1,1,1]</code>.</td>
+      </tr>
+      <tr>
+        <td><code>createGrid(params?)</code></td>
+        <td><code>rows</code>, <code>cols</code>, <code>sizeX</code>, <code>sizeY</code>, <code>center: [x,y,z]</code></td>
+        <td>Quad grid. Default 10x10, size 10x10.</td>
+      </tr>
+      <tr>
+        <td><code>createSphere(params?)</code></td>
+        <td><code>radius</code>, <code>rows</code>, <code>cols</code>, <code>center: [x,y,z]</code></td>
+        <td>UV sphere. Default radius 0.5, 12 rows, 24 cols.</td>
+      </tr>
+      <tr>
+        <td><code>createLine(params?)</code></td>
+        <td><code>origin: [x,y,z]</code>, <code>direction: [x,y,z]</code>, <code>length</code>, <code>points</code></td>
+        <td>Open polyline. Default length 1, 2 points.</td>
+      </tr>
+      <tr>
+        <td><code>createCircle(params?)</code></td>
+        <td><code>radius</code>, <code>divisions</code>, <code>center: [x,y,z]</code></td>
+        <td>Circle polygon. Default radius 1, 40 divisions.</td>
+      </tr>
+      <tr>
+        <td><code>createTube(params?)</code></td>
+        <td><code>radiusBottom</code>, <code>radiusTop</code>, <code>height</code>, <code>cols</code>, <code>rows</code>, <code>center: [x,y,z]</code></td>
+        <td>Cylinder/cone. Default radii 0.5, height 1.</td>
+      </tr>
+      <tr>
+        <td><code>createTorus(params?)</code></td>
+        <td><code>radiusOuter</code>, <code>radiusInner</code>, <code>rows</code>, <code>cols</code>, <code>center: [x,y,z]</code></td>
+        <td>Torus. Default outer 1.0, inner 0.3.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <pre><code><span class="cm">// Create a box with custom size</span>
+<span class="kw">const</span> box = pg.<span class="fn">createBox</span>({ size: [<span class="nu">2</span>, <span class="nu">1</span>, <span class="nu">1</span>] });
+
+<span class="cm">// Create a sphere at a specific position</span>
+<span class="kw">const</span> sphere = pg.<span class="fn">createSphere</span>({
+  radius: <span class="nu">0.5</span>,
+  rows: <span class="nu">16</span>,
+  cols: <span class="nu">32</span>,
+  center: [<span class="nu">0</span>, <span class="nu">1</span>, <span class="nu">0</span>]
+});
+
+<span class="cm">// Default params are all optional</span>
+<span class="kw">const</span> grid = pg.<span class="fn">createGrid</span>();</code></pre>
+
+  <!-- ── Manipulation Functions ───────────────── -->
+  <h2>Manipulation Functions</h2>
+  <p>
+    Manipulation functions take a <code>Geometry</code> as the first argument and return
+    a new <code>Geometry</code>. The original is never mutated.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Function</th><th>Params</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>transform(geo, params?)</code></td>
+        <td><code>translate: [x,y,z]</code>, <code>rotate: [x,y,z]</code>, <code>scale: [x,y,z]</code>, <code>pivot: [x,y,z]</code></td>
+        <td>Translate, rotate, and scale geometry.</td>
+      </tr>
+      <tr>
+        <td><code>computeNormals(geo)</code></td>
+        <td>&mdash;</td>
+        <td>Compute area-weighted vertex normals (stored as <code>"N"</code> point attribute).</td>
+      </tr>
+      <tr>
+        <td><code>subdivide(geo, params?)</code></td>
+        <td><code>depth</code>, <code>mode</code> (<code>"linear"</code> | <code>"catmullClark"</code>)</td>
+        <td>Subdivide faces. Default depth 1, linear mode.</td>
+      </tr>
+      <tr>
+        <td><code>scatter(geo, params?)</code></td>
+        <td><code>count</code>, <code>seed</code></td>
+        <td>Scatter random points on surface. Default 100 points.</td>
+      </tr>
+      <tr>
+        <td><code>copyToPoints(source, target)</code></td>
+        <td>&mdash;</td>
+        <td>Instance source geometry at each point of target.</td>
+      </tr>
+      <tr>
+        <td><code>polyExtrude(geo, params?)</code></td>
+        <td><code>distance</code>, <code>inset</code>, <code>outputFront</code>, <code>outputSide</code></td>
+        <td>Extrude faces along normals. Default distance 1.</td>
+      </tr>
+      <tr>
+        <td><code>smooth(geo, params?)</code></td>
+        <td><code>iterations</code>, <code>strength</code></td>
+        <td>Laplacian smooth. Default 1 iteration, strength 0.5.</td>
+      </tr>
+      <tr>
+        <td><code>clip(geo, params?)</code></td>
+        <td><code>origin: [x,y,z]</code>, <code>normal: [x,y,z]</code>, <code>keepAbove</code></td>
+        <td>Clip geometry by a plane. Default clips above Y=0.</td>
+      </tr>
+      <tr>
+        <td><code>reverse(geo)</code></td>
+        <td>&mdash;</td>
+        <td>Flip polygon winding order.</td>
+      </tr>
+      <tr>
+        <td><code>color(geo, params?)</code></td>
+        <td><code>color: [r,g,b]</code></td>
+        <td>Set uniform point color (<code>"Cd"</code> attribute). Default white.</td>
+      </tr>
+      <tr>
+        <td><code>fuse(geo, params?)</code></td>
+        <td><code>distance</code></td>
+        <td>Merge coincident points. Default distance 0.001.</td>
+      </tr>
+      <tr>
+        <td><code>voronoiFracture(geo, points, params?)</code></td>
+        <td><code>cutPlaneOffset</code>, <code>createInsideFaces</code></td>
+        <td>Fracture geometry into Voronoi cells using external seed points.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <pre><code><span class="cm">// Build a processing pipeline</span>
+<span class="kw">const</span> box = pg.<span class="fn">createBox</span>({ size: [<span class="nu">2</span>, <span class="nu">2</span>, <span class="nu">2</span>] });
+<span class="kw">const</span> subdiv = pg.<span class="fn">subdivide</span>(box, { depth: <span class="nu">2</span>, mode: <span class="st">"catmullClark"</span> });
+<span class="kw">const</span> moved = pg.<span class="fn">transform</span>(subdiv, { translate: [<span class="nu">0</span>, <span class="nu">1</span>, <span class="nu">0</span>] });
+<span class="kw">const</span> result = pg.<span class="fn">computeNormals</span>(moved);
+
+<span class="cm">// Export as OBJ string</span>
+<span class="kw">const</span> objText = result.<span class="fn">toObj</span>();
+
+<span class="cm">// Export as GLB binary</span>
+<span class="kw">const</span> glbBytes = result.<span class="fn">toGlb</span>();</code></pre>
+
+  <!-- ── Three.js Integration ─────────────────── -->
+  <h2>Three.js Integration</h2>
+  <p>
+    Convert ProcGeo geometry directly to a Three.js <code>BufferGeometry</code> using the
+    typed array accessors:
+  </p>
+  <pre><code><span class="kw">import</span> * <span class="kw">as</span> <span class="ty">THREE</span> <span class="kw">from</span> <span class="st">'three'</span>;
+<span class="kw">import</span> <span class="fn">init</span>, * <span class="kw">as</span> pg <span class="kw">from</span> <span class="st">'procgeo-wasm'</span>;
+
+<span class="kw">await</span> <span class="fn">init</span>();
+
+<span class="cm">// Generate and process geometry</span>
+<span class="kw">const</span> geo = pg.<span class="fn">createBox</span>({ size: [<span class="nu">1</span>, <span class="nu">1</span>, <span class="nu">1</span>] });
+<span class="kw">const</span> normals_geo = pg.<span class="fn">computeNormals</span>(geo);
+
+<span class="cm">// Build a Three.js BufferGeometry</span>
+<span class="kw">const</span> bufGeo = <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">BufferGeometry</span>();
+bufGeo.<span class="fn">setAttribute</span>(
+  <span class="st">'position'</span>,
+  <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">BufferAttribute</span>(normals_geo.<span class="fn">getPositions</span>(), <span class="nu">3</span>)
+);
+bufGeo.<span class="fn">setIndex</span>(
+  <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">BufferAttribute</span>(normals_geo.<span class="fn">getTriangleIndices</span>(), <span class="nu">1</span>)
+);
+
+<span class="kw">const</span> normals = normals_geo.<span class="fn">getNormals</span>();
+<span class="kw">if</span> (normals) {
+  bufGeo.<span class="fn">setAttribute</span>(
+    <span class="st">'normal'</span>,
+    <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">BufferAttribute</span>(normals, <span class="nu">3</span>)
+  );
+}
+
+<span class="cm">// Optional: add vertex colors</span>
+<span class="kw">const</span> colors = normals_geo.<span class="fn">getColors</span>();
+<span class="kw">if</span> (colors) {
+  bufGeo.<span class="fn">setAttribute</span>(
+    <span class="st">'color'</span>,
+    <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">BufferAttribute</span>(colors, <span class="nu">3</span>)
+  );
+}
+
+<span class="cm">// Create mesh and add to scene</span>
+<span class="kw">const</span> mesh = <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">Mesh</span>(
+  bufGeo,
+  <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">MeshStandardMaterial</span>()
+);
+scene.<span class="fn">add</span>(mesh);</code></pre>
+
+  <div class="info-box">
+    The typed arrays returned by <code>getPositions()</code>, <code>getTriangleIndices()</code>,
+    <code>getNormals()</code>, and <code>getColors()</code> can be passed directly to
+    Three.js <code>BufferAttribute</code> constructors with zero copies &mdash; they are views
+    into WASM linear memory.
+  </div>
+
+  <!-- ── Full Browser Example ─────────────────── -->
+  <h2>Full Browser Example</h2>
+  <p>
+    A complete pipeline: generate a torus, subdivide, compute normals, colour it, and render
+    with Three.js:
+  </p>
+  <pre><code><span class="kw">import</span> <span class="fn">init</span>, * <span class="kw">as</span> pg <span class="kw">from</span> <span class="st">'procgeo-wasm'</span>;
+<span class="kw">import</span> * <span class="kw">as</span> <span class="ty">THREE</span> <span class="kw">from</span> <span class="st">'three'</span>;
+
+<span class="kw">async function</span> <span class="fn">main</span>() {
+  <span class="kw">await</span> <span class="fn">init</span>();
+
+  <span class="cm">// Procedural pipeline</span>
+  <span class="kw">const</span> torus = pg.<span class="fn">createTorus</span>({
+    radiusOuter: <span class="nu">1.0</span>,
+    radiusInner: <span class="nu">0.3</span>,
+    rows: <span class="nu">16</span>,
+    cols: <span class="nu">32</span>
+  });
+  <span class="kw">const</span> subdiv = pg.<span class="fn">subdivide</span>(torus, { depth: <span class="nu">1</span> });
+  <span class="kw">const</span> colored = pg.<span class="fn">color</span>(subdiv, { color: [<span class="nu">0.3</span>, <span class="nu">0.6</span>, <span class="nu">1.0</span>] });
+  <span class="kw">const</span> final = pg.<span class="fn">computeNormals</span>(colored);
+
+  <span class="cm">// Convert to Three.js</span>
+  <span class="kw">const</span> bufGeo = <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">BufferGeometry</span>();
+  bufGeo.<span class="fn">setAttribute</span>(<span class="st">'position'</span>, <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">BufferAttribute</span>(final.<span class="fn">getPositions</span>(), <span class="nu">3</span>));
+  bufGeo.<span class="fn">setIndex</span>(<span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">BufferAttribute</span>(final.<span class="fn">getTriangleIndices</span>(), <span class="nu">1</span>));
+  <span class="kw">const</span> n = final.<span class="fn">getNormals</span>();
+  <span class="kw">if</span> (n) bufGeo.<span class="fn">setAttribute</span>(<span class="st">'normal'</span>, <span class="kw">new</span> <span class="ty">THREE</span>.<span class="fn">BufferAttribute</span>(n, <span class="nu">3</span>));
+
+  console.<span class="fn">log</span>(<span class="st">`Points: ${final.numPoints}, Prims: ${final.numPrims}`</span>);
+}
+
+<span class="fn">main</span>();</code></pre>
+
+</main>
+
+</body>
+</html>

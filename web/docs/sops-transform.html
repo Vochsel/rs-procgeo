@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transform &amp; Reshape SOPs - ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html" class="active">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb">
+    <a href="index.html">Docs</a> / <a href="sops-transform.html">SOPs Reference</a> / Transform &amp; Reshape
+  </div>
+
+  <h1>Transform &amp; Reshape SOPs</h1>
+  <p class="subtitle">SOPs that move, deform, and reshape geometry.</p>
+
+  <div class="info-box">
+    Transform and reshape SOPs take <strong>1 input</strong> (unless noted otherwise) and return
+    modified geometry. Chain them with <code>.apply(&amp;sop, &amp;params)</code>.
+  </div>
+
+  <!-- ── TransformSop ────────────────────────────── -->
+  <div class="sop-card">
+    <h3>TransformSop <span class="tag">transform</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Apply translate, rotate, and scale to all points. Transform order is:
+      <code>translate * pivot * rotate * scale * -pivot</code>. Rotation is specified
+      in degrees as XYZ Euler angles.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>translate</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Translation offset</td></tr>
+        <tr><td><code>rotate</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Rotation in degrees (XYZ Euler)</td></tr>
+        <tr><td><code>scale</code></td><td><code>Vec3</code></td><td><code>Vec3::ONE</code></td><td>Scale factors</td></tr>
+        <tr><td><code>pivot</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Pivot point</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> moved = geo.<span class="fn">apply</span>(&amp;<span class="ty">TransformSop</span>, &amp;<span class="ty">TransformParams</span> {
+    translate: <span class="ty">Vec3</span>::<span class="fn">new</span>(<span class="nu">0.0</span>, <span class="nu">2.0</span>, <span class="nu">0.0</span>),
+    rotate: <span class="ty">Vec3</span>::<span class="fn">new</span>(<span class="nu">0.0</span>, <span class="nu">45.0</span>, <span class="nu">0.0</span>),
+    scale: <span class="ty">Vec3</span>::<span class="fn">splat</span>(<span class="nu">0.5</span>),
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+  <!-- ── NormalSop ───────────────────────────────── -->
+  <div class="sop-card">
+    <h3>NormalSop <span class="tag">normals</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Computes area-weighted vertex normals using Newell's method. Creates a
+      <code>"N"</code> point attribute with the <code>Normal</code> type qualifier.
+      This SOP has no parameters &mdash; it always computes smooth normals from
+      face topology.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" style="text-align: center; color: var(--text-dim);"><em>No parameters</em></td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> with_normals = geo.<span class="fn">apply</span>(&amp;<span class="ty">NormalSop</span>, &amp;<span class="ty">NormalParams</span>::<span class="fn">default</span>())?;</code></pre>
+  </div>
+
+  <!-- ── SubdivideSop ────────────────────────────── -->
+  <div class="sop-card">
+    <h3>SubdivideSop <span class="tag">reshape</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Subdivides mesh faces. In <code>Linear</code> mode, each quad is split into 4
+      quads and each triangle into 4 triangles by inserting edge midpoints. In
+      <code>CatmullClark</code> mode, the limit surface is approximated with smoothed
+      vertex positions.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>depth</code></td><td><code>u32</code></td><td><code>1</code></td><td>Subdivision iterations</td></tr>
+        <tr><td><code>mode</code></td><td><code>SubdivideMode</code></td><td><code>Linear</code></td><td>Linear or CatmullClark</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> smooth = geo.<span class="fn">apply</span>(&amp;<span class="ty">SubdivideSop</span>, &amp;<span class="ty">SubdivideParams</span> {
+    depth: <span class="nu">3</span>,
+    mode: <span class="ty">SubdivideMode</span>::<span class="fn">CatmullClark</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── PolyExtrudeSop ──────────────────────────── -->
+  <div class="sop-card">
+    <h3>PolyExtrudeSop <span class="tag">reshape</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Extrudes polygon faces along their normals. Each face is pushed outward by
+      <code>distance</code> and optionally inset toward its centroid. Side quads bridge
+      the original and extruded edges.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>distance</code></td><td><code>f32</code></td><td><code>1.0</code></td><td>Extrusion distance</td></tr>
+        <tr><td><code>inset</code></td><td><code>f32</code></td><td><code>0.0</code></td><td>Inset toward face centroid</td></tr>
+        <tr><td><code>output_front</code></td><td><code>bool</code></td><td><code>true</code></td><td>Include front face</td></tr>
+        <tr><td><code>output_side</code></td><td><code>bool</code></td><td><code>true</code></td><td>Include side quads</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> extruded = geo.<span class="fn">apply</span>(&amp;<span class="ty">PolyExtrudeSop</span>, &amp;<span class="ty">PolyExtrudeParams</span> {
+    distance: <span class="nu">0.5</span>,
+    inset: <span class="nu">0.1</span>,
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+  <!-- ── SmoothSop ───────────────────────────────── -->
+  <div class="sop-card">
+    <h3>SmoothSop <span class="tag">reshape</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Applies Laplacian mesh smoothing. Each iteration moves every point toward
+      the average of its connected neighbours, weighted by <code>strength</code>.
+      Multiple iterations produce progressively smoother results.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>iterations</code></td><td><code>u32</code></td><td><code>1</code></td><td>Smoothing passes</td></tr>
+        <tr><td><code>strength</code></td><td><code>f32</code></td><td><code>0.5</code></td><td>Smoothing factor per iteration</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> smoothed = geo.<span class="fn">apply</span>(&amp;<span class="ty">SmoothSop</span>, &amp;<span class="ty">SmoothParams</span> {
+    iterations: <span class="nu">5</span>,
+    strength: <span class="nu">0.8</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── ClipSop ─────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>ClipSop <span class="tag">reshape</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Clips geometry by a plane defined by a point and normal. Polygons that
+      straddle the plane are split, with new edges created along the clip boundary.
+      Use <code>keep_above</code> to select which side of the plane is retained.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>origin</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Point on the clipping plane</td></tr>
+        <tr><td><code>normal</code></td><td><code>Vec3</code></td><td><code>Vec3::Y</code></td><td>Plane normal direction</td></tr>
+        <tr><td><code>keep_above</code></td><td><code>bool</code></td><td><code>true</code></td><td>Keep geometry above (true) or below (false) the plane</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// Cut a sphere in half at the origin</span>
+<span class="kw">let</span> half = sphere.<span class="fn">apply</span>(&amp;<span class="ty">ClipSop</span>, &amp;<span class="ty">ClipParams</span> {
+    origin: <span class="ty">Vec3</span>::<span class="fn">ZERO</span>,
+    normal: <span class="ty">Vec3</span>::<span class="fn">Y</span>,
+    keep_above: <span class="kw">true</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── ScatterSop ──────────────────────────────── -->
+  <div class="sop-card">
+    <h3>ScatterSop <span class="tag">scatter</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Randomly distributes points on the surface of mesh primitives. Points are
+      distributed proportionally to face area, so larger faces receive more points.
+      The output is a point cloud (no primitives).
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>count</code></td><td><code>u32</code></td><td><code>100</code></td><td>Number of points to scatter</td></tr>
+        <tr><td><code>seed</code></td><td><code>u64</code></td><td><code>0</code></td><td>Random seed for reproducibility</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> points = grid.<span class="fn">apply</span>(&amp;<span class="ty">ScatterSop</span>, &amp;<span class="ty">ScatterParams</span> {
+    count: <span class="nu">1000</span>,
+    seed: <span class="nu">42</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── CopyToPointsSop ─────────────────────────── -->
+  <div class="sop-card">
+    <h3>CopyToPointsSop <span class="tag">copy</span></h3>
+    <div class="sop-meta">Inputs: 2 (source, target)</div>
+    <p class="sop-desc">
+      Instances the source geometry at each point of the target geometry. Each copy
+      is translated to the corresponding point position. This is a multi-input SOP:
+      the first input is the template, and the second provides the target points.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" style="text-align: center; color: var(--text-dim);"><em>No parameters</em></td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// Scatter trees on a terrain</span>
+<span class="kw">let</span> tree = <span class="fn">generate</span>(&amp;<span class="ty">BoxSop</span>, &amp;<span class="ty">BoxParams</span>::<span class="fn">default</span>())?;
+<span class="kw">let</span> pts = terrain.<span class="fn">apply</span>(&amp;<span class="ty">ScatterSop</span>, &amp;<span class="ty">ScatterParams</span> { count: <span class="nu">50</span>, seed: <span class="nu">0</span> })?;
+<span class="kw">let</span> forest = <span class="ty">CopyToPointsSop</span>.<span class="fn">execute</span>(&amp;[&amp;tree, &amp;pts], &amp;<span class="ty">CopyToPointsParams</span>)?;</code></pre>
+  </div>
+
+  <!-- ── MergeSop ────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>MergeSop <span class="tag">merge</span></h3>
+    <div class="sop-meta">Inputs: 0..N</div>
+    <p class="sop-desc">
+      Concatenates multiple geometries into a single <code>Geometry</code>. Points,
+      primitives, attributes, and groups from all inputs are combined. Primitive
+      vertex indices are offset to account for merged point arrays.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" style="text-align: center; color: var(--text-dim);"><em>No parameters</em></td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> a = <span class="fn">generate</span>(&amp;<span class="ty">BoxSop</span>, &amp;<span class="ty">BoxParams</span>::<span class="fn">default</span>())?;
+<span class="kw">let</span> b = <span class="fn">generate</span>(&amp;<span class="ty">SphereSop</span>, &amp;<span class="ty">SphereParams</span>::<span class="fn">default</span>())?;
+<span class="kw">let</span> merged = <span class="ty">MergeSop</span>.<span class="fn">execute</span>(&amp;[&amp;a, &amp;b], &amp;<span class="ty">MergeParams</span>)?;</code></pre>
+  </div>
+
+</main>
+
+</body>
+</html>

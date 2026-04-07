@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creation SOPs - ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html" class="active">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb">
+    <a href="index.html">Docs</a> / <a href="sops-creation.html">SOPs Reference</a> / Creation
+  </div>
+
+  <h1>Creation SOPs</h1>
+  <p class="subtitle">Generator SOPs that create new geometry from parameters.</p>
+
+  <div class="info-box">
+    Creation SOPs take <strong>0 inputs</strong> &mdash; they are generators. Call them with
+    <code>generate(&amp;sop, &amp;params)</code> rather than <code>.apply()</code>.
+    All creation SOPs are gated behind the <code>creation</code> feature flag.
+  </div>
+
+  <!-- ── BoxSop ──────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>BoxSop <span class="tag">creation</span></h3>
+    <div class="sop-meta">Inputs: 0 (generator)</div>
+    <p class="sop-desc">
+      Creates an axis-aligned box with 8 points and 6 quad faces. The box is centered at
+      <code>center</code> with dimensions given by <code>size</code>.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>size</code></td><td><code>Vec3</code></td><td><code>Vec3::ONE</code></td><td>Dimensions along each axis</td></tr>
+        <tr><td><code>center</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Center position</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> cube = <span class="fn">generate</span>(&amp;<span class="ty">BoxSop</span>, &amp;<span class="ty">BoxParams</span> {
+    size: <span class="ty">Vec3</span>::<span class="fn">splat</span>(<span class="nu">2.0</span>),
+    center: <span class="ty">Vec3</span>::<span class="fn">new</span>(<span class="nu">0.0</span>, <span class="nu">1.0</span>, <span class="nu">0.0</span>),
+})?;</code></pre>
+  </div>
+
+  <!-- ── GridSop ─────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>GridSop <span class="tag">creation</span></h3>
+    <div class="sop-meta">Inputs: 0 (generator)</div>
+    <p class="sop-desc">
+      Creates a rectangular grid of quads on the specified orientation plane. The grid is
+      divided into <code>rows</code> &times; <code>cols</code> cells, producing
+      <code>(rows+1) * (cols+1)</code> points.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>size</code></td><td><code>[f32; 2]</code></td><td><code>[10.0, 10.0]</code></td><td>Width and depth</td></tr>
+        <tr><td><code>rows</code></td><td><code>u32</code></td><td><code>10</code></td><td>Row divisions</td></tr>
+        <tr><td><code>cols</code></td><td><code>u32</code></td><td><code>10</code></td><td>Column divisions</td></tr>
+        <tr><td><code>center</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Center position</td></tr>
+        <tr><td><code>orientation</code></td><td><code>GridOrientation</code></td><td><code>XZ</code></td><td>Plane: XZ, XY, or YZ</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> floor = <span class="fn">generate</span>(&amp;<span class="ty">GridSop</span>, &amp;<span class="ty">GridParams</span> {
+    size: [<span class="nu">20.0</span>, <span class="nu">20.0</span>],
+    rows: <span class="nu">50</span>,
+    cols: <span class="nu">50</span>,
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+  <!-- ── SphereSop ───────────────────────────────── -->
+  <div class="sop-card">
+    <h3>SphereSop <span class="tag">creation</span></h3>
+    <div class="sop-meta">Inputs: 0 (generator)</div>
+    <p class="sop-desc">
+      Creates a UV sphere with configurable latitude (<code>rows</code>) and longitude
+      (<code>cols</code>) divisions. The <code>radius</code> parameter accepts a
+      <code>Vec3</code> allowing ellipsoid shapes.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>radius</code></td><td><code>Vec3</code></td><td><code>Vec3::splat(0.5)</code></td><td>Radius per axis</td></tr>
+        <tr><td><code>center</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Center position</td></tr>
+        <tr><td><code>rows</code></td><td><code>u32</code></td><td><code>12</code></td><td>Latitude divisions (min 2)</td></tr>
+        <tr><td><code>cols</code></td><td><code>u32</code></td><td><code>24</code></td><td>Longitude divisions (min 3)</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> sphere = <span class="fn">generate</span>(&amp;<span class="ty">SphereSop</span>, &amp;<span class="ty">SphereParams</span> {
+    radius: <span class="ty">Vec3</span>::<span class="fn">splat</span>(<span class="nu">1.0</span>),
+    rows: <span class="nu">24</span>,
+    cols: <span class="nu">48</span>,
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+  <!-- ── LineSop ─────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>LineSop <span class="tag">creation</span></h3>
+    <div class="sop-meta">Inputs: 0 (generator)</div>
+    <p class="sop-desc">
+      Creates an open polyline from <code>origin</code> along <code>direction</code>
+      for the given <code>length</code>. The line is subdivided into
+      <code>points</code> evenly-spaced samples.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>origin</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Start position</td></tr>
+        <tr><td><code>direction</code></td><td><code>Vec3</code></td><td><code>Vec3::Y</code></td><td>Direction vector</td></tr>
+        <tr><td><code>length</code></td><td><code>f32</code></td><td><code>1.0</code></td><td>Line length</td></tr>
+        <tr><td><code>points</code></td><td><code>u32</code></td><td><code>2</code></td><td>Number of points (min 2)</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> line = <span class="fn">generate</span>(&amp;<span class="ty">LineSop</span>, &amp;<span class="ty">LineParams</span> {
+    origin: <span class="ty">Vec3</span>::<span class="fn">new</span>(<span class="nu">0.0</span>, <span class="nu">0.0</span>, <span class="nu">0.0</span>),
+    direction: <span class="ty">Vec3</span>::<span class="fn">new</span>(<span class="nu">1.0</span>, <span class="nu">1.0</span>, <span class="nu">0.0</span>).<span class="fn">normalize</span>(),
+    length: <span class="nu">5.0</span>,
+    points: <span class="nu">10</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── CircleSop ───────────────────────────────── -->
+  <div class="sop-card">
+    <h3>CircleSop <span class="tag">creation</span></h3>
+    <div class="sop-meta">Inputs: 0 (generator)</div>
+    <p class="sop-desc">
+      Creates a circle or regular polygon as a closed polyline. With high
+      <code>divisions</code> it approximates a smooth circle; low values produce
+      regular polygons (e.g., 6 for a hexagon).
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>radius</code></td><td><code>f32</code></td><td><code>1.0</code></td><td>Circle radius</td></tr>
+        <tr><td><code>center</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Center position</td></tr>
+        <tr><td><code>divisions</code></td><td><code>u32</code></td><td><code>40</code></td><td>Segment count (min 3)</td></tr>
+        <tr><td><code>orientation</code></td><td><code>GridOrientation</code></td><td><code>XZ</code></td><td>Plane</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// A hexagon on the XZ plane</span>
+<span class="kw">let</span> hex = <span class="fn">generate</span>(&amp;<span class="ty">CircleSop</span>, &amp;<span class="ty">CircleParams</span> {
+    radius: <span class="nu">2.0</span>,
+    divisions: <span class="nu">6</span>,
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+  <!-- ── TubeSop ─────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>TubeSop <span class="tag">creation</span></h3>
+    <div class="sop-meta">Inputs: 0 (generator)</div>
+    <p class="sop-desc">
+      Creates a cylinder, cone, or tapered tube. Setting <code>radius_top</code> to
+      <code>0.0</code> produces a cone. The <code>caps</code> parameter controls
+      whether top, bottom, both, or no end-caps are generated.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>radius_bottom</code></td><td><code>f32</code></td><td><code>0.5</code></td><td>Bottom radius</td></tr>
+        <tr><td><code>radius_top</code></td><td><code>f32</code></td><td><code>0.5</code></td><td>Top radius (0 = cone)</td></tr>
+        <tr><td><code>height</code></td><td><code>f32</code></td><td><code>1.0</code></td><td>Height</td></tr>
+        <tr><td><code>center</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Center</td></tr>
+        <tr><td><code>cols</code></td><td><code>u32</code></td><td><code>24</code></td><td>Circumference divisions (min 3)</td></tr>
+        <tr><td><code>rows</code></td><td><code>u32</code></td><td><code>2</code></td><td>Height divisions (min 2)</td></tr>
+        <tr><td><code>caps</code></td><td><code>TubeCap</code></td><td><code>None</code></td><td>Cap mode: None, Top, Bottom, Both</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// A cone with a bottom cap</span>
+<span class="kw">let</span> cone = <span class="fn">generate</span>(&amp;<span class="ty">TubeSop</span>, &amp;<span class="ty">TubeParams</span> {
+    radius_bottom: <span class="nu">1.0</span>,
+    radius_top: <span class="nu">0.0</span>,
+    height: <span class="nu">2.0</span>,
+    caps: <span class="ty">TubeCap</span>::<span class="fn">Bottom</span>,
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+  <!-- ── TorusSop ────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>TorusSop <span class="tag">creation</span></h3>
+    <div class="sop-meta">Inputs: 0 (generator)</div>
+    <p class="sop-desc">
+      Creates a torus (donut) shape. The <code>radius_outer</code> controls the distance
+      from the center of the torus to the center of the tube, while
+      <code>radius_inner</code> controls the tube thickness.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>radius_outer</code></td><td><code>f32</code></td><td><code>1.0</code></td><td>Major radius</td></tr>
+        <tr><td><code>radius_inner</code></td><td><code>f32</code></td><td><code>0.3</code></td><td>Minor radius</td></tr>
+        <tr><td><code>center</code></td><td><code>Vec3</code></td><td><code>Vec3::ZERO</code></td><td>Center</td></tr>
+        <tr><td><code>rows</code></td><td><code>u32</code></td><td><code>12</code></td><td>Ring divisions</td></tr>
+        <tr><td><code>cols</code></td><td><code>u32</code></td><td><code>24</code></td><td>Tube divisions</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> donut = <span class="fn">generate</span>(&amp;<span class="ty">TorusSop</span>, &amp;<span class="ty">TorusParams</span> {
+    radius_outer: <span class="nu">2.0</span>,
+    radius_inner: <span class="nu">0.5</span>,
+    rows: <span class="nu">24</span>,
+    cols: <span class="nu">48</span>,
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+</main>
+
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Topology SOPs - ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html" class="active">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb">
+    <a href="index.html">Docs</a> / <a href="sops-topology.html">SOPs Reference</a> / Topology
+  </div>
+
+  <h1>Topology SOPs</h1>
+  <p class="subtitle">SOPs that modify geometry connectivity, ordering, and structure.</p>
+
+  <div class="info-box">
+    Topology SOPs restructure how points and primitives are connected, ordered, or
+    grouped &mdash; without changing positions (except Fuse, which merges coincident points).
+    All take <strong>1 input</strong> unless noted otherwise.
+  </div>
+
+  <!-- ── FuseSop ─────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>FuseSop <span class="tag">topology</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Merges coincident points that fall within a distance threshold. After merging,
+      primitives referencing the removed points are updated to reference the surviving
+      point. Useful for welding seams after merging separate meshes.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>distance</code></td><td><code>f32</code></td><td><code>0.001</code></td><td>Distance threshold for merging</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// Weld seams after merging two meshes</span>
+<span class="kw">let</span> welded = merged.<span class="fn">apply</span>(&amp;<span class="ty">FuseSop</span>, &amp;<span class="ty">FuseParams</span> {
+    distance: <span class="nu">0.01</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── SortSop ─────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>SortSop <span class="tag">topology</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Reorders points or primitives by axis value, reversal, or random shuffle.
+      Sorting by axis is useful for spatial partitioning; random mode is useful for
+      randomized rendering or processing order.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>entity</code></td><td><code>SortEntity</code></td><td><code>Points</code></td><td>Points or Primitives</td></tr>
+        <tr><td><code>mode</code></td><td><code>SortMode</code></td><td><code>ByAxis</code></td><td>ByAxis, Reverse, or Random</td></tr>
+        <tr><td><code>axis</code></td><td><code>SortAxis</code></td><td><code>Y</code></td><td>X, Y, or Z (for ByAxis mode)</td></tr>
+        <tr><td><code>seed</code></td><td><code>u64</code></td><td><code>0</code></td><td>Random seed (for Random mode)</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// Sort points bottom-to-top by Y axis</span>
+<span class="kw">let</span> sorted = geo.<span class="fn">apply</span>(&amp;<span class="ty">SortSop</span>, &amp;<span class="ty">SortParams</span> {
+    entity: <span class="ty">SortEntity</span>::<span class="fn">Points</span>,
+    mode: <span class="ty">SortMode</span>::<span class="fn">ByAxis</span>,
+    axis: <span class="ty">SortAxis</span>::<span class="fn">Y</span>,
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+  </div>
+
+  <!-- ── ReverseSop ──────────────────────────────── -->
+  <div class="sop-card">
+    <h3>ReverseSop <span class="tag">topology</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Reverses the winding order of all polygon primitives, effectively flipping
+      their normals. Useful when geometry appears inside-out or when you need to
+      invert face orientation after a mirror operation.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4" style="text-align: center; color: var(--text-dim);"><em>No parameters</em></td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> flipped = geo.<span class="fn">apply</span>(&amp;<span class="ty">ReverseSop</span>, &amp;<span class="ty">ReverseParams</span>::<span class="fn">default</span>())?;</code></pre>
+  </div>
+
+  <!-- ── ResampleSop ─────────────────────────────── -->
+  <div class="sop-card">
+    <h3>ResampleSop <span class="tag">topology</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Resamples curves and polylines to uniform segment length. The input polyline
+      is walked and new points are placed at intervals of <code>length</code> along
+      the curve. A <code>max_segments</code> cap prevents runaway subdivision on
+      very long curves.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>length</code></td><td><code>f32</code></td><td><code>0.1</code></td><td>Target segment length</td></tr>
+        <tr><td><code>max_segments</code></td><td><code>u32</code></td><td><code>1000</code></td><td>Maximum number of segments</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> resampled = line.<span class="fn">apply</span>(&amp;<span class="ty">ResampleSop</span>, &amp;<span class="ty">ResampleParams</span> {
+    length: <span class="nu">0.05</span>,
+    max_segments: <span class="nu">500</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── ConnectivitySop ─────────────────────────── -->
+  <div class="sop-card">
+    <h3>ConnectivitySop <span class="tag">topology</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Labels each connected component of the geometry with a unique integer. The
+      result is stored as a primitive attribute with the specified name. Useful for
+      identifying separate islands after a Voronoi fracture or for per-piece
+      processing.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>attrib_name</code></td><td><code>String</code></td><td><code>"class"</code></td><td>Name of the integer attribute to create</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="kw">let</span> labeled = fractured.<span class="fn">apply</span>(&amp;<span class="ty">ConnectivitySop</span>, &amp;<span class="ty">ConnectivityParams</span> {
+    attrib_name: <span class="st">"class"</span>.<span class="fn">into</span>(),
+})?;</code></pre>
+  </div>
+
+  <!-- ── BlastSop ────────────────────────────────── -->
+  <div class="sop-card">
+    <h3>BlastSop <span class="tag">delete</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Deletes elements that belong to a named group. By default, group members are
+      removed; set <code>negate</code> to <code>true</code> to keep only group members
+      and delete everything else. Works on either primitives or points.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>group_name</code></td><td><code>String</code></td><td><code>""</code></td><td>Name of group to blast</td></tr>
+        <tr><td><code>entity</code></td><td><code>BlastEntity</code></td><td><code>Primitives</code></td><td>Primitives or Points</td></tr>
+        <tr><td><code>negate</code></td><td><code>bool</code></td><td><code>false</code></td><td>If true, keep only group members</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// Remove all faces in the "bottom" group</span>
+<span class="kw">let</span> blasted = geo.<span class="fn">apply</span>(&amp;<span class="ty">BlastSop</span>, &amp;<span class="ty">BlastParams</span> {
+    group_name: <span class="st">"bottom"</span>.<span class="fn">into</span>(),
+    entity: <span class="ty">BlastEntity</span>::<span class="fn">Primitives</span>,
+    negate: <span class="kw">false</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── DeleteSop ───────────────────────────────── -->
+  <div class="sop-card">
+    <h3>DeleteSop <span class="tag">delete</span></h3>
+    <div class="sop-meta">Inputs: 1</div>
+    <p class="sop-desc">
+      Deletes elements by index range. All elements with indices in the half-open
+      range <code>[range_start, range_end)</code> are removed. Operates on either
+      points or primitives.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>entity</code></td><td><code>DeleteEntity</code></td><td><code>Primitives</code></td><td>Primitives or Points</td></tr>
+        <tr><td><code>range_start</code></td><td><code>usize</code></td><td><code>0</code></td><td>Start index (inclusive)</td></tr>
+        <tr><td><code>range_end</code></td><td><code>usize</code></td><td><code>0</code></td><td>End index (exclusive)</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// Delete the first 10 primitives</span>
+<span class="kw">let</span> trimmed = geo.<span class="fn">apply</span>(&amp;<span class="ty">DeleteSop</span>, &amp;<span class="ty">DeleteParams</span> {
+    entity: <span class="ty">DeleteEntity</span>::<span class="fn">Primitives</span>,
+    range_start: <span class="nu">0</span>,
+    range_end: <span class="nu">10</span>,
+})?;</code></pre>
+  </div>
+
+  <!-- ── VoronoiFractureSop ──────────────────────── -->
+  <div class="sop-card">
+    <h3>VoronoiFractureSop <span class="tag">voronoi</span></h3>
+    <div class="sop-meta">Inputs: 2 (mesh, seed points)</div>
+    <p class="sop-desc">
+      Fractures a mesh using a 3D Voronoi diagram. Seed points are provided as the
+      second input, and the geometry is split into convex cells by clipping along
+      bisecting planes between each pair of seeds. A <code>"piece"</code> primitive
+      attribute is created to identify each fragment. The <code>cut_plane_offset</code>
+      shifts clip planes along their normals &mdash; positive values create gaps between
+      pieces, negative values create overlap.
+    </p>
+    <table class="params-table">
+      <thead>
+        <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>cut_plane_offset</code></td><td><code>f32</code></td><td><code>0.0</code></td><td>Offset cut planes along normals (positive = gaps, negative = overlap)</td></tr>
+        <tr><td><code>create_inside_faces</code></td><td><code>bool</code></td><td><code>true</code></td><td>Generate interior faces at fracture boundaries</td></tr>
+      </tbody>
+    </table>
+    <pre><code><span class="cm">// Scatter seed points, then fracture a box</span>
+<span class="kw">let</span> seeds = box_geo.<span class="fn">apply</span>(&amp;<span class="ty">ScatterSop</span>, &amp;<span class="ty">ScatterParams</span> { count: <span class="nu">20</span>, seed: <span class="nu">42</span> })?;
+<span class="kw">let</span> pieces = <span class="ty">VoronoiFractureSop</span>.<span class="fn">execute</span>(
+    &amp;[&amp;box_geo, &amp;seeds],
+    &amp;<span class="ty">VoronoiFractureParams</span> { cut_plane_offset: <span class="nu">0.02</span>, ..<span class="ty">Default</span>::<span class="fn">default</span>() },
+)?;</code></pre>
+  </div>
+
+</main>
+
+</body>
+</html>

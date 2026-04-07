@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture - ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html" class="active">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb">
+    <a href="index.html">Docs</a> / Architecture
+  </div>
+
+  <h1>Architecture</h1>
+  <p class="subtitle">How ProcGeo is structured, from crate layout to runtime performance.</p>
+
+  <!-- ── Crate Layout ──────────────────────────── -->
+  <h2>Crate Layout</h2>
+  <p>ProcGeo is a multi-crate workspace. The umbrella crate re-exports everything through
+    a <code>prelude</code> module; downstream consumers only need
+    <code>procgeo</code> as a dependency.</p>
+
+  <pre><code>procgeo <span class="cm">(umbrella &mdash; re-exports + prelude)</span>
+ &#9500;&#9472;&#9472; procgeo-core     <span class="cm">Geometry model, attributes, groups, math</span>
+ &#9500;&#9472;&#9472; procgeo-sops     <span class="cm">SOP implementations (feature-gated)</span>
+ &#9500;&#9472;&#9472; procgeo-io       <span class="cm">Format readers/writers (OBJ, glTF)</span>
+ &#9492;&#9472;&#9472; bindings/
+      &#9500;&#9472;&#9472; procgeo-node   <span class="cm">Node.js (napi-rs)</span>
+      &#9500;&#9472;&#9472; procgeo-py     <span class="cm">Python (PyO3)</span>
+      &#9492;&#9472;&#9472; procgeo-wasm   <span class="cm">WebAssembly (wasm-bindgen)</span></code></pre>
+
+  <p><strong>procgeo-core</strong> owns the canonical <code>Geometry</code> struct and has zero
+    dependencies on the SOP or I/O crates. <strong>procgeo-sops</strong> and
+    <strong>procgeo-io</strong> depend only on core. The binding crates depend on all
+    three but contain no business logic of their own.</p>
+
+  <!-- ── Design Principles ─────────────────────── -->
+  <h2>Design Principles</h2>
+  <ol>
+    <li>
+      <strong>Stateless SOPs</strong> &mdash; every SOP is a pure function:
+      <code>execute(inputs, params) -&gt; Result&lt;Geometry&gt;</code>.
+      No mutation of inputs. This enables caching, parallelism, and trivial undo.
+    </li>
+    <li>
+      <strong>SoA Memory Layout</strong> &mdash; point positions are stored as three
+      contiguous <code>Vec&lt;f32&gt;</code> arrays (x, y, z) rather than an
+      array-of-structs. This is SIMD-friendly and maximises cache utilisation
+      during component-wise iteration.
+    </li>
+    <li>
+      <strong>Typed Handles</strong> &mdash;
+      <code>PointHandle(u32)</code>, <code>VertexHandle(u32)</code>,
+      <code>PrimHandle(u32)</code> are distinct newtypes that prevent index confusion
+      at compile time. You cannot accidentally pass a point index where a primitive
+      index is expected.
+    </li>
+    <li>
+      <strong>Feature-Gated Compilation</strong> &mdash; each SOP category is a Cargo
+      feature flag. The umbrella crate enables all features by default, but downstream
+      consumers can cherry-pick only the SOPs they need for smaller binaries.
+    </li>
+    <li>
+      <strong>Thin Bindings</strong> &mdash; the Node.js, Python, and WASM wrapper crates
+      contain zero business logic. All geometry processing stays in Rust; bindings
+      only marshal data across the FFI boundary.
+    </li>
+    <li>
+      <strong>Houdini Semantics</strong> &mdash; four attribute classes (point, vertex,
+      primitive, detail), group-based selection, and topology expressed through
+      vertices mirror Houdini's geometry model.
+    </li>
+  </ol>
+
+  <!-- ── The SOP Trait ─────────────────────────── -->
+  <h2>The SOP Trait</h2>
+  <p>Every SOP implements the same trait:</p>
+
+  <pre><code><span class="kw">pub trait</span> <span class="ty">Sop</span> {
+    <span class="kw">type</span> <span class="ty">Params</span>: <span class="ty">Default</span>;
+
+    <span class="kw">fn</span> <span class="fn">execute</span>(
+        &amp;<span class="kw">self</span>,
+        inputs: &amp;[&amp;<span class="ty">Geometry</span>],
+        params: &amp;<span class="kw">Self</span>::<span class="ty">Params</span>,
+    ) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Geometry</span>, <span class="ty">SopError</span>&gt;;
+
+    <span class="kw">fn</span> <span class="fn">input_count</span>(&amp;<span class="kw">self</span>) -&gt; (<span class="ty">usize</span>, <span class="ty">usize</span>);
+    <span class="kw">fn</span> <span class="fn">name</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="st">'static</span> <span class="ty">str</span>;
+}</code></pre>
+
+  <h3>Input Conventions</h3>
+  <ul>
+    <li><strong>Generator SOPs</strong> (Box, Grid, Sphere, ...) take <strong>0 inputs</strong>.
+      Use the <code>generate()</code> helper to call them with an empty input slice.</li>
+    <li><strong>Filter SOPs</strong> (Transform, Normal, Blast, ...) take <strong>1 input</strong>.</li>
+    <li><strong>Multi-input SOPs</strong> (Merge, CopyToPoints, ...) take <strong>2+ inputs</strong>.
+      <code>input_count()</code> returns <code>(min, max)</code>.</li>
+  </ul>
+
+  <h3>Chaining with GeometryExt</h3>
+  <p>The <code>GeometryExt</code> trait adds an <code>.apply()</code> method to
+    <code>Geometry</code> for fluent chaining:</p>
+
+  <pre><code><span class="kw">let</span> result = <span class="fn">generate</span>(<span class="ty">BoxSop</span>, <span class="ty">BoxParams</span> { size: <span class="fn">vec3</span>(<span class="nu">2.0</span>, <span class="nu">1.0</span>, <span class="nu">1.0</span>), ..default() })
+    .<span class="fn">apply</span>(<span class="ty">TransformSop</span>, <span class="ty">TransformParams</span> { translate: <span class="fn">vec3</span>(<span class="nu">0.0</span>, <span class="nu">1.0</span>, <span class="nu">0.0</span>), ..default() })
+    .<span class="fn">apply</span>(<span class="ty">NormalSop</span>, <span class="ty">NormalParams</span>::default())?;</code></pre>
+
+  <!-- ── Performance Architecture ──────────────── -->
+  <h2>Performance Architecture</h2>
+  <ul>
+    <li><strong>SoA point layout</strong> enables component-wise SIMD &mdash; iterate one
+      <code>f32</code> lane at a time without struct padding.</li>
+    <li><strong>glam</strong> provides SSE2/SSE4.1/NEON-accelerated vector and matrix math
+      out of the box.</li>
+    <li><strong>SmallVec&lt;[VertexHandle; 4]&gt;</strong> inlines the vertex list for
+      triangles and quads on the stack, avoiding heap allocation for the common case.</li>
+    <li><strong>BitVec groups</strong> use word-at-a-time boolean operations &mdash; union,
+      intersection, and complement run at memory bandwidth rather than per-element.</li>
+    <li><strong>Pre-allocated capacity</strong> &mdash; SOPs estimate output size and
+      reserve capacity up front to avoid incremental reallocation.</li>
+  </ul>
+
+  <!-- ── Error Handling ────────────────────────── -->
+  <h2>Error Handling</h2>
+  <p>ProcGeo uses three error enums, one per crate, all derived with
+    <code>thiserror</code>. <code>SopError</code> wraps <code>CoreError</code> via
+    <code>#[from]</code> so core errors propagate automatically.</p>
+
+  <h3>CoreError</h3>
+  <pre><code><span class="kw">pub enum</span> <span class="ty">CoreError</span> {
+    <span class="fn">AttributeNotFound</span>(<span class="ty">String</span>),
+    <span class="fn">AttributeTypeMismatch</span>(<span class="ty">String</span>),
+    <span class="fn">GroupNotFound</span>(<span class="ty">String</span>),
+    <span class="fn">InvalidHandle</span>,
+    <span class="fn">InvalidTopology</span>,
+}</code></pre>
+
+  <h3>SopError</h3>
+  <pre><code><span class="kw">pub enum</span> <span class="ty">SopError</span> {
+    <span class="fn">WrongInputCount</span> { expected_min: <span class="ty">usize</span>, expected_max: <span class="ty">usize</span>, got: <span class="ty">usize</span> },
+    <span class="fn">InvalidParam</span>(<span class="ty">String</span>),
+    <span class="fn">Core</span>(<span class="ty">CoreError</span>),    <span class="cm">// #[from] — auto-converts</span>
+    <span class="fn">Other</span>(<span class="ty">String</span>),
+}</code></pre>
+
+  <h3>IoError</h3>
+  <pre><code><span class="kw">pub enum</span> <span class="ty">IoError</span> {
+    <span class="fn">Io</span>(std::io::<span class="ty">Error</span>),          <span class="cm">// #[from] — auto-converts</span>
+    <span class="fn">Parse</span>(<span class="ty">String</span>),
+    <span class="fn">UnsupportedFormat</span>(<span class="ty">String</span>),
+}</code></pre>
+
+  <!-- ── Feature Flags ─────────────────────────── -->
+  <h2>Feature Flags</h2>
+  <p>Each SOP category and I/O format is gated behind a Cargo feature.
+    The umbrella <code>procgeo</code> crate enables all features by default.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>Crate</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>creation</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Box, Grid, Line, Circle, Sphere, Tube, Torus</td>
+      </tr>
+      <tr>
+        <td><code>transform</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Transform SOP</td>
+      </tr>
+      <tr>
+        <td><code>normals</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Normal SOP</td>
+      </tr>
+      <tr>
+        <td><code>merge</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Merge SOP</td>
+      </tr>
+      <tr>
+        <td><code>attributes</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Attribute Create/Delete/Promote/Rename</td>
+      </tr>
+      <tr>
+        <td><code>groups_sops</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Group Create/Combine</td>
+      </tr>
+      <tr>
+        <td><code>delete</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Blast, Delete</td>
+      </tr>
+      <tr>
+        <td><code>copy</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Copy to Points</td>
+      </tr>
+      <tr>
+        <td><code>reshape</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Subdivide, PolyExtrude, Smooth, Clip</td>
+      </tr>
+      <tr>
+        <td><code>scatter</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Scatter</td>
+      </tr>
+      <tr>
+        <td><code>topology</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Sort, Fuse, Connectivity, Resample, Reverse</td>
+      </tr>
+      <tr>
+        <td><code>measure_sops</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Measure</td>
+      </tr>
+      <tr>
+        <td><code>utility_sops</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Enumerate, Null</td>
+      </tr>
+      <tr>
+        <td><code>color</code></td>
+        <td><code>procgeo-sops</code></td>
+        <td>Color</td>
+      </tr>
+      <tr>
+        <td><code>obj</code></td>
+        <td><code>procgeo-io</code></td>
+        <td>Wavefront OBJ read/write</td>
+      </tr>
+      <tr>
+        <td><code>gltf</code></td>
+        <td><code>procgeo-io</code></td>
+        <td>glTF 2.0 / GLB write</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="info-box">
+    To use only specific features, disable default features and opt in:
+    <pre><code>[dependencies]
+procgeo = { version = <span class="st">"0.1"</span>, default-features = <span class="nu">false</span>, features = [<span class="st">"creation"</span>, <span class="st">"transform"</span>, <span class="st">"obj"</span>] }</code></pre>
+  </div>
+
+</main>
+
+</body>
+</html>

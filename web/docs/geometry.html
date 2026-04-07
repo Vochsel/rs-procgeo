@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geometry Model — ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html" class="active">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb"><a href="index.html">Docs</a> &rsaquo; Core</div>
+
+  <h1>Geometry Model</h1>
+  <p class="subtitle">The central data structure: points, vertices, primitives, attributes, and groups.</p>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Geometry Struct</h2>
+  <p>
+    <code>Geometry</code> is the central container that ties together all geometric data. It owns
+    five subsystems: <strong>point storage</strong> (SoA positions), <strong>vertex storage</strong>
+    (topology connectors), <strong>primitive storage</strong> (polygons), an
+    <strong>attribute map</strong> (typed per-element data), and a <strong>group map</strong>
+    (named boolean selections). Every SOP takes one or more <code>&amp;Geometry</code> inputs and
+    produces a new <code>Geometry</code> as output &mdash; geometry is the universal currency of the
+    pipeline.
+  </p>
+  <pre><code><span class="kw">pub struct</span> <span class="ty">Geometry</span> {
+    points:     <span class="ty">PointStorage</span>,
+    vertices:   <span class="ty">VertexStorage</span>,
+    primitives: <span class="ty">PrimStorage</span>,
+    attributes: <span class="ty">AttributeMap</span>,
+    groups:     <span class="ty">GroupMap</span>,
+}</code></pre>
+  <p>
+    Create an empty geometry with <code>Geometry::new()</code>, or pre-allocate with
+    <code>Geometry::with_capacity(points, prims)</code> when you know the expected size up front.
+  </p>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Element Hierarchy</h2>
+  <p>
+    ProcGeo follows the same element hierarchy as Houdini. Points carry position,
+    vertices connect points to primitives, and primitives define topology.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Element</th>
+        <th>Handle</th>
+        <th>Storage</th>
+        <th>Key Methods</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Point</td>
+        <td><code>PointHandle(u32)</code></td>
+        <td>SoA (<code>x[]</code>, <code>y[]</code>, <code>z[]</code>)</td>
+        <td><code>add_point</code>, <code>point_pos</code>, <code>set_point_pos</code></td>
+      </tr>
+      <tr>
+        <td>Vertex</td>
+        <td><code>VertexHandle(u32)</code></td>
+        <td>(<code>PointHandle</code>, <code>PrimHandle</code>) pairs</td>
+        <td><code>vertex_point()</code>, <code>vertex_prim()</code></td>
+      </tr>
+      <tr>
+        <td>Primitive</td>
+        <td><code>PrimHandle(u32)</code></td>
+        <td>Enum (<code>Polygon</code>)</td>
+        <td><code>add_face</code>, <code>prim_vertices</code>, <code>prim_points</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Points</h2>
+  <p>
+    Point positions are stored in a <strong>Structure-of-Arrays (SoA)</strong> layout: three
+    separate <code>Vec&lt;f32&gt;</code> for x, y, and z. This design keeps each coordinate channel
+    contiguous in memory, which is critical for two reasons:
+  </p>
+  <ul>
+    <li>
+      <strong>SIMD</strong> &mdash; operations like bounding-box computation or transform can
+      process 4/8/16 x-values at a time using SIMD intrinsics, because the data is already packed
+      in lane-friendly order.
+    </li>
+    <li>
+      <strong>Cache efficiency</strong> &mdash; when an algorithm only needs one axis (e.g.
+      height-based filtering on <code>y</code>), it reads a single dense array instead of striding
+      over interleaved <code>(x, y, z)</code> tuples.
+    </li>
+  </ul>
+
+  <h3>PointStorage</h3>
+  <pre><code><span class="kw">pub struct</span> <span class="ty">PointStorage</span> {
+    x: <span class="ty">Vec</span>&lt;<span class="ty">f32</span>&gt;,
+    y: <span class="ty">Vec</span>&lt;<span class="ty">f32</span>&gt;,
+    z: <span class="ty">Vec</span>&lt;<span class="ty">f32</span>&gt;,
+}</code></pre>
+  <p>
+    Each point is identified by a <code>PointHandle(u32)</code> &mdash; a lightweight typed index
+    returned by <code>add_point</code>.
+  </p>
+
+  <h3>Point API</h3>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>add_point</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">add_point</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, pos: <span class="ty">Vec3</span>) -&gt; <span class="ty">PointHandle</span></code></td>
+        <td>Add a point at the given position. Auto-resizes point attributes and groups.</td>
+      </tr>
+      <tr>
+        <td><code>point_pos</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">point_pos</span>(&amp;<span class="kw">self</span>, handle: <span class="ty">PointHandle</span>) -&gt; <span class="ty">Vec3</span></code></td>
+        <td>Read the position of a point.</td>
+      </tr>
+      <tr>
+        <td><code>set_point_pos</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">set_point_pos</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, handle: <span class="ty">PointHandle</span>, pos: <span class="ty">Vec3</span>)</code></td>
+        <td>Update the position of an existing point.</td>
+      </tr>
+      <tr>
+        <td><code>num_points</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">num_points</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span></code></td>
+        <td>Number of points in the geometry.</td>
+      </tr>
+      <tr>
+        <td><code>points</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">points</span>(&amp;<span class="kw">self</span>) -&gt; <span class="kw">impl</span> <span class="ty">Iterator</span>&lt;<span class="ty">Item</span> = <span class="ty">Vec3</span>&gt;</code></td>
+        <td>Iterate over all point positions as <code>Vec3</code>.</td>
+      </tr>
+      <tr>
+        <td><code>point_storage</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">point_storage</span>(&amp;<span class="kw">self</span>) -&gt; &amp;<span class="ty">PointStorage</span></code></td>
+        <td>Direct access to the SoA storage for raw slice access.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Raw Slice Access</h3>
+  <p>
+    For performance-critical code, access the underlying SoA slices directly:
+  </p>
+  <pre><code><span class="kw">let</span> storage = geo.<span class="fn">point_storage</span>();
+<span class="kw">let</span> xs: &amp;[<span class="ty">f32</span>] = storage.<span class="fn">x_slice</span>();
+<span class="kw">let</span> ys: &amp;[<span class="ty">f32</span>] = storage.<span class="fn">y_slice</span>();
+<span class="kw">let</span> zs: &amp;[<span class="ty">f32</span>] = storage.<span class="fn">z_slice</span>();
+
+<span class="cm">// Process all x-coordinates in a tight loop (SIMD-friendly)</span>
+<span class="kw">let</span> sum_x: <span class="ty">f32</span> = xs.<span class="fn">iter</span>().<span class="fn">sum</span>();</code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Vertices</h2>
+  <p>
+    Vertices are <strong>topology connectors</strong>: each vertex references exactly one
+    <code>PointHandle</code> and one <code>PrimHandle</code>. Multiple vertices can share the same
+    point &mdash; this is the standard Houdini semantic that allows per-face UVs, split normals,
+    and other vertex-level data on shared geometry.
+  </p>
+  <p>
+    Identified by <code>VertexHandle(u32)</code>, vertices are stored contiguously and grouped by
+    primitive. The underlying <code>VertexStorage</code> maintains two parallel vectors:
+    <code>point_refs</code> and <code>prim_refs</code>.
+  </p>
+  <pre><code><span class="kw">pub struct</span> <span class="ty">VertexStorage</span> {
+    point_refs: <span class="ty">Vec</span>&lt;<span class="ty">PointHandle</span>&gt;,
+    prim_refs:  <span class="ty">Vec</span>&lt;<span class="ty">PrimHandle</span>&gt;,
+}</code></pre>
+  <p>
+    Query topology through the geometry:
+  </p>
+  <pre><code><span class="kw">let</span> pt: <span class="ty">PointHandle</span> = geo.<span class="fn">vertex_point</span>(vtx_handle);  <span class="cm">// which point does this vertex use?</span>
+<span class="kw">let</span> pr: <span class="ty">PrimHandle</span> = geo.<span class="fn">vertex_prim</span>(vtx_handle);   <span class="cm">// which primitive owns this vertex?</span></code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Primitives</h2>
+  <p>
+    Primitives define the topology of the geometry. Currently ProcGeo supports one primitive type:
+    <code>Polygon</code>, which can be either <strong>open</strong> (polyline) or
+    <strong>closed</strong> (face), with an arbitrary vertex count. The primitive enum is
+    dispatched statically &mdash; no vtable overhead.
+  </p>
+  <pre><code><span class="kw">pub enum</span> <span class="ty">Primitive</span> {
+    <span class="ty">Polygon</span>(<span class="ty">PolygonPrim</span>),
+}
+
+<span class="kw">pub struct</span> <span class="ty">PolygonPrim</span> {
+    <span class="kw">pub</span> vertices: <span class="ty">SmallVec</span>&lt;[<span class="ty">VertexHandle</span>; <span class="nu">4</span>]&gt;,
+    <span class="kw">pub</span> poly_type: <span class="ty">PolyType</span>,  <span class="cm">// Open | Closed</span>
+}</code></pre>
+  <p>
+    Vertex handles are stored in a <code>SmallVec&lt;[VertexHandle; 4]&gt;</code> &mdash; quads and
+    triangles (the overwhelmingly common case) are stored inline on the stack with zero heap
+    allocation. Only polygons with 5+ vertices spill to the heap.
+  </p>
+  <p>
+    Each primitive is identified by a <code>PrimHandle(u32)</code>.
+  </p>
+
+  <h3>Primitive API</h3>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>add_face(&amp;[PointHandle])</code></td>
+        <td>Add a closed polygon from the given points. Creates vertices automatically.</td>
+      </tr>
+      <tr>
+        <td><code>add_polyline(&amp;[PointHandle])</code></td>
+        <td>Add an open polyline from the given points.</td>
+      </tr>
+      <tr>
+        <td><code>add_polygon(&amp;[PointHandle], PolyType)</code></td>
+        <td>General form &mdash; specify open or closed explicitly.</td>
+      </tr>
+      <tr>
+        <td><code>num_prims()</code></td>
+        <td>Number of primitives.</td>
+      </tr>
+      <tr>
+        <td><code>prims()</code></td>
+        <td>Iterate over all primitives as <code>&amp;Primitive</code>.</td>
+      </tr>
+      <tr>
+        <td><code>prim(handle)</code></td>
+        <td>Get a reference to a specific primitive.</td>
+      </tr>
+      <tr>
+        <td><code>prim_vertices(handle)</code></td>
+        <td>Get the vertex handles for a primitive.</td>
+      </tr>
+      <tr>
+        <td><code>prim_points(handle)</code></td>
+        <td>Resolve through vertices to get the point handles for a primitive.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Building a Triangle</h3>
+  <pre><code><span class="kw">use</span> <span class="ty">procgeo</span>::prelude::*;
+<span class="kw">use</span> <span class="ty">glam</span>::<span class="ty">Vec3</span>;
+
+<span class="kw">let</span> <span class="kw">mut</span> geo = <span class="ty">Geometry</span>::<span class="fn">new</span>();
+
+<span class="kw">let</span> p0 = geo.<span class="fn">add_point</span>(<span class="ty">Vec3</span>::<span class="fn">new</span>(<span class="nu">0.0</span>, <span class="nu">0.0</span>, <span class="nu">0.0</span>));
+<span class="kw">let</span> p1 = geo.<span class="fn">add_point</span>(<span class="ty">Vec3</span>::<span class="fn">new</span>(<span class="nu">1.0</span>, <span class="nu">0.0</span>, <span class="nu">0.0</span>));
+<span class="kw">let</span> p2 = geo.<span class="fn">add_point</span>(<span class="ty">Vec3</span>::<span class="fn">new</span>(<span class="nu">0.0</span>, <span class="nu">1.0</span>, <span class="nu">0.0</span>));
+
+<span class="kw">let</span> face = geo.<span class="fn">add_face</span>(&amp;[p0, p1, p2]);
+
+<span class="mc">assert_eq!</span>(geo.<span class="fn">num_points</span>(), <span class="nu">3</span>);
+<span class="mc">assert_eq!</span>(geo.<span class="fn">num_prims</span>(), <span class="nu">1</span>);
+<span class="mc">assert_eq!</span>(geo.<span class="fn">num_vertices</span>(), <span class="nu">3</span>);</code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Typed Handles</h2>
+  <p>
+    <code>PointHandle</code>, <code>VertexHandle</code>, and <code>PrimHandle</code> are distinct
+    newtypes wrapping <code>u32</code>. They are defined via a macro to ensure consistent API while
+    preventing accidental misuse &mdash; you cannot pass a <code>PointHandle</code> where a
+    <code>PrimHandle</code> is expected.
+  </p>
+  <pre><code><span class="cm">// This compiles:</span>
+<span class="kw">let</span> pos = geo.<span class="fn">point_pos</span>(point_handle);
+
+<span class="cm">// This does NOT compile &mdash; type mismatch at compile time:</span>
+<span class="cm">// let pos = geo.point_pos(prim_handle);</span>
+<span class="cm">//                        ^^^^^^^^^^^ expected PointHandle, found PrimHandle</span></code></pre>
+  <p>
+    Each handle provides <code>from_index(usize)</code> and <code>index() -&gt; usize</code> for
+    conversion. Handles are <code>Copy</code>, <code>Eq</code>, <code>Ord</code>, and
+    <code>Hash</code> &mdash; safe and efficient to store in collections.
+  </p>
+  <pre><code><span class="kw">let</span> h = <span class="ty">PointHandle</span>::<span class="fn">from_index</span>(<span class="nu">42</span>);
+<span class="mc">assert_eq!</span>(h.<span class="fn">index</span>(), <span class="nu">42</span>);
+<span class="mc">assert_eq!</span>(<span class="mc">format!</span>(<span class="st">"{}"</span>, h), <span class="st">"PointHandle(42)"</span>);</code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Capacity</h2>
+  <p>
+    When you know the approximate size of your geometry ahead of time, pre-allocate to avoid
+    repeated reallocation:
+  </p>
+  <pre><code><span class="cm">// Pre-allocate for ~10,000 points and ~5,000 primitives</span>
+<span class="kw">let</span> <span class="kw">mut</span> geo = <span class="ty">Geometry</span>::<span class="fn">with_capacity</span>(<span class="nu">10_000</span>, <span class="nu">5_000</span>);
+
+<span class="cm">// Vertex storage is estimated at prims * 4 (quad assumption)</span>
+<span class="cm">// Point and vertex storage pre-allocate; attributes and groups start empty</span></code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>BBox</h2>
+  <p>
+    <code>BBox</code> is an axis-aligned bounding box defined by min/max corners. It is computed
+    directly from SoA point data for efficiency.
+  </p>
+  <pre><code><span class="kw">pub struct</span> <span class="ty">BBox</span> {
+    <span class="kw">pub</span> min: <span class="ty">Vec3</span>,
+    <span class="kw">pub</span> max: <span class="ty">Vec3</span>,
+}</code></pre>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>empty()</code></td><td>Create an inverted (empty) bbox. Any <code>expand_point</code> call makes it valid.</td></tr>
+      <tr><td><code>new(min, max)</code></td><td>Create a bbox from explicit corners.</td></tr>
+      <tr><td><code>expand_point(p)</code></td><td>Grow the box to include point <code>p</code>.</td></tr>
+      <tr><td><code>expand_bbox(other)</code></td><td>Grow the box to include another bbox.</td></tr>
+      <tr><td><code>center()</code></td><td>Returns the center point of the box.</td></tr>
+      <tr><td><code>size()</code></td><td>Returns the size vector (max - min).</td></tr>
+      <tr><td><code>contains(p)</code></td><td>Test if a point is inside the box.</td></tr>
+      <tr><td><code>intersects(other)</code></td><td>Test if two bounding boxes overlap.</td></tr>
+      <tr><td><code>is_valid()</code></td><td>True when min &le; max on all axes.</td></tr>
+      <tr><td><code>from_soa(x, y, z)</code></td><td>Build a bbox directly from SoA slices &mdash; no intermediate <code>Vec3</code>.</td></tr>
+    </tbody>
+  </table>
+  <pre><code><span class="kw">let</span> bb = geo.<span class="fn">bounding_box</span>();
+<span class="kw">if</span> bb.<span class="fn">is_valid</span>() {
+    <span class="mc">println!</span>(<span class="st">"Center: {:?}, Size: {:?}"</span>, bb.<span class="fn">center</span>(), bb.<span class="fn">size</span>());
+}</code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Math</h2>
+  <p>
+    ProcGeo re-exports core math types from <code>glam</code> and provides Houdini-style helper
+    functions.
+  </p>
+
+  <h3>Re-exported Types</h3>
+  <table>
+    <thead>
+      <tr><th>Type</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>Vec2</code>, <code>Vec3</code>, <code>Vec4</code></td><td>2D, 3D, and 4D float vectors</td></tr>
+      <tr><td><code>Mat3</code>, <code>Mat4</code></td><td>3x3 and 4x4 matrices</td></tr>
+      <tr><td><code>Quat</code></td><td>Quaternion rotation</td></tr>
+      <tr><td><code>Affine3A</code></td><td>3D affine transform (aligned, SIMD-optimized)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Helper Functions</h3>
+  <table>
+    <thead>
+      <tr><th>Function</th><th>Signature</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>fit</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">fit</span>(value, old_min, old_max, new_min, new_max) -&gt; <span class="ty">f32</span></code></td>
+        <td>Remap a value from one range to another. Does not clamp &mdash; extrapolates linearly outside the input range.</td>
+      </tr>
+      <tr>
+        <td><code>efit</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">efit</span>(value, old_min, old_max, new_min, new_max) -&gt; <span class="ty">f32</span></code></td>
+        <td>Clamped remap. Like <code>fit</code> but output is clamped to <code>[new_min, new_max]</code>.</td>
+      </tr>
+      <tr>
+        <td><code>smooth</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">smooth</span>(value, min, max) -&gt; <span class="ty">f32</span></code></td>
+        <td>Hermite smooth-step: maps a value in <code>[min, max]</code> to <code>[0, 1]</code> with smooth acceleration/deceleration. Clamped outside the range.</td>
+      </tr>
+    </tbody>
+  </table>
+  <pre><code><span class="kw">use</span> <span class="ty">procgeo</span>::core::math::{<span class="fn">fit</span>, <span class="fn">efit</span>, <span class="fn">smooth</span>};
+
+<span class="kw">let</span> t = <span class="fn">fit</span>(<span class="nu">0.5</span>, <span class="nu">0.0</span>, <span class="nu">1.0</span>, <span class="nu">0.0</span>, <span class="nu">100.0</span>);     <span class="cm">// 50.0</span>
+<span class="kw">let</span> t = <span class="fn">efit</span>(<span class="nu">2.0</span>, <span class="nu">0.0</span>, <span class="nu">1.0</span>, <span class="nu">0.0</span>, <span class="nu">100.0</span>);    <span class="cm">// 100.0 (clamped)</span>
+<span class="kw">let</span> s = <span class="fn">smooth</span>(<span class="nu">0.5</span>, <span class="nu">0.0</span>, <span class="nu">1.0</span>);              <span class="cm">// 0.5 (smooth midpoint)</span></code></pre>
+</main>
+
+</body>
+</html>

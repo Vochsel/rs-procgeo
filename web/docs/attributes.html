@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attributes — ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html" class="active">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb"><a href="index.html">Docs</a> &rsaquo; Core</div>
+
+  <h1>Attributes</h1>
+  <p class="subtitle">Typed per-element data storage &mdash; 4 classes, 10 storage types, semantic qualifiers.</p>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Overview</h2>
+  <p>
+    Attributes are named, typed data arrays attached to geometry elements. Every attribute belongs
+    to one of four <strong>classes</strong> (Point, Vertex, Primitive, Detail), has one of ten
+    <strong>storage types</strong> (Int through String), and optionally carries a
+    <strong>type qualifier</strong> that encodes semantic meaning. Attributes auto-resize when
+    elements are added &mdash; new slots are filled with the attribute's default value.
+  </p>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Attribute Classes</h2>
+  <p>
+    The class determines which element the attribute is scoped to and how many values it holds.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Class</th><th>Scope</th><th>Examples</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>Point</code></td>
+        <td>One value per point</td>
+        <td>Position offsets, normals (<code>N</code>), color (<code>Cd</code>), <code>pscale</code></td>
+      </tr>
+      <tr>
+        <td><code>Vertex</code></td>
+        <td>One value per vertex</td>
+        <td>UVs (<code>uv</code>), vertex normals, tangents</td>
+      </tr>
+      <tr>
+        <td><code>Primitive</code></td>
+        <td>One value per primitive</td>
+        <td>Material ID (<code>shop_materialpath</code>), area, face normal</td>
+      </tr>
+      <tr>
+        <td><code>Detail</code></td>
+        <td>One value per geometry (singleton)</td>
+        <td>Title, frame number, global settings</td>
+      </tr>
+    </tbody>
+  </table>
+  <pre><code><span class="kw">pub enum</span> <span class="ty">AttribClass</span> {
+    <span class="ty">Point</span>,
+    <span class="ty">Vertex</span>,
+    <span class="ty">Primitive</span>,
+    <span class="ty">Detail</span>,
+}</code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Storage Types</h2>
+  <p>
+    Each attribute stores a homogeneous array of one of the following types. The storage is
+    enum-dispatched internally via <code>AttribStorage</code>.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Type</th><th>Rust Type</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>Int</code></td><td><code>i32</code></td><td>32-bit signed integer</td></tr>
+      <tr><td><code>Int64</code></td><td><code>i64</code></td><td>64-bit signed integer</td></tr>
+      <tr><td><code>Float</code></td><td><code>f32</code></td><td>32-bit float</td></tr>
+      <tr><td><code>Float64</code></td><td><code>f64</code></td><td>64-bit float</td></tr>
+      <tr><td><code>Vector2</code></td><td><code>[f32; 2]</code></td><td>2D vector (e.g. UVs)</td></tr>
+      <tr><td><code>Vector3</code></td><td><code>[f32; 3]</code></td><td>3D vector (e.g. normals, color)</td></tr>
+      <tr><td><code>Vector4</code></td><td><code>[f32; 4]</code></td><td>4D vector (e.g. quaternion, RGBA)</td></tr>
+      <tr><td><code>Matrix3</code></td><td><code>[f32; 9]</code></td><td>3x3 matrix (rotation, scale)</td></tr>
+      <tr><td><code>Matrix4</code></td><td><code>[f32; 16]</code></td><td>4x4 matrix (full transform)</td></tr>
+      <tr><td><code>String</code></td><td><code>String</code></td><td>Text data (material paths, labels)</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Type Qualifiers</h2>
+  <p>
+    Type qualifiers carry <strong>semantic meaning</strong> beyond the raw storage type. They do
+    not change how data is stored, but they inform SOPs how to transform the data correctly. For
+    example, normals transform with the inverse-transpose of the matrix (not the matrix itself),
+    and colors should not be transformed at all.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Qualifier</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>None</code></td><td>No special semantics (default)</td></tr>
+      <tr><td><code>Point</code></td><td>Position-like data &mdash; transforms with the full matrix</td></tr>
+      <tr><td><code>Vector</code></td><td>Direction &mdash; transforms with the upper 3x3 (no translation)</td></tr>
+      <tr><td><code>Normal</code></td><td>Surface normal &mdash; transforms with the inverse-transpose</td></tr>
+      <tr><td><code>Color</code></td><td>Color data &mdash; not affected by spatial transforms</td></tr>
+      <tr><td><code>Quaternion</code></td><td>Rotation quaternion &mdash; special composition rules</td></tr>
+      <tr><td><code>Matrix</code></td><td>Embedded matrix &mdash; transforms by concatenation</td></tr>
+    </tbody>
+  </table>
+  <pre><code><span class="kw">pub enum</span> <span class="ty">TypeQualifier</span> {
+    <span class="ty">None</span>,
+    <span class="ty">Point</span>,
+    <span class="ty">Vector</span>,
+    <span class="ty">Normal</span>,
+    <span class="ty">Color</span>,
+    <span class="ty">Quaternion</span>,
+    <span class="ty">Matrix</span>,
+}</code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>AttribHandle&lt;T&gt;</h2>
+  <p>
+    <code>AttribHandle&lt;T&gt;</code> provides <strong>compile-time type safety</strong> for
+    attribute access. The phantom type parameter <code>T</code> ensures you cannot accidentally
+    read a <code>Vector3</code> attribute as a <code>Float</code> &mdash; the mismatch is caught
+    at compile time, not at runtime.
+  </p>
+  <pre><code><span class="kw">pub struct</span> <span class="ty">AttribHandle</span>&lt;<span class="ty">T</span>&gt; {
+    <span class="kw">pub</span> class: <span class="ty">AttribClass</span>,
+    <span class="kw">pub</span> name:  <span class="ty">String</span>,
+    _marker:   <span class="ty">PhantomData</span>&lt;<span class="ty">T</span>&gt;,
+}</code></pre>
+
+  <h3>Full Example</h3>
+  <pre><code><span class="kw">use</span> <span class="ty">procgeo</span>::prelude::*;
+<span class="kw">use</span> <span class="ty">glam</span>::<span class="ty">Vec3</span>;
+
+<span class="kw">let</span> <span class="kw">mut</span> geo = <span class="ty">Geometry</span>::<span class="fn">new</span>();
+<span class="kw">let</span> p0 = geo.<span class="fn">add_point</span>(<span class="ty">Vec3</span>::<span class="fn">ZERO</span>);
+<span class="kw">let</span> p1 = geo.<span class="fn">add_point</span>(<span class="ty">Vec3</span>::<span class="fn">ONE</span>);
+
+<span class="cm">// Create a color attribute with a white default</span>
+geo.<span class="fn">add_attrib</span>(
+    <span class="ty">AttribClass</span>::<span class="ty">Point</span>,
+    <span class="st">"Cd"</span>,
+    <span class="ty">AttribDefault</span>::<span class="ty">Vector3</span>([<span class="nu">1.0</span>, <span class="nu">1.0</span>, <span class="nu">1.0</span>]),
+    <span class="ty">TypeQualifier</span>::<span class="ty">Color</span>,
+).<span class="fn">unwrap</span>();
+
+<span class="cm">// Get a typed handle &mdash; the [f32; 3] type is checked against storage</span>
+<span class="kw">let</span> handle: <span class="ty">AttribHandle</span>&lt;[<span class="ty">f32</span>; <span class="nu">3</span>]&gt; =
+    geo.<span class="fn">find_attrib</span>(<span class="ty">AttribClass</span>::<span class="ty">Point</span>, <span class="st">"Cd"</span>).<span class="fn">unwrap</span>();
+
+<span class="cm">// Read &mdash; both points have the default white color</span>
+<span class="kw">let</span> color = geo.<span class="fn">get_attrib</span>(&amp;handle, p0.<span class="fn">index</span>()).<span class="fn">unwrap</span>();
+<span class="mc">assert_eq!</span>(color, [<span class="nu">1.0</span>, <span class="nu">1.0</span>, <span class="nu">1.0</span>]);
+
+<span class="cm">// Write &mdash; set p1 to red</span>
+geo.<span class="fn">set_attrib</span>(&amp;handle, p1.<span class="fn">index</span>(), [<span class="nu">1.0</span>, <span class="nu">0.0</span>, <span class="nu">0.0</span>]).<span class="fn">unwrap</span>();
+<span class="mc">assert_eq!</span>(
+    geo.<span class="fn">get_attrib</span>(&amp;handle, p1.<span class="fn">index</span>()).<span class="fn">unwrap</span>(),
+    [<span class="nu">1.0</span>, <span class="nu">0.0</span>, <span class="nu">0.0</span>]
+);</code></pre>
+
+  <div class="info-box">
+    <strong>Auto-resize:</strong> When you add points, vertices, or primitives, all attributes of
+    the matching class are automatically resized and filled with their default value. You never need
+    to manually resize attribute storage.
+  </div>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>API Reference</h2>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>add_attrib</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">add_attrib</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, class, name, default, qualifier) -&gt; <span class="ty">Result</span>&lt;()&gt;</code></td>
+        <td>Create a new attribute with the given class, name, default value, and type qualifier. Fails if an attribute with the same class + name already exists.</td>
+      </tr>
+      <tr>
+        <td><code>find_attrib</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">find_attrib</span>&lt;<span class="ty">T</span>&gt;(&amp;<span class="kw">self</span>, class, name) -&gt; <span class="ty">Result</span>&lt;<span class="ty">AttribHandle</span>&lt;<span class="ty">T</span>&gt;&gt;</code></td>
+        <td>Look up an attribute by class and name, returning a typed handle. Fails if not found or if <code>T</code> does not match the stored type.</td>
+      </tr>
+      <tr>
+        <td><code>get_attrib</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">get_attrib</span>&lt;<span class="ty">T</span>&gt;(&amp;<span class="kw">self</span>, handle, index) -&gt; <span class="ty">Result</span>&lt;<span class="ty">T</span>&gt;</code></td>
+        <td>Read the value at the given element index through a typed handle.</td>
+      </tr>
+      <tr>
+        <td><code>set_attrib</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">set_attrib</span>&lt;<span class="ty">T</span>&gt;(&amp;<span class="kw">mut</span> <span class="kw">self</span>, handle, index, value) -&gt; <span class="ty">Result</span>&lt;()&gt;</code></td>
+        <td>Write a value at the given element index through a typed handle.</td>
+      </tr>
+      <tr>
+        <td><code>delete</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">delete</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, class, name) -&gt; <span class="ty">bool</span></code></td>
+        <td>Remove an attribute. Returns <code>true</code> if it existed. Called on the <code>AttributeMap</code> via <code>geo.attributes_mut().delete(...)</code>.</td>
+      </tr>
+      <tr>
+        <td><code>rename</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">rename</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, class, old, new) -&gt; <span class="ty">Result</span>&lt;()&gt;</code></td>
+        <td>Rename an attribute. Fails if the old name is not found or the new name already exists. Called on the <code>AttributeMap</code>.</td>
+      </tr>
+      <tr>
+        <td><code>get_raw</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">get_raw</span>(&amp;<span class="kw">self</span>, class, name) -&gt; <span class="ty">Option</span>&lt;&amp;<span class="ty">Attribute</span>&gt;</code></td>
+        <td>Get an untyped reference to the raw <code>Attribute</code> struct (storage, default, qualifier). Called on the <code>AttributeMap</code>.</td>
+      </tr>
+      <tr>
+        <td><code>names</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">names</span>(&amp;<span class="kw">self</span>, class) -&gt; <span class="ty">Vec</span>&lt;&amp;<span class="ty">str</span>&gt;</code></td>
+        <td>List the names of all attributes for a given class. Called on the <code>AttributeMap</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Common Attribute Names</h3>
+  <p>
+    Following Houdini conventions, these attribute names have special meaning:
+  </p>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Type</th><th>Class</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>Cd</code></td><td>Vector3</td><td>Point / Vertex</td><td>Diffuse color (RGB)</td></tr>
+      <tr><td><code>N</code></td><td>Vector3</td><td>Point / Vertex</td><td>Normal vector</td></tr>
+      <tr><td><code>uv</code></td><td>Vector3</td><td>Vertex</td><td>Texture coordinates (UVW)</td></tr>
+      <tr><td><code>pscale</code></td><td>Float</td><td>Point</td><td>Uniform point scale</td></tr>
+      <tr><td><code>id</code></td><td>Int</td><td>Point</td><td>Persistent point identifier</td></tr>
+      <tr><td><code>shop_materialpath</code></td><td>String</td><td>Primitive</td><td>Material assignment path</td></tr>
+    </tbody>
+  </table>
+</main>
+
+</body>
+</html>

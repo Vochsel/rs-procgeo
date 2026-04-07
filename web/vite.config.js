@@ -13,6 +13,12 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         target: 'esnext',
+        rollupOptions: {
+            input: {
+                main: path.resolve(__dirname, 'index.html'),
+                docs: path.resolve(__dirname, 'docs/index.html'),
+            },
+        },
     },
     resolve: {
         alias: {

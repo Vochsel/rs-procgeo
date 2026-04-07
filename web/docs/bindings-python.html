@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python API — ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html" class="active">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb"><a href="index.html">Docs</a> &rsaquo; Bindings</div>
+
+  <h1>Python API</h1>
+  <p class="subtitle">Python usage via PyO3 bindings.</p>
+
+  <!-- ── Installation ─────────────────────────── -->
+  <h2>Installation</h2>
+  <pre><code>pip install procgeo</code></pre>
+  <p>Or with <a href="https://docs.astral.sh/uv/">uv</a>:</p>
+  <pre><code>uv pip install procgeo</code></pre>
+  <p>Then import the module:</p>
+  <pre><code><span class="kw">import</span> procgeo</code></pre>
+
+  <!-- ── Geometry Object ──────────────────────── -->
+  <h2>Geometry Object</h2>
+  <p>
+    All creation and manipulation functions return a <code>Geometry</code> object. It has a
+    readable <code>repr</code> and the following properties and methods:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Property / Method</th><th>Returns</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>num_points</code></td>
+        <td><code>int</code></td>
+        <td>Number of points (property).</td>
+      </tr>
+      <tr>
+        <td><code>num_prims</code></td>
+        <td><code>int</code></td>
+        <td>Number of primitives (property).</td>
+      </tr>
+      <tr>
+        <td><code>num_vertices</code></td>
+        <td><code>int</code></td>
+        <td>Number of vertices (property).</td>
+      </tr>
+      <tr>
+        <td><code>point_pos(index)</code></td>
+        <td><code>tuple[float, float, float]</code></td>
+        <td>Position of a single point.</td>
+      </tr>
+      <tr>
+        <td><code>bounding_box()</code></td>
+        <td><code>tuple[tuple, tuple]</code></td>
+        <td>Returns <code>((min_x, min_y, min_z), (max_x, max_y, max_z))</code>.</td>
+      </tr>
+      <tr>
+        <td><code>repr(geo)</code></td>
+        <td><code>str</code></td>
+        <td><code>Geometry(points=8, prims=6, vertices=24)</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <pre><code><span class="kw">import</span> procgeo
+
+geo = procgeo.<span class="fn">create_box</span>()
+<span class="fn">print</span>(geo)                   <span class="cm"># Geometry(points=8, prims=6, vertices=24)</span>
+<span class="fn">print</span>(geo.num_points)        <span class="cm"># 8</span>
+<span class="fn">print</span>(geo.<span class="fn">point_pos</span>(<span class="nu">0</span>))      <span class="cm"># (-0.5, -0.5, -0.5)</span>
+<span class="fn">print</span>(geo.<span class="fn">bounding_box</span>())    <span class="cm"># ((-0.5, -0.5, -0.5), (0.5, 0.5, 0.5))</span></code></pre>
+
+  <!-- ── Creation Functions ───────────────────── -->
+  <h2>Creation Functions</h2>
+  <p>
+    All creation functions use keyword arguments with sensible defaults. Every parameter
+    is optional.
+  </p>
+
+  <h3>create_box</h3>
+  <pre><code>procgeo.<span class="fn">create_box</span>(
+    size_x=<span class="nu">1.0</span>, size_y=<span class="nu">1.0</span>, size_z=<span class="nu">1.0</span>,
+    center_x=<span class="nu">0.0</span>, center_y=<span class="nu">0.0</span>, center_z=<span class="nu">0.0</span>
+)</code></pre>
+  <p>Create an axis-aligned box.</p>
+
+  <h3>create_grid</h3>
+  <pre><code>procgeo.<span class="fn">create_grid</span>(
+    rows=<span class="nu">10</span>, cols=<span class="nu">10</span>,
+    size_x=<span class="nu">10.0</span>, size_y=<span class="nu">10.0</span>,
+    center_x=<span class="nu">0.0</span>, center_y=<span class="nu">0.0</span>, center_z=<span class="nu">0.0</span>
+)</code></pre>
+  <p>Create a quad grid in the XZ plane.</p>
+
+  <h3>create_sphere</h3>
+  <pre><code>procgeo.<span class="fn">create_sphere</span>(
+    radius=<span class="nu">0.5</span>, rows=<span class="nu">12</span>, cols=<span class="nu">24</span>,
+    center_x=<span class="nu">0.0</span>, center_y=<span class="nu">0.0</span>, center_z=<span class="nu">0.0</span>
+)</code></pre>
+  <p>Create a UV sphere.</p>
+
+  <h3>create_line</h3>
+  <pre><code>procgeo.<span class="fn">create_line</span>(
+    length=<span class="nu">1.0</span>, points=<span class="nu">2</span>,
+    origin_x=<span class="nu">0.0</span>, origin_y=<span class="nu">0.0</span>, origin_z=<span class="nu">0.0</span>,
+    dir_x=<span class="nu">0.0</span>, dir_y=<span class="nu">1.0</span>, dir_z=<span class="nu">0.0</span>
+)</code></pre>
+  <p>Create an open polyline along a direction.</p>
+
+  <h3>create_circle</h3>
+  <pre><code>procgeo.<span class="fn">create_circle</span>(
+    radius=<span class="nu">1.0</span>, divisions=<span class="nu">40</span>,
+    center_x=<span class="nu">0.0</span>, center_y=<span class="nu">0.0</span>, center_z=<span class="nu">0.0</span>
+)</code></pre>
+  <p>Create a circle polygon.</p>
+
+  <h3>create_tube</h3>
+  <pre><code>procgeo.<span class="fn">create_tube</span>(
+    radius_bottom=<span class="nu">0.5</span>, radius_top=<span class="nu">0.5</span>, height=<span class="nu">1.0</span>,
+    cols=<span class="nu">24</span>, rows=<span class="nu">2</span>,
+    center_x=<span class="nu">0.0</span>, center_y=<span class="nu">0.0</span>, center_z=<span class="nu">0.0</span>
+)</code></pre>
+  <p>Create a cylinder, cone, or tube. Set <code>radius_top=0</code> for a cone.</p>
+
+  <h3>create_torus</h3>
+  <pre><code>procgeo.<span class="fn">create_torus</span>(
+    radius_outer=<span class="nu">1.0</span>, radius_inner=<span class="nu">0.3</span>,
+    rows=<span class="nu">12</span>, cols=<span class="nu">24</span>,
+    center_x=<span class="nu">0.0</span>, center_y=<span class="nu">0.0</span>, center_z=<span class="nu">0.0</span>
+)</code></pre>
+  <p>Create a torus.</p>
+
+  <h3>revolve</h3>
+  <pre><code>procgeo.<span class="fn">revolve</span>(
+    geo,
+    origin_x=<span class="nu">0.0</span>, origin_y=<span class="nu">0.0</span>, origin_z=<span class="nu">0.0</span>,
+    axis_x=<span class="nu">0.0</span>, axis_y=<span class="nu">1.0</span>, axis_z=<span class="nu">0.0</span>,
+    divisions=<span class="nu">24</span>, start_angle=<span class="nu">0.0</span>, end_angle=<span class="nu">360.0</span>,
+    end_caps=<span class="kw">False</span>
+)</code></pre>
+  <p>Revolve a profile curve around an axis to create a surface of revolution.</p>
+
+  <h3>create_metaball</h3>
+  <pre><code>procgeo.<span class="fn">create_metaball</span>(
+    center_x=<span class="nu">0.0</span>, center_y=<span class="nu">0.0</span>, center_z=<span class="nu">0.0</span>,
+    radius=<span class="nu">1.0</span>, weight=<span class="nu">1.0</span>,
+    threshold=<span class="nu">1.0</span>, resolution=<span class="nu">32</span>,
+    kernel=<span class="st">"wyvill"</span>
+)</code></pre>
+  <p>Create a metaball isosurface. Kernel options: <code>"wyvill"</code>, <code>"blinn"</code>, <code>"hart"</code>.</p>
+
+  <!-- ── Manipulation Functions ───────────────── -->
+  <h2>Manipulation Functions</h2>
+  <p>
+    All manipulation functions take a <code>Geometry</code> as the first positional argument
+    and return a new <code>Geometry</code>. The original is never mutated.
+  </p>
+
+  <h3>transform</h3>
+  <pre><code>procgeo.<span class="fn">transform</span>(
+    geo,
+    translate_x=<span class="nu">0.0</span>, translate_y=<span class="nu">0.0</span>, translate_z=<span class="nu">0.0</span>,
+    rotate_x=<span class="nu">0.0</span>, rotate_y=<span class="nu">0.0</span>, rotate_z=<span class="nu">0.0</span>,
+    scale_x=<span class="nu">1.0</span>, scale_y=<span class="nu">1.0</span>, scale_z=<span class="nu">1.0</span>,
+    pivot_x=<span class="nu">0.0</span>, pivot_y=<span class="nu">0.0</span>, pivot_z=<span class="nu">0.0</span>
+)</code></pre>
+  <p>Translate, rotate (degrees), and scale geometry around a pivot.</p>
+
+  <h3>compute_normals</h3>
+  <pre><code>procgeo.<span class="fn">compute_normals</span>(geo)</code></pre>
+  <p>Compute area-weighted point normals. Stores result in the <code>"N"</code> point attribute.</p>
+
+  <h3>merge</h3>
+  <pre><code>procgeo.<span class="fn">merge</span>(geometries: <span class="ty">list</span>)</code></pre>
+  <p>Merge a list of <code>Geometry</code> objects into one.</p>
+
+  <h3>subdivide</h3>
+  <pre><code>procgeo.<span class="fn">subdivide</span>(geo, depth=<span class="nu">1</span>)</code></pre>
+  <p>Subdivide all faces. Each level quadruples face count.</p>
+
+  <h3>scatter</h3>
+  <pre><code>procgeo.<span class="fn">scatter</span>(geo, count=<span class="nu">100</span>, seed=<span class="nu">0</span>)</code></pre>
+  <p>Scatter random points on the surface of the geometry.</p>
+
+  <h3>copy_to_points</h3>
+  <pre><code>procgeo.<span class="fn">copy_to_points</span>(source, target)</code></pre>
+  <p>Instance <code>source</code> geometry at each point of <code>target</code>.</p>
+
+  <h3>poly_extrude</h3>
+  <pre><code>procgeo.<span class="fn">poly_extrude</span>(
+    geo,
+    distance=<span class="nu">1.0</span>, inset=<span class="nu">0.0</span>,
+    output_front=<span class="kw">True</span>, output_side=<span class="kw">True</span>
+)</code></pre>
+  <p>Extrude faces along their normals.</p>
+
+  <h3>smooth</h3>
+  <pre><code>procgeo.<span class="fn">smooth</span>(geo, iterations=<span class="nu">1</span>, strength=<span class="nu">0.5</span>)</code></pre>
+  <p>Laplacian smoothing.</p>
+
+  <h3>clip</h3>
+  <pre><code>procgeo.<span class="fn">clip</span>(
+    geo,
+    origin_x=<span class="nu">0.0</span>, origin_y=<span class="nu">0.0</span>, origin_z=<span class="nu">0.0</span>,
+    normal_x=<span class="nu">0.0</span>, normal_y=<span class="nu">1.0</span>, normal_z=<span class="nu">0.0</span>,
+    keep_above=<span class="kw">True</span>
+)</code></pre>
+  <p>Clip geometry by an infinite plane.</p>
+
+  <h3>reverse</h3>
+  <pre><code>procgeo.<span class="fn">reverse</span>(geo)</code></pre>
+  <p>Flip polygon winding order.</p>
+
+  <h3>resample</h3>
+  <pre><code>procgeo.<span class="fn">resample</span>(geo, length=<span class="nu">0.1</span>, max_segments=<span class="nu">1000</span>)</code></pre>
+  <p>Resample curves to uniform segment length.</p>
+
+  <h3>fuse</h3>
+  <pre><code>procgeo.<span class="fn">fuse</span>(geo, distance=<span class="nu">0.001</span>)</code></pre>
+  <p>Merge points closer than <code>distance</code>.</p>
+
+  <h3>connectivity</h3>
+  <pre><code>procgeo.<span class="fn">connectivity</span>(geo, attrib_name=<span class="st">"class"</span>)</code></pre>
+  <p>Label connected components with an integer primitive attribute.</p>
+
+  <h3>color</h3>
+  <pre><code>procgeo.<span class="fn">color</span>(geo, r=<span class="nu">1.0</span>, g=<span class="nu">1.0</span>, b=<span class="nu">1.0</span>)</code></pre>
+  <p>Set a uniform colour on all points (<code>"Cd"</code> attribute).</p>
+
+  <h3>enumerate_attrib</h3>
+  <pre><code>procgeo.<span class="fn">enumerate_attrib</span>(geo, name=<span class="st">"index"</span>, start=<span class="nu">0</span>)</code></pre>
+  <p>Add a sequential integer attribute to each point.</p>
+
+  <h3>measure_area</h3>
+  <pre><code>procgeo.<span class="fn">measure_area</span>(geo)</code></pre>
+  <p>Compute the area of each primitive and store it as an attribute.</p>
+
+  <!-- ── I/O ──────────────────────────────────── -->
+  <h2>I/O</h2>
+
+  <table>
+    <thead>
+      <tr><th>Function</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>write_obj(geo, path)</code></td>
+        <td>Write geometry as Wavefront OBJ.</td>
+      </tr>
+      <tr>
+        <td><code>write_glb(geo, path)</code></td>
+        <td>Write geometry as binary glTF (GLB).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <pre><code>procgeo.<span class="fn">write_obj</span>(geo, <span class="st">"output.obj"</span>)
+procgeo.<span class="fn">write_glb</span>(geo, <span class="st">"output.glb"</span>)</code></pre>
+
+  <!-- ── Example ──────────────────────────────── -->
+  <h2>Example</h2>
+  <p>
+    A complete Python script that builds a procedural mesh pipeline and exports the result:
+  </p>
+  <pre><code><span class="kw">import</span> procgeo
+
+<span class="cm"># Generate a torus</span>
+torus = procgeo.<span class="fn">create_torus</span>(
+    radius_outer=<span class="nu">1.5</span>,
+    radius_inner=<span class="nu">0.4</span>,
+    rows=<span class="nu">16</span>,
+    cols=<span class="nu">32</span>
+)
+
+<span class="cm"># Subdivide for a smoother surface</span>
+subdiv = procgeo.<span class="fn">subdivide</span>(torus, depth=<span class="nu">1</span>)
+
+<span class="cm"># Extrude the faces outward</span>
+extruded = procgeo.<span class="fn">poly_extrude</span>(subdiv, distance=<span class="nu">0.1</span>, inset=<span class="nu">0.05</span>)
+
+<span class="cm"># Smooth the result</span>
+smoothed = procgeo.<span class="fn">smooth</span>(extruded, iterations=<span class="nu">2</span>, strength=<span class="nu">0.3</span>)
+
+<span class="cm"># Add colour</span>
+colored = procgeo.<span class="fn">color</span>(smoothed, r=<span class="nu">0.2</span>, g=<span class="nu">0.6</span>, b=<span class="nu">0.9</span>)
+
+<span class="cm"># Compute normals for rendering</span>
+final = procgeo.<span class="fn">compute_normals</span>(colored)
+
+<span class="cm"># Inspect the result</span>
+<span class="fn">print</span>(final)
+<span class="fn">print</span>(<span class="st">f"Points: {final.num_points}"</span>)
+<span class="fn">print</span>(<span class="st">f"Prims:  {final.num_prims}"</span>)
+
+bbox = final.<span class="fn">bounding_box</span>()
+<span class="fn">print</span>(<span class="st">f"BBox min: {bbox[0]}"</span>)
+<span class="fn">print</span>(<span class="st">f"BBox max: {bbox[1]}"</span>)
+
+<span class="cm"># Scatter points on the surface</span>
+pts = procgeo.<span class="fn">scatter</span>(final, count=<span class="nu">500</span>, seed=<span class="nu">42</span>)
+<span class="fn">print</span>(<span class="st">f"Scattered {pts.num_points} points"</span>)
+
+<span class="cm"># Instance small spheres at scattered points</span>
+stamp = procgeo.<span class="fn">create_sphere</span>(radius=<span class="nu">0.02</span>)
+instances = procgeo.<span class="fn">copy_to_points</span>(stamp, pts)
+
+<span class="cm"># Merge everything</span>
+merged = procgeo.<span class="fn">merge</span>([final, instances])
+
+<span class="cm"># Export</span>
+procgeo.<span class="fn">write_obj</span>(merged, <span class="st">"torus_pipeline.obj"</span>)
+procgeo.<span class="fn">write_glb</span>(merged, <span class="st">"torus_pipeline.glb"</span>)
+
+<span class="fn">print</span>(<span class="st">"Exported!"</span>)</code></pre>
+
+  <div class="info-box">
+    All functions are synchronous and execute the full Rust geometry pipeline in-process.
+    The <code>Geometry</code> object is <code>Clone</code>-able on the Rust side, so passing
+    it to multiple functions is efficient &mdash; no deep copies occur until the geometry is
+    actually modified.
+  </div>
+
+</main>
+
+</body>
+</html>

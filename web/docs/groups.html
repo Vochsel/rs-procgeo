@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Groups — ProcGeo Documentation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html" class="active">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="breadcrumb"><a href="index.html">Docs</a> &rsaquo; Core</div>
+
+  <h1>Groups</h1>
+  <p class="subtitle">Named boolean selections of elements &mdash; for targeting SOPs and conditional processing.</p>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Overview</h2>
+  <p>
+    Groups are named boolean membership sets attached to geometry elements. They are the primary
+    mechanism for <strong>targeting SOPs</strong> &mdash; for example, passing a group name to
+    BlastSop to delete only certain points, or to TransformSop to move only selected primitives.
+    Groups auto-resize when elements are added (new slots default to <code>false</code>).
+  </p>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Group Types</h2>
+  <table>
+    <thead>
+      <tr><th>Type</th><th>Backing</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Point groups</td>
+        <td><code>BitVec</code></td>
+        <td>One bit per point. Created with <code>create_point_group</code>.</td>
+      </tr>
+      <tr>
+        <td>Vertex groups</td>
+        <td><code>BitVec</code></td>
+        <td>One bit per vertex. Created with <code>create_vertex_group</code> on the <code>GroupMap</code>.</td>
+      </tr>
+      <tr>
+        <td>Primitive groups</td>
+        <td><code>BitVec</code></td>
+        <td>One bit per primitive. Created with <code>create_prim_group</code>.</td>
+      </tr>
+      <tr>
+        <td>Edge groups</td>
+        <td><code>HashSet</code></td>
+        <td>Set of <code>(PrimHandle, edge_index)</code> pairs. Sparse &mdash; only stores edges that are members.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Point, vertex, and primitive groups use <code>bitvec</code> for compact, cache-friendly
+    storage. Edge groups use a <code>HashSet</code> because edges are identified by a
+    (primitive, edge index) pair rather than a flat index.
+  </p>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>ElementGroup API</h2>
+  <p>
+    <code>ElementGroup</code> is the bitset-backed structure used by point, vertex, and primitive
+    groups. All three group types share this same API.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Signature</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>new</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">new</span>(size: <span class="ty">usize</span>) -&gt; <span class="ty">Self</span></code></td>
+        <td>Create a group with <code>size</code> bits, all initially <code>false</code>.</td>
+      </tr>
+      <tr>
+        <td><code>contains</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">contains</span>(&amp;<span class="kw">self</span>, idx: <span class="ty">usize</span>) -&gt; <span class="ty">bool</span></code></td>
+        <td>Test if an element is in the group.</td>
+      </tr>
+      <tr>
+        <td><code>add</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">add</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, idx: <span class="ty">usize</span>)</code></td>
+        <td>Add an element to the group (set bit to <code>true</code>).</td>
+      </tr>
+      <tr>
+        <td><code>remove</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">remove</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, idx: <span class="ty">usize</span>)</code></td>
+        <td>Remove an element from the group (set bit to <code>false</code>).</td>
+      </tr>
+      <tr>
+        <td><code>set</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">set</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, idx: <span class="ty">usize</span>, value: <span class="ty">bool</span>)</code></td>
+        <td>Set membership explicitly.</td>
+      </tr>
+      <tr>
+        <td><code>count</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">count</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span></code></td>
+        <td>Number of elements in the group (popcount).</td>
+      </tr>
+      <tr>
+        <td><code>size</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">size</span>(&amp;<span class="kw">self</span>) -&gt; <span class="ty">usize</span></code></td>
+        <td>Total capacity (number of bits).</td>
+      </tr>
+      <tr>
+        <td><code>resize</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">resize</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, new_size: <span class="ty">usize</span>)</code></td>
+        <td>Grow or shrink the bitset. New bits default to <code>false</code>.</td>
+      </tr>
+      <tr>
+        <td><code>iter_set</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">iter_set</span>(&amp;<span class="kw">self</span>) -&gt; <span class="kw">impl</span> <span class="ty">Iterator</span>&lt;<span class="ty">Item</span> = <span class="ty">usize</span>&gt;</code></td>
+        <td>Iterate over the indices of all set (true) bits.</td>
+      </tr>
+      <tr>
+        <td><code>clear</code></td>
+        <td><code><span class="kw">fn</span> <span class="fn">clear</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>)</code></td>
+        <td>Set all bits to <code>false</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Boolean Operations</h2>
+  <p>
+    <code>ElementGroup</code> supports four boolean operations that modify the group in place.
+    Because the underlying storage is <code>bitvec</code>, these operations work on whole machine
+    words at a time for maximum throughput.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Operation</th><th>Method</th><th>Effect</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Union</td>
+        <td><code><span class="fn">union</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, &amp;other)</code></td>
+        <td><code>self |= other</code> &mdash; adds all elements from <code>other</code></td>
+      </tr>
+      <tr>
+        <td>Intersection</td>
+        <td><code><span class="fn">intersect</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, &amp;other)</code></td>
+        <td><code>self &amp;= other</code> &mdash; keeps only elements in both groups</td>
+      </tr>
+      <tr>
+        <td>Subtraction</td>
+        <td><code><span class="fn">subtract</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, &amp;other)</code></td>
+        <td><code>self &amp;= !other</code> &mdash; removes elements that are in <code>other</code></td>
+      </tr>
+      <tr>
+        <td>Complement</td>
+        <td><code><span class="fn">complement</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>)</code></td>
+        <td><code>self = !self</code> &mdash; flips all bits</td>
+      </tr>
+    </tbody>
+  </table>
+  <pre><code><span class="kw">let</span> <span class="kw">mut</span> a = <span class="ty">ElementGroup</span>::<span class="fn">new</span>(<span class="nu">10</span>);
+<span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..<span class="nu">6</span> { a.<span class="fn">add</span>(i); }       <span class="cm">// a = {0,1,2,3,4,5}</span>
+
+<span class="kw">let</span> <span class="kw">mut</span> b = <span class="ty">ElementGroup</span>::<span class="fn">new</span>(<span class="nu">10</span>);
+b.<span class="fn">add</span>(<span class="nu">2</span>); b.<span class="fn">add</span>(<span class="nu">3</span>); b.<span class="fn">add</span>(<span class="nu">8</span>);    <span class="cm">// b = {2,3,8}</span>
+
+<span class="kw">let</span> <span class="kw">mut</span> u = a.<span class="fn">clone</span>();
+u.<span class="fn">union</span>(&amp;b);                      <span class="cm">// u = {0,1,2,3,4,5,8}</span>
+
+<span class="kw">let</span> <span class="kw">mut</span> i = a.<span class="fn">clone</span>();
+i.<span class="fn">intersect</span>(&amp;b);                  <span class="cm">// i = {2,3}</span>
+
+<span class="kw">let</span> <span class="kw">mut</span> s = a.<span class="fn">clone</span>();
+s.<span class="fn">subtract</span>(&amp;b);                   <span class="cm">// s = {0,1,4,5}</span>
+
+<span class="kw">let</span> <span class="kw">mut</span> c = a.<span class="fn">clone</span>();
+c.<span class="fn">complement</span>();                    <span class="cm">// c = {6,7,8,9}</span></code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Geometry Group API</h2>
+  <p>
+    Groups are managed through the <code>Geometry</code> struct (convenience methods) and the
+    underlying <code>GroupMap</code> (full API). The pattern is the same for all element types.
+  </p>
+
+  <h3>Point Groups</h3>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>geo.create_point_group(name)</code></td>
+        <td>Create a new point group, sized to match the current point count.</td>
+      </tr>
+      <tr>
+        <td><code>geo.groups().point_group(name)</code></td>
+        <td>Get an immutable reference to a point group. Returns <code>Option&lt;&amp;ElementGroup&gt;</code>.</td>
+      </tr>
+      <tr>
+        <td><code>geo.groups_mut().point_group_mut(name)</code></td>
+        <td>Get a mutable reference to a point group for adding/removing members.</td>
+      </tr>
+      <tr>
+        <td><code>geo.groups_mut().delete_point_group(name)</code></td>
+        <td>Delete a point group. Returns <code>true</code> if it existed.</td>
+      </tr>
+      <tr>
+        <td><code>geo.groups().point_group_names()</code></td>
+        <td>List the names of all point groups.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Primitive Groups</h3>
+  <table>
+    <thead>
+      <tr><th>Method</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>geo.create_prim_group(name)</code></td>
+        <td>Create a new primitive group, sized to match the current prim count.</td>
+      </tr>
+      <tr>
+        <td><code>geo.groups().prim_group(name)</code></td>
+        <td>Get an immutable reference to a primitive group.</td>
+      </tr>
+      <tr>
+        <td><code>geo.groups_mut().prim_group_mut(name)</code></td>
+        <td>Get a mutable reference to a primitive group.</td>
+      </tr>
+      <tr>
+        <td><code>geo.groups_mut().delete_prim_group(name)</code></td>
+        <td>Delete a primitive group.</td>
+      </tr>
+      <tr>
+        <td><code>geo.groups().prim_group_names()</code></td>
+        <td>List the names of all primitive groups.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Vertex &amp; Edge Groups</h3>
+  <p>
+    Vertex groups follow the same pattern (<code>create_vertex_group</code>,
+    <code>vertex_group</code>, <code>vertex_group_mut</code>, <code>delete_vertex_group</code>,
+    <code>vertex_group_names</code>). Edge groups use a similar API but are backed by
+    <code>EdgeGroup</code> (a <code>HashSet&lt;(PrimHandle, u8)&gt;</code>) instead of
+    <code>ElementGroup</code>:
+  </p>
+  <pre><code><span class="cm">// Edge groups store (PrimHandle, edge_index) pairs</span>
+<span class="kw">let</span> gm = geo.<span class="fn">groups_mut</span>();
+gm.<span class="fn">create_edge_group</span>(<span class="st">"boundary"</span>);
+
+<span class="kw">let</span> eg = gm.<span class="fn">edge_group_mut</span>(<span class="st">"boundary"</span>).<span class="fn">unwrap</span>();
+eg.<span class="fn">add</span>(<span class="ty">PrimHandle</span>::<span class="fn">from_index</span>(<span class="nu">0</span>), <span class="nu">2</span>);  <span class="cm">// edge 2 of prim 0</span>
+eg.<span class="fn">contains</span>(<span class="ty">PrimHandle</span>::<span class="fn">from_index</span>(<span class="nu">0</span>), <span class="nu">2</span>); <span class="cm">// true</span></code></pre>
+
+  <!-- ────────────────────────────────────────────── -->
+  <h2>Usage Example</h2>
+  <p>
+    Create a point group based on a spatial condition, then use it with BlastSop to remove
+    selected points:
+  </p>
+  <pre><code><span class="kw">use</span> <span class="ty">procgeo</span>::prelude::*;
+<span class="kw">use</span> <span class="ty">glam</span>::<span class="ty">Vec3</span>;
+
+<span class="kw">let</span> <span class="kw">mut</span> geo = <span class="fn">generate</span>(&amp;<span class="ty">BoxSop</span>, &amp;<span class="ty">BoxParams</span>::<span class="fn">default</span>())?;
+
+<span class="cm">// Create a group for points above y = 0.5</span>
+geo.<span class="fn">create_point_group</span>(<span class="st">"top"</span>);
+{
+    <span class="kw">let</span> group = geo.<span class="fn">groups_mut</span>().<span class="fn">point_group_mut</span>(<span class="st">"top"</span>).<span class="fn">unwrap</span>();
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..geo.<span class="fn">num_points</span>() {
+        <span class="kw">if</span> geo.<span class="fn">point_pos</span>(<span class="ty">PointHandle</span>::<span class="fn">from_index</span>(i)).y &gt; <span class="nu">0.5</span> {
+            group.<span class="fn">add</span>(i);
+        }
+    }
+}
+
+<span class="cm">// Use with BlastSop to delete top points</span>
+<span class="kw">let</span> result = geo.<span class="fn">apply</span>(&amp;<span class="ty">BlastSop</span>, &amp;<span class="ty">BlastParams</span> {
+    group_name: <span class="st">"top"</span>.<span class="fn">into</span>(),
+    entity: <span class="ty">BlastEntity</span>::<span class="ty">Points</span>,
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+})?;</code></pre>
+
+  <h3>Iterating Group Members</h3>
+  <p>
+    Use <code>iter_set()</code> to efficiently iterate over only the elements that are in the group,
+    skipping unset bits:
+  </p>
+  <pre><code><span class="kw">let</span> group = geo.<span class="fn">groups</span>().<span class="fn">point_group</span>(<span class="st">"top"</span>).<span class="fn">unwrap</span>();
+<span class="kw">for</span> idx <span class="kw">in</span> group.<span class="fn">iter_set</span>() {
+    <span class="kw">let</span> pos = geo.<span class="fn">point_pos</span>(<span class="ty">PointHandle</span>::<span class="fn">from_index</span>(idx));
+    <span class="mc">println!</span>(<span class="st">"Point {} is in group 'top': {:?}"</span>, idx, pos);
+}</code></pre>
+
+  <div class="info-box">
+    <strong>Auto-resize:</strong> When you add points, vertices, or primitives, all groups of the
+    matching type are automatically resized. New elements default to <code>false</code> (not in
+    any group).
+  </div>
+</main>
+
+</body>
+</html>

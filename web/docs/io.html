@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>I/O Formats - ProcGeo Docs</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">ProcGeo <span>v0.1.0 Documentation</span></div>
+  <nav>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="architecture.html">Architecture</a>
+    <div class="nav-section">Core</div>
+    <a href="geometry.html">Geometry Model</a>
+    <a href="attributes.html">Attributes</a>
+    <a href="groups.html">Groups</a>
+    <div class="nav-section">SOPs Reference</div>
+    <a href="sops-creation.html">Creation</a>
+    <a href="sops-transform.html">Transform &amp; Reshape</a>
+    <a href="sops-topology.html">Topology</a>
+    <a href="sops-utility.html">Utility &amp; Measure</a>
+    <div class="nav-section">Bindings</div>
+    <a href="bindings-rust.html">Rust</a>
+    <a href="bindings-wasm.html">WebAssembly</a>
+    <a href="bindings-node.html">Node.js</a>
+    <a href="bindings-python.html">Python</a>
+    <div class="nav-section">I/O</div>
+    <a href="io.html" class="active">Formats</a>
+    <div class="nav-section">Examples</div>
+    <a href="examples.html">Cookbook</a>
+    <div class="nav-section">Links</div>
+    <a href="/">Playground</a>
+  </nav>
+</aside>
+
+<div class="main">
+  <div class="breadcrumb"><a href="index.html">Docs</a> / I/O</div>
+
+  <h1>I/O Formats</h1>
+  <p class="subtitle">Reading and writing geometry to files.</p>
+
+  <h2>Overview</h2>
+
+  <p>The <code>procgeo-io</code> crate provides a plugin-based I/O system. Formats are registered by feature flag and dispatched by file extension. Each format implements the <code>GeometryWriter</code> and/or <code>GeometryReader</code> traits.</p>
+
+  <table>
+    <thead>
+      <tr><th>Format</th><th>Extension</th><th>Read</th><th>Write</th><th>Feature</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Wavefront OBJ</td><td><code>.obj</code></td><td>Yes</td><td>Yes</td><td><span class="tag">obj</span></td></tr>
+      <tr><td>glTF 2.0 / GLB</td><td><code>.glb</code></td><td>--</td><td>Yes</td><td><span class="tag">gltf</span></td></tr>
+    </tbody>
+  </table>
+
+  <p>Both formats are enabled by default in the umbrella <code>procgeo</code> crate.</p>
+
+  <h2>File-Based API</h2>
+
+  <p>The simplest way to read and write geometry. The format is selected automatically from the file extension.</p>
+
+  <pre><code><span class="kw">use</span> <span class="ty">procgeo</span>::io::{<span class="fn">write_file</span>, <span class="fn">read_file</span>};
+<span class="kw">use</span> std::path::<span class="ty">Path</span>;
+
+<span class="cm">// Write geometry to OBJ</span>
+<span class="fn">write_file</span>(&amp;geo, <span class="ty">Path</span>::<span class="fn">new</span>(<span class="st">"output.obj"</span>))?;
+
+<span class="cm">// Write geometry to GLB</span>
+<span class="fn">write_file</span>(&amp;geo, <span class="ty">Path</span>::<span class="fn">new</span>(<span class="st">"output.glb"</span>))?;
+
+<span class="cm">// Read geometry from OBJ</span>
+<span class="kw">let</span> geo = <span class="fn">read_file</span>(<span class="ty">Path</span>::<span class="fn">new</span>(<span class="st">"model.obj"</span>))?;</code></pre>
+
+  <h2>Trait Interface</h2>
+
+  <p>Format implementations use two traits, making the system extensible:</p>
+
+  <pre><code><span class="kw">pub trait</span> <span class="ty">GeometryWriter</span> {
+    <span class="kw">fn</span> <span class="fn">write</span>(&amp;<span class="kw">self</span>, geo: &amp;<span class="ty">Geometry</span>, writer: &amp;<span class="kw">mut</span> <span class="kw">dyn</span> <span class="ty">Write</span>) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">IoError</span>&gt;;
+    <span class="kw">fn</span> <span class="fn">extensions</span>(&amp;<span class="kw">self</span>) -&gt; &amp;[&amp;<span class="kw">str</span>];
+}
+
+<span class="kw">pub trait</span> <span class="ty">GeometryReader</span> {
+    <span class="kw">fn</span> <span class="fn">read</span>(&amp;<span class="kw">self</span>, reader: &amp;<span class="kw">mut</span> <span class="kw">dyn</span> <span class="ty">Read</span>) -&gt; <span class="ty">Result</span>&lt;<span class="ty">Geometry</span>, <span class="ty">IoError</span>&gt;;
+    <span class="kw">fn</span> <span class="fn">extensions</span>(&amp;<span class="kw">self</span>) -&gt; &amp;[&amp;<span class="kw">str</span>];
+}
+</code></pre>
+
+  <h2>Error Handling</h2>
+
+  <pre><code><span class="kw">pub enum</span> <span class="ty">IoError</span> {
+    <span class="ty">Io</span>(std::io::<span class="ty">Error</span>),          <span class="cm">// File system errors</span>
+    <span class="ty">Parse</span>(<span class="ty">String</span>),               <span class="cm">// Malformed input data</span>
+    <span class="ty">UnsupportedFormat</span>(<span class="ty">String</span>),   <span class="cm">// Unknown file extension</span>
+}</code></pre>
+
+  <h2>Wavefront OBJ</h2>
+
+  <h3>Writing</h3>
+  <p>The OBJ writer outputs:</p>
+  <ul>
+    <li><code>v</code> records for point positions</li>
+    <li><code>vn</code> records if the <code>"N"</code> point attribute exists</li>
+    <li><code>f</code> records for closed polygons (1-indexed with optional <code>//normal</code> references)</li>
+    <li><code>l</code> records for open polylines</li>
+  </ul>
+
+  <h3>Reading</h3>
+  <p>The OBJ reader parses <code>v</code>, <code>vn</code>, <code>f</code>, and <code>l</code> records. Vertex normals are stored as the <code>"N"</code> point attribute. Other OBJ features (materials, texture coordinates, object groups) are currently ignored.</p>
+
+  <h3>Round-Trip</h3>
+  <pre><code><span class="kw">use</span> <span class="ty">procgeo</span>::prelude::*;
+
+<span class="cm">// Generate geometry</span>
+<span class="kw">let</span> geo = <span class="fn">generate</span>(&amp;<span class="ty">SphereSop</span>, &amp;<span class="ty">SphereParams</span>::<span class="fn">default</span>())?;
+<span class="kw">let</span> geo = geo.<span class="fn">apply</span>(&amp;<span class="ty">NormalSop</span>, &amp;<span class="ty">NormalParams</span>::<span class="fn">default</span>())?;
+
+<span class="cm">// Write to OBJ</span>
+<span class="ty">procgeo</span>::io::<span class="fn">write_file</span>(&amp;geo, <span class="ty">Path</span>::<span class="fn">new</span>(<span class="st">"sphere.obj"</span>))?;
+
+<span class="cm">// Read back</span>
+<span class="kw">let</span> loaded = <span class="ty">procgeo</span>::io::<span class="fn">read_file</span>(<span class="ty">Path</span>::<span class="fn">new</span>(<span class="st">"sphere.obj"</span>))?;
+<span class="kw">assert_eq!</span>(loaded.<span class="fn">num_points</span>(), geo.<span class="fn">num_points</span>());</code></pre>
+
+  <h2>glTF 2.0 / GLB</h2>
+
+  <h3>Writing</h3>
+  <p>The GLB writer produces a binary glTF 2.0 file with:</p>
+  <ul>
+    <li>Positions from point storage</li>
+    <li>Fan-triangulated indices (polygons are split into triangles)</li>
+    <li>Normals from the <code>"N"</code> attribute, if present</li>
+    <li>Vertex colors from the <code>"Cd"</code> attribute, if present</li>
+  </ul>
+
+  <div class="info-box">
+    GLB export is write-only. glTF reading is not yet implemented.
+  </div>
+
+  <h2>Binding I/O</h2>
+
+  <p>Each binding exposes I/O functions:</p>
+
+  <h3>WASM</h3>
+  <pre><code><span class="kw">const</span> objString = geo.<span class="fn">toObj</span>();      <span class="cm">// OBJ as string</span>
+<span class="kw">const</span> glbBytes  = geo.<span class="fn">toGlb</span>();      <span class="cm">// GLB as Uint8Array</span></code></pre>
+
+  <h3>Node.js</h3>
+  <pre><code><span class="kw">const</span> { <span class="fn">writeObj</span>, <span class="fn">writeGlb</span> } = <span class="fn">require</span>(<span class="st">'@procgeo/core'</span>);
+
+<span class="fn">writeObj</span>(geo, <span class="st">'output.obj'</span>);
+<span class="fn">writeGlb</span>(geo, <span class="st">'output.glb'</span>);</code></pre>
+
+  <h3>Python</h3>
+  <pre><code><span class="kw">import</span> procgeo
+
+procgeo.<span class="fn">write_obj</span>(geo, <span class="st">"output.obj"</span>)
+procgeo.<span class="fn">write_glb</span>(geo, <span class="st">"output.glb"</span>)</code></pre>
+
+  <h2>Feature Selection</h2>
+
+  <p>Disable unwanted formats to reduce binary size:</p>
+
+  <pre><code><span class="cm"># Cargo.toml — OBJ only, no glTF</span>
+[dependencies]
+procgeo = { version = <span class="st">"0.1"</span>, default-features = <span class="kw">false</span>, features = [<span class="st">"creation"</span>, <span class="st">"obj"</span>] }</code></pre>
+
+</div>
+</body>
+</html>
