@@ -849,4 +849,121 @@ result = pg.copComposite(result, wear, {
 });
 return result;
 `,
+
+    // ── Deform SOP Examples ──────────────────────────────────
+
+    bendTube: `// Bent tube — 90° L-shaped pipe
+let geo = pg.createTube({ radiusBottom: 0.15, radiusTop: 0.15, height: 3, cols: 24, rows: 16 });
+geo = pg.bend(geo, {
+  bendEnable: true,
+  bendAngle: 90,
+  captureOrigin: [0, -1.5, 0],
+  captureDirection: [0, 1, 0],
+  captureLength: 3.0,
+  upVector: [0, 0, 1],
+});
+geo = pg.color(geo, { color: [0.8, 0.45, 0.2] });
+geo = pg.computeNormals(geo);
+return geo;
+`,
+
+    twistColumn: `// Twisted column — 360° twist along full height
+let geo = pg.createBox({ size: [0.6, 4, 0.6] });
+geo = pg.subdivide(geo, { depth: 3, mode: 'linear' });
+geo = pg.bend(geo, {
+  twistEnable: true,
+  twistAngle: 360,
+  captureOrigin: [0, -2, 0],
+  captureDirection: [0, 1, 0],
+  captureLength: 4.0,
+});
+geo = pg.color(geo, { color: [0.55, 0.6, 0.75] });
+geo = pg.computeNormals(geo);
+return geo;
+`,
+
+    squashStretch: `// Squash & stretch — volume-preserving length scale on a sphere
+let geo = pg.createSphere({ radius: 1.0, rows: 16, cols: 32 });
+geo = pg.subdivide(geo, { depth: 1, mode: 'linear' });
+geo = pg.bend(geo, {
+  lengthScaleEnable: true,
+  lengthScale: 0.5,
+  preserveVolume: true,
+  captureOrigin: [0, -1, 0],
+  captureDirection: [0, 1, 0],
+  captureLength: 2.0,
+});
+geo = pg.color(geo, { color: [0.9, 0.55, 0.3] });
+geo = pg.computeNormals(geo);
+return geo;
+`,
+
+    taperCone: `// Tapered cone — cylinder tapered to a point
+let geo = pg.createTube({ radiusBottom: 0.5, radiusTop: 0.5, height: 2, cols: 24, rows: 12 });
+geo = pg.subdivide(geo, { depth: 1, mode: 'linear' });
+geo = pg.bend(geo, {
+  taperEnable: true,
+  taperValue: 0,
+  captureOrigin: [0, -1, 0],
+  captureDirection: [0, 1, 0],
+  captureLength: 2.0,
+});
+geo = pg.color(geo, { color: [0.4, 0.7, 0.5] });
+geo = pg.computeNormals(geo);
+return geo;
+`,
+
+    pointDeformWave: `// Point deform wave — grid deformed by a displaced lattice
+// Create the mesh to deform
+let grid = pg.createGrid({ rows: 40, cols: 40, sizeX: 4, sizeY: 4 });
+
+// Build a rest lattice: a line of points along X
+let restLattice = pg.createGrid({ rows: 1, cols: 10, sizeX: 4, sizeY: 0.01 });
+
+// Build a deformed lattice: same points with sine-wave Y displacement
+let deformedLattice = pg.createGrid({ rows: 1, cols: 10, sizeX: 4, sizeY: 0.01 });
+deformedLattice = pg.attribNoise(deformedLattice, {
+  attribName: 'P', dimensions: 3,
+  noiseType: 'simplex', fractal: 'standard',
+  octaves: 2, elementSize: 1.5, amplitude: 0.6, seed: 7,
+});
+
+// Deform the grid using the lattice pair
+let geo = pg.pointDeform(grid, restLattice, deformedLattice, { radius: 2.0 });
+geo = pg.color(geo, { color: [0.3, 0.6, 0.9] });
+geo = pg.computeNormals(geo);
+return geo;
+`,
+
+    // ── Boolean CSG Examples ─────────────────────────────────
+
+    booleanUnion: `// Boolean union — box + sphere merged
+let box = pg.createBox({ size: [1.2, 1.2, 1.2] });
+let sphere = pg.createSphere({ radius: 0.8, rows: 16, cols: 32 });
+sphere = pg.transform(sphere, { translate: [0.5, 0.5, 0] });
+let geo = pg.booleanOp(box, sphere, { operation: 'union' });
+geo = pg.color(geo, { color: [0.3, 0.75, 0.5] });
+geo = pg.computeNormals(geo);
+return geo;
+`,
+
+    booleanSubtract: `// Boolean subtract — spherical hole punched through a box
+let box = pg.createBox({ size: [1.5, 1.5, 1.5] });
+let sphere = pg.createSphere({ radius: 1.0, rows: 16, cols: 32 });
+sphere = pg.transform(sphere, { translate: [0.4, 0.4, 0.4] });
+let geo = pg.booleanOp(box, sphere, { operation: 'subtract' });
+geo = pg.color(geo, { color: [0.85, 0.5, 0.3] });
+geo = pg.computeNormals(geo);
+return geo;
+`,
+
+    booleanIntersect: `// Boolean intersect — only the overlapping region
+let box = pg.createBox({ size: [1.5, 1.5, 1.5] });
+let sphere = pg.createSphere({ radius: 1.0, rows: 16, cols: 32 });
+sphere = pg.transform(sphere, { translate: [0.4, 0.4, 0] });
+let geo = pg.booleanOp(box, sphere, { operation: 'intersect' });
+geo = pg.color(geo, { color: [0.5, 0.4, 0.9] });
+geo = pg.computeNormals(geo);
+return geo;
+`,
 };
