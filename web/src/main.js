@@ -12,11 +12,15 @@ let wasmReady = false;
 async function loadWasm() {
     const wasmModule = await import('procgeo-wasm');
     await wasmModule.default();
-    // Initialize GPU context for COP image processing (non-blocking, optional)
-    try { await wasmModule.initCopGpu(); } catch (e) { console.warn('COP GPU init skipped:', e.message); }
     pg = wasmModule;
     wasmReady = true;
     setStatus('Ready', 'success');
+    // Initialize GPU context for COP image processing in background (optional)
+    if (navigator.gpu) {
+        wasmModule.initCopGpu()
+            .then(() => console.log('COP GPU ready'))
+            .catch(e => console.warn('COP GPU init skipped:', e.message));
+    }
 }
 
 // ── Three.js Scene ───────────────────────────────────────
