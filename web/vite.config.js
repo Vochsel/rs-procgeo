@@ -9,6 +9,7 @@ export default defineConfig({
         port: 5173,
         open: true,
     },
+    appType: 'mpa',
     build: {
         outDir: 'dist',
         target: 'esnext',
