@@ -120,7 +120,7 @@ function setStatus(text, type = '') {
 }
 
 // ── Code Execution ───────────────────────────────────────
-function executeCode(code) {
+async function executeCode(code) {
     if (!wasmReady) {
         setStatus('WASM not loaded yet...', 'error');
         return;
@@ -128,8 +128,15 @@ function executeCode(code) {
 
     try {
         const t0 = performance.now();
-        // Wrap the code in an async function with pg available
-        const fn = new Function('pg', `"use strict"; ${code}`);
+
+        // Transpile TypeScript → JavaScript via Monaco's built-in TS compiler
+        const uri = editor.getModel().uri;
+        const worker = await monaco.languages.typescript.getTypeScriptWorker();
+        const client = await worker(uri);
+        const output = await client.getEmitOutput(uri.toString());
+        const js = output.outputFiles[0].text;
+
+        const fn = new Function('pg', `"use strict"; ${js}`);
         const result = fn(pg);
         const elapsed = (performance.now() - t0).toFixed(1);
 
@@ -245,10 +252,16 @@ declare const pg: {
 };
 `;
 
+// Create a TypeScript model so the TS worker can transpile it
+const editorModel = monaco.editor.createModel(
+    examples.basic,
+    'typescript',
+    monaco.Uri.parse('file:///main.ts')
+);
+
 // Create editor
 const editor = monaco.editor.create(document.getElementById('editor'), {
-    value: examples.basic,
-    language: 'javascript',
+    model: editorModel,
     theme: 'vs-dark',
     fontSize: 14,
     lineNumbers: 'on',
@@ -263,19 +276,18 @@ const editor = monaco.editor.create(document.getElementById('editor'), {
 });
 
 // Suppress diagnostics — user code runs inside new Function() so top-level return is valid
-monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: true,
     noSyntaxValidation: true,
 });
 
-monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
     target: monaco.languages.typescript.ScriptTarget.ESNext,
     allowNonTsExtensions: true,
-    allowJs: true,
-    checkJs: true,
+    module: monaco.languages.typescript.ModuleKind.None,
 });
 
-monaco.languages.typescript.javascriptDefaults.addExtraLib(procgeoTypes, 'procgeo.d.ts');
+monaco.languages.typescript.typescriptDefaults.addExtraLib(procgeoTypes, 'procgeo.d.ts');
 
 // ── Debounced auto-compile ───────────────────────────────
 let debounceTimer = null;
