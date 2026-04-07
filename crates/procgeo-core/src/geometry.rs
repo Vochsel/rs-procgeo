@@ -263,21 +263,19 @@ impl Geometry {
     ) -> Result<(), CoreError> {
         // When writing to the P attribute on Points, also update PointStorage
         // so that point_pos() stays in sync.
-        if handle.class == AttribClass::Point && handle.name == "P" {
-            if T::attrib_type() == AttribType::Vector3 {
-                // T is [f32; 3] — extract the components via the attribute storage
-                // (set in AttributeMap first, then read back to update PointStorage).
-                self.attributes.set(handle, index, value)?;
-                // Read back the [f32;3] from the P attribute to push into PointStorage.
-                let p_handle: AttribHandle<[f32; 3]> = AttribHandle::new(AttribClass::Point, "P");
-                if let Ok(arr) = self.attributes.get(&p_handle, index) {
-                    self.points.set_position(
-                        PointHandle::from_index(index),
-                        Vec3::new(arr[0], arr[1], arr[2]),
-                    );
-                }
-                return Ok(());
+        if handle.class == AttribClass::Point && handle.name == "P" && T::attrib_type() == AttribType::Vector3 {
+            // T is [f32; 3] — extract the components via the attribute storage
+            // (set in AttributeMap first, then read back to update PointStorage).
+            self.attributes.set(handle, index, value)?;
+            // Read back the [f32;3] from the P attribute to push into PointStorage.
+            let p_handle: AttribHandle<[f32; 3]> = AttribHandle::new(AttribClass::Point, "P");
+            if let Ok(arr) = self.attributes.get(&p_handle, index) {
+                self.points.set_position(
+                    PointHandle::from_index(index),
+                    Vec3::new(arr[0], arr[1], arr[2]),
+                );
             }
+            return Ok(());
         }
         self.attributes.set(handle, index, value)
     }

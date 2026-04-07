@@ -13,20 +13,11 @@ pub enum MeasureType {
     Perimeter,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MeasureParams {
     pub measure_type: MeasureType,
     /// Attribute name; if empty, defaults to "area" or "perimeter" based on type.
     pub attrib_name: String,
-}
-
-impl Default for MeasureParams {
-    fn default() -> Self {
-        MeasureParams {
-            measure_type: MeasureType::default(),
-            attrib_name: String::new(),
-        }
-    }
 }
 
 impl MeasureParams {

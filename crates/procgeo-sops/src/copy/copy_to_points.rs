@@ -37,7 +37,7 @@ fn read_vec3(geo: &Geometry, name: &str, pt: usize) -> Option<Vec3> {
     geo.find_attrib::<[f32; 3]>(AttribClass::Point, name)
         .ok()
         .and_then(|h| geo.get_attrib(&h, pt).ok())
-        .map(|a| Vec3::from(a))
+        .map(Vec3::from)
 }
 
 /// Try to find and read a quaternion (vec4) point attribute value.

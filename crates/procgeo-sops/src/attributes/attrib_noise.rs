@@ -228,14 +228,12 @@ fn simplex(pos: [f32; 3], seed: u64) -> f32 {
         } else {
             (0, 0, 1, 1, 0, 1)
         }
+    } else if y0 < z0 {
+        (0, 0, 1, 0, 1, 1)
+    } else if x0 < z0 {
+        (0, 1, 0, 0, 1, 1)
     } else {
-        if y0 < z0 {
-            (0, 0, 1, 0, 1, 1)
-        } else if x0 < z0 {
-            (0, 1, 0, 0, 1, 1)
-        } else {
-            (0, 1, 0, 1, 1, 0)
-        }
+        (0, 1, 0, 1, 1, 0)
     };
 
     // Offsets for the 4 simplex corners
@@ -659,7 +657,7 @@ impl Sop for AttribNoiseSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::grid::{GridOrientation, GridParams, GridSop};
+    use crate::creation::grid::{GridParams, GridSop};
     use crate::{generate, GeometryExt};
 
     fn make_grid() -> Geometry {

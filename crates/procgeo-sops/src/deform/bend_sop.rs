@@ -8,33 +8,23 @@ use procgeo_core::Geometry;
 use crate::{Sop, SopError};
 
 /// How the bend direction is specified.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum BendMode {
     /// Specify bend as an angle in degrees.
+    #[default]
     Angle,
     /// Specify bend toward a goal direction.
     Direction,
 }
 
-impl Default for BendMode {
-    fn default() -> Self {
-        BendMode::Angle
-    }
-}
-
 /// How taper falloff is computed along the capture region.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum TaperMode {
     /// Linear interpolation.
+    #[default]
     Linear,
     /// Smooth (cubic) interpolation.
     Smooth,
-}
-
-impl Default for TaperMode {
-    fn default() -> Self {
-        TaperMode::Linear
-    }
 }
 
 /// Parameters for the Bend SOP, mirroring Houdini defaults.
@@ -533,7 +523,7 @@ impl Sop for BendSop {
             // Determine if this point should be deformed
             let (should_deform, t, is_backward) = if params.deform_both_directions {
                 // Both directions: t in [-1, 1], deform both sides
-                if params.limit_to_capture_region && (raw_t < -1.0 || raw_t > 1.0) {
+                if params.limit_to_capture_region && !(-1.0..=1.0).contains(&raw_t) {
                     (false, raw_t, false)
                 } else {
                     let backward = raw_t < 0.0;
@@ -541,7 +531,7 @@ impl Sop for BendSop {
                 }
             } else {
                 // Single direction: t in [0, 1]
-                if params.limit_to_capture_region && (raw_t < 0.0 || raw_t > 1.0) {
+                if params.limit_to_capture_region && !(0.0..=1.0).contains(&raw_t) {
                     (false, raw_t, false)
                 } else {
                     (true, raw_t, false)

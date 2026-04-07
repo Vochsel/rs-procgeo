@@ -76,7 +76,7 @@ impl Sop for AttribBlurSop {
             AttribType::Float => {
                 let handle = out
                     .find_attrib::<f32>(AttribClass::Point, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
 
                 for _ in 0..params.iterations {
                     let current: Vec<f32> = (0..num_pts)
@@ -104,7 +104,7 @@ impl Sop for AttribBlurSop {
             AttribType::Vector3 => {
                 let handle = out
                     .find_attrib::<[f32; 3]>(AttribClass::Point, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
 
                 for _ in 0..params.iterations {
                     let current: Vec<[f32; 3]> = (0..num_pts)

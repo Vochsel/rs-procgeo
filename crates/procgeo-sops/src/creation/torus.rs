@@ -68,11 +68,9 @@ impl Sop for TorusSop {
 
         // Generate points: rows = tubes around the ring, cols = ring cross-section
         let mut handles = vec![vec![]; rows];
-        for row_idx in 0..rows {
+        for (row_idx, row) in handles.iter_mut().enumerate() {
             let theta = TAU * row_idx as f32 / rows as f32; // major angle
             let (sin_t, cos_t) = theta.sin_cos();
-            let center_x = ro * cos_t;
-            let center_z = ro * sin_t;
 
             for col_idx in 0..cols {
                 let phi = TAU * col_idx as f32 / cols as f32; // minor angle
@@ -83,9 +81,7 @@ impl Sop for TorusSop {
                     ri * sin_p,
                     (ro + ri * cos_p) * sin_t,
                 );
-                let _ = center_x; // suppress unused warning
-                let _ = center_z;
-                handles[row_idx].push(geo.add_point(pos));
+                row.push(geo.add_point(pos));
             }
         }
 

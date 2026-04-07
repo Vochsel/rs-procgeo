@@ -32,23 +32,12 @@ pub enum SortAxis {
     Z,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SortParams {
     pub entity: SortEntity,
     pub mode: SortMode,
     pub axis: SortAxis,
     pub seed: u64,
-}
-
-impl Default for SortParams {
-    fn default() -> Self {
-        SortParams {
-            entity: SortEntity::default(),
-            mode: SortMode::default(),
-            axis: SortAxis::default(),
-            seed: 0,
-        }
-    }
 }
 
 pub struct SortSop;

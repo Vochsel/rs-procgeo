@@ -25,20 +25,15 @@ use super::kdtree::KdTree;
 // ===========================================================================
 
 /// Operating mode for the SOP.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum PointDeformMode {
     /// Capture nearby lattice points *and* deform in one pass.
+    #[default]
     CaptureAndDeform,
     /// Only capture (store weights). Stub — array attribs not yet supported.
     Capture,
     /// Only deform from previously captured weights. Stub.
     Deform,
-}
-
-impl Default for PointDeformMode {
-    fn default() -> Self {
-        PointDeformMode::CaptureAndDeform
-    }
 }
 
 /// Parameters for the PointDeform SOP, closely matching Houdini's defaults.
@@ -418,9 +413,9 @@ fn compute_local_transforms(
             // Outer product: def_offset * rest_offset^T
             // H[row][col] += def_offset[row] * rest_offset[col]
             // glam Mat3 is column-major, so mat.col(c)[r]
-            for col in 0..3 {
-                for row in 0..3 {
-                    h[col][row] += component(def_offset, row) * component(rest_offset, col);
+            for (col, col_h) in h.iter_mut().enumerate() {
+                for (row, cell) in col_h.iter_mut().enumerate() {
+                    *cell += component(def_offset, row) * component(rest_offset, col);
                 }
             }
         }

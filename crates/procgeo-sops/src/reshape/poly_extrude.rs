@@ -104,10 +104,9 @@ impl Sop for PolyExtrudeSop {
 
             // Create extruded points
             let mut extruded_handles: Vec<PointHandle> = Vec::with_capacity(n);
-            for i in 0..n {
-                let base_pos = positions[i];
+            for base_pos in &positions {
                 // Offset by distance along normal
-                let mut ext_pos = base_pos + normal * params.distance;
+                let mut ext_pos = *base_pos + normal * params.distance;
                 // Apply inset: move toward centroid
                 if params.inset > 0.0 {
                     let centroid_ext = centroid + normal * params.distance;

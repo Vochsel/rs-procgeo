@@ -24,8 +24,9 @@ use super::splitting::{split_triangle, CutEdge, TriFragment};
 // ---------------------------------------------------------------------------
 
 /// Boolean operation mode.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum BooleanOp {
+    #[default]
     Union,
     Intersect,
     Subtract,
@@ -36,52 +37,31 @@ pub enum BooleanOp {
     Custom,
 }
 
-impl Default for BooleanOp {
-    fn default() -> Self {
-        BooleanOp::Union
-    }
-}
-
 /// How to treat input geometry.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum BooleanTreatAs {
+    #[default]
     Solid,
     Surface,
 }
 
-impl Default for BooleanTreatAs {
-    fn default() -> Self {
-        BooleanTreatAs::Solid
-    }
-}
-
 /// De-triangulation mode for the output.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum Detriangulate {
+    #[default]
     All,
     OnlyUnchanged,
     None,
 }
 
-impl Default for Detriangulate {
-    fn default() -> Self {
-        Detriangulate::All
-    }
-}
-
 /// Custom match mode for the Custom operation.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum CustomMatch {
     A,
     B,
+    #[default]
     Both,
     ExactlyOne,
-}
-
-impl Default for CustomMatch {
-    fn default() -> Self {
-        CustomMatch::Both
-    }
 }
 
 // ---------------------------------------------------------------------------

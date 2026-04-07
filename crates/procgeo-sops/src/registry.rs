@@ -344,4 +344,32 @@ mod tests {
         let result = reg.execute("box", &[], "not valid json");
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_registry_has_bend() {
+        let reg = default_registry();
+        assert!(reg.has("bend"));
+    }
+
+    #[test]
+    fn test_registry_has_point_deform() {
+        let reg = default_registry();
+        assert!(reg.has("pointdeform"));
+    }
+
+    #[test]
+    fn test_registry_has_boolean() {
+        let reg = default_registry();
+        assert!(reg.has("boolean"));
+    }
+
+    #[test]
+    fn test_execute_bend_via_registry() {
+        let reg = default_registry();
+        let geo = reg.execute("box", &[], "{}").unwrap();
+        let result = reg
+            .execute("bend", &[&geo], r#"{"bend_enable": true, "bend_angle": 45.0, "capture_length": 1.0}"#)
+            .unwrap();
+        assert_eq!(result.num_points(), 8);
+    }
 }

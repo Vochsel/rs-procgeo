@@ -55,8 +55,9 @@ impl AttribType {
 // TypeQualifier
 // ---------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TypeQualifier {
+    #[default]
     None,
     Point,
     Vector,
@@ -64,12 +65,6 @@ pub enum TypeQualifier {
     Color,
     Quaternion,
     Matrix,
-}
-
-impl Default for TypeQualifier {
-    fn default() -> Self {
-        TypeQualifier::None
-    }
 }
 
 // ---------------------------------------------------------------------------

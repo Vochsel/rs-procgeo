@@ -277,11 +277,9 @@ impl TriangleBvh {
                         self.traverse_pair(al, other, b_idx, pairs);
                         self.traverse_pair(ar, other, b_idx, pairs);
                     }
-                } else {
-                    if let (Some(bl), Some(br)) = (b.left, b.right) {
-                        self.traverse_pair(a_idx, other, bl, pairs);
-                        self.traverse_pair(a_idx, other, br, pairs);
-                    }
+                } else if let (Some(bl), Some(br)) = (b.left, b.right) {
+                    self.traverse_pair(a_idx, other, bl, pairs);
+                    self.traverse_pair(a_idx, other, br, pairs);
                 }
             }
         }

@@ -84,12 +84,12 @@ impl Sop for NormalSop {
         // Normalize and store
         let n_handle = geo
             .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
-            .map_err(|e| SopError::Core(e))?;
+            .map_err(SopError::Core)?;
 
-        for i in 0..num_pts {
-            let n = normals[i].normalize_or_zero();
+        for (i, normal) in normals.iter().enumerate() {
+            let n = normal.normalize_or_zero();
             geo.set_attrib(&n_handle, i, [n.x, n.y, n.z])
-                .map_err(|e| SopError::Core(e))?;
+                .map_err(SopError::Core)?;
         }
 
         Ok(geo)

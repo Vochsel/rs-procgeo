@@ -263,9 +263,8 @@ fn catmull_clark_once(geo: &Geometry) -> Geometry {
     // ---------------------------------------------------------------------------
     let mut updated_vert_pos: Vec<Vec3> = Vec::with_capacity(num_pts);
 
-    for vi in 0..num_pts {
+    for (vi, adj_faces) in vert_to_faces.iter().enumerate() {
         let p = geo.point_pos(PointHandle::from_index(vi));
-        let adj_faces = &vert_to_faces[vi];
         let n = adj_faces.len();
 
         if n == 0 {
@@ -297,7 +296,7 @@ fn catmull_clark_once(geo: &Geometry) -> Geometry {
         let boundary_edges: Vec<(usize, usize)> = adj_edges
             .iter()
             .filter(|&&key| {
-                edge_to_faces.get(&key).map_or(false, |faces| faces.len() == 1)
+                edge_to_faces.get(&key).is_some_and(|faces| faces.len() == 1)
             })
             .copied()
             .collect();
@@ -373,12 +372,10 @@ fn catmull_clark_once(geo: &Geometry) -> Geometry {
     //     For each vertex vi:
     //       new quad = [updated(vi), edge_pt(vi, vi+1), face_pt, edge_pt(vi-1, vi)]
     // ---------------------------------------------------------------------------
-    for prim_idx in 0..num_prims {
+    for (prim_idx, &fp_h) in face_to_out.iter().enumerate() {
         let ph = PrimHandle::from_index(prim_idx);
         let pt_handles = geo.prim_points(ph);
         let n = pt_handles.len();
-
-        let fp_h = face_to_out[prim_idx];
 
         for i in 0..n {
             let vi = pt_handles[i].index();

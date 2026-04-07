@@ -81,7 +81,7 @@ impl Sop for AttribCopySop {
             AttribType::Float => {
                 let src_handle = src_geo
                     .find_attrib::<f32>(params.class, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
                 let src_values: Vec<f32> = (0..src_count)
                     .map(|i| src_geo.get_attrib(&src_handle, i).unwrap_or(0.0))
                     .collect();
@@ -94,7 +94,7 @@ impl Sop for AttribCopySop {
                 );
                 let dst_handle = out
                     .find_attrib::<f32>(params.class, &dst_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
 
                 for di in 0..dst_count {
                     let si = di % src_count;
@@ -105,7 +105,7 @@ impl Sop for AttribCopySop {
             AttribType::Vector3 => {
                 let src_handle = src_geo
                     .find_attrib::<[f32; 3]>(params.class, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
                 let src_values: Vec<[f32; 3]> = (0..src_count)
                     .map(|i| src_geo.get_attrib(&src_handle, i).unwrap_or([0.0; 3]))
                     .collect();
@@ -118,7 +118,7 @@ impl Sop for AttribCopySop {
                 );
                 let dst_handle = out
                     .find_attrib::<[f32; 3]>(params.class, &dst_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
 
                 for di in 0..dst_count {
                     let si = di % src_count;
@@ -129,7 +129,7 @@ impl Sop for AttribCopySop {
             AttribType::Int => {
                 let src_handle = src_geo
                     .find_attrib::<i32>(params.class, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
                 let src_values: Vec<i32> = (0..src_count)
                     .map(|i| src_geo.get_attrib(&src_handle, i).unwrap_or(0))
                     .collect();
@@ -142,7 +142,7 @@ impl Sop for AttribCopySop {
                 );
                 let dst_handle = out
                     .find_attrib::<i32>(params.class, &dst_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
 
                 for di in 0..dst_count {
                     let si = di % src_count;

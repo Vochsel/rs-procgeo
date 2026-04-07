@@ -68,7 +68,7 @@ impl Sop for AttribSortSop {
             AttribType::Float => {
                 let handle = out
                     .find_attrib::<f32>(params.class, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
 
                 let mut values: Vec<f32> = (0..count)
                     .map(|i| out.get_attrib(&handle, i).unwrap_or(0.0))
@@ -88,7 +88,7 @@ impl Sop for AttribSortSop {
             AttribType::Vector3 => {
                 let handle = out
                     .find_attrib::<[f32; 3]>(params.class, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
 
                 let comp = params.component.min(2);
                 let mut values: Vec<[f32; 3]> = (0..count)

@@ -65,7 +65,7 @@ impl Sop for AttribTransferSop {
                 // Collect source values
                 let src_handle = src_geo
                     .find_attrib::<f32>(params.class, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
                 let src_values: Vec<f32> = (0..num_src)
                     .map(|i| src_geo.get_attrib(&src_handle, i).unwrap_or(0.0))
                     .collect();
@@ -77,19 +77,18 @@ impl Sop for AttribTransferSop {
 
                 let dst_handle = out
                     .find_attrib::<f32>(params.class, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
 
                 let new_values: Vec<f32> = (0..num_dst)
                     .map(|di| {
                         let dst_pos = out.point_pos(PointHandle::from_index(di));
-                        let val = transfer_float(
+                        transfer_float(
                             dst_pos,
                             &src_positions,
                             &src_values,
                             params.max_samples,
                             params.distance_threshold,
-                        );
-                        val
+                        )
                     })
                     .collect();
 
@@ -108,7 +107,7 @@ impl Sop for AttribTransferSop {
 
                 let src_handle = src_geo
                     .find_attrib::<[f32; 3]>(params.class, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
                 let src_values: Vec<[f32; 3]> = (0..num_src)
                     .map(|i| src_geo.get_attrib(&src_handle, i).unwrap_or([0.0; 3]))
                     .collect();
@@ -119,7 +118,7 @@ impl Sop for AttribTransferSop {
 
                 let dst_handle = out
                     .find_attrib::<[f32; 3]>(params.class, &params.attrib_name)
-                    .map_err(|e| SopError::Core(e))?;
+                    .map_err(SopError::Core)?;
 
                 let new_values: Vec<[f32; 3]> = (0..num_dst)
                     .map(|di| {

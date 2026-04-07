@@ -61,7 +61,7 @@ impl Sop for FuseSop {
         let mut grid: HashMap<CellKey, Vec<usize>> =
             HashMap::with_capacity(num_pts.min(1 << 20));
 
-        for i in 0..num_pts {
+        for (i, entry) in merge_map.iter_mut().enumerate() {
             let pi = geo.point_pos(PointHandle::from_index(i));
             let ci = CellKey::from_pos(pi, inv_cell);
             let mut merged = false;
@@ -76,7 +76,7 @@ impl Sop for FuseSop {
                                 let pj = geo.point_pos(PointHandle::from_index(j));
                                 let diff = pi - pj;
                                 if diff.dot(diff) <= dist_sq {
-                                    merge_map[i] = j;
+                                    *entry = j;
                                     merged = true;
                                     break 'outer;
                                 }

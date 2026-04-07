@@ -136,7 +136,7 @@ impl Sop for RevolveSop {
             }
 
             // Generate quads between adjacent columns
-            let col_count = if is_full { divs } else { divs };
+            let col_count = divs;
             for col_idx in 0..col_count {
                 let cur = &rings[col_idx];
                 let next = if is_full {
@@ -157,7 +157,7 @@ impl Sop for RevolveSop {
             // End caps for partial revolutions
             if !is_full && params.end_caps && num_rows >= 3 {
                 // Start cap: first column of points as a face
-                let start_ring: Vec<_> = rings[0].iter().copied().collect();
+                let start_ring: Vec<_> = rings[0].to_vec();
                 geo.add_face(&start_ring);
 
                 // End cap: last column of points as a face (reversed winding)

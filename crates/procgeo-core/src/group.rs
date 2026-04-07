@@ -259,7 +259,7 @@ impl GroupMap {
     pub fn create_edge_group(&mut self, name: impl Into<String>) {
         self.edge_groups
             .entry(name.into())
-            .or_insert_with(EdgeGroup::new);
+            .or_default();
     }
 
     pub fn edge_group(&self, name: &str) -> Option<&EdgeGroup> {

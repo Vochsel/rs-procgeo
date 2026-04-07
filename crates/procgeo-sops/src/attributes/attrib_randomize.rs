@@ -146,7 +146,7 @@ impl Sop for AttribRandomizeSop {
             );
             let handle = out
                 .find_attrib::<f32>(params.class, &params.attrib_name)
-                .map_err(|e| SopError::Core(e))?;
+                .map_err(SopError::Core)?;
 
             let new_vals: Vec<f32> = (0..count)
                 .map(|i| {
@@ -169,7 +169,7 @@ impl Sop for AttribRandomizeSop {
             );
             let handle = out
                 .find_attrib::<[f32; 3]>(params.class, &params.attrib_name)
-                .map_err(|e| SopError::Core(e))?;
+                .map_err(SopError::Core)?;
 
             let new_vals: Vec<[f32; 3]> = (0..count)
                 .map(|i| {

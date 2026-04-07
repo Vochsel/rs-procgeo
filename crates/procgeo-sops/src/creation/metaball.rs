@@ -109,7 +109,6 @@ fn eval_field(pos: Vec3, balls: &[MetaballDef], kernel: &MetaballKernel) -> f32 
 /// Rather than embedding the full 256-entry table, we implement a simplified
 /// marching cubes that processes each cube by checking all 12 edges and forming
 /// triangles from the intersection vertices.
-
 impl Sop for MetaballSop {
     type Params = MetaballParams;
 
