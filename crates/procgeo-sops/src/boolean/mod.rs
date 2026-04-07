@@ -2,3 +2,4 @@
 
 pub mod bvh;
 pub mod intersection;
+pub mod splitting;
