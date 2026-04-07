@@ -53,7 +53,7 @@ impl Cop for ResizeCop {
         (1, 1)
     }
 
-    fn execute(&self, inputs: &[&Image], params: &ResizeParams) -> Result<Image, CopError> {
+    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &ResizeParams) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
 
         if params.width == 0 || params.height == 0 {
@@ -61,12 +61,10 @@ impl Cop for ResizeCop {
                 "resize width and height must be > 0".into(),
             ));
         }
-
-        let ctx: Arc<GpuContext> = Arc::clone(inputs[0].ctx());
         let input = inputs[0];
 
         // Output dimensions come from params, NOT from input
-        let output = Image::create_storage(Arc::clone(&ctx), params.width, params.height);
+        let output = Image::create_storage(Arc::clone(ctx), params.width, params.height);
 
         let uniform = ResizeUniform {
             src_width: input.width(),
@@ -167,7 +165,7 @@ mod tests {
             filter: FilterMode::Nearest,
         };
 
-        let output = ResizeCop.execute(&[&input], &params).expect("execute failed");
+        let output = ResizeCop.execute(&ctx, &[&input], &params).expect("execute failed");
         assert_eq!(output.width(), 2);
         assert_eq!(output.height(), 2);
 
@@ -201,7 +199,7 @@ mod tests {
             filter: FilterMode::Bilinear,
         };
 
-        let output = ResizeCop.execute(&[&input], &params).expect("execute failed");
+        let output = ResizeCop.execute(&ctx, &[&input], &params).expect("execute failed");
         assert_eq!(output.width(), 8);
         assert_eq!(output.height(), 8);
 

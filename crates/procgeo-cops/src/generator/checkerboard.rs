@@ -59,23 +59,18 @@ impl Cop for CheckerboardCop {
     }
 
     fn input_count(&self) -> (usize, usize) {
-        (0, 1)
+        (0, 0)
     }
 
     fn execute(
         &self,
+        ctx: &Arc<GpuContext>,
         inputs: &[&Image],
         params: &CheckerboardParams,
     ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
 
-        let ctx: Arc<GpuContext> = if !inputs.is_empty() {
-            Arc::clone(inputs[0].ctx())
-        } else {
-            return Err(CopError::NoContext);
-        };
-
-        let output = Image::create_storage(Arc::clone(&ctx), params.width, params.height);
+        let output = Image::create_storage(Arc::clone(ctx), params.width, params.height);
 
         let uniform_data = CheckerboardUniform {
             color_a: params.color_a,
@@ -163,7 +158,7 @@ mod tests {
             height: 4,
         };
 
-        let img = generate_cop(ctx, &CheckerboardCop, &params).expect("execute failed");
+        let img = generate_cop(&ctx, &CheckerboardCop, &params).expect("execute failed");
         assert_eq!(img.width(), 4);
         assert_eq!(img.height(), 4);
 
@@ -207,7 +202,7 @@ mod tests {
         params.width = 16;
         params.height = 16;
 
-        let img = generate_cop(ctx, &CheckerboardCop, &params).expect("execute failed");
+        let img = generate_cop(&ctx, &CheckerboardCop, &params).expect("execute failed");
         assert_eq!(img.width(), 16);
         assert_eq!(img.height(), 16);
 

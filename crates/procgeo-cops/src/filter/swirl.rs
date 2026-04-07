@@ -52,13 +52,11 @@ impl Cop for SwirlCop {
         (1, 1)
     }
 
-    fn execute(&self, inputs: &[&Image], params: &SwirlParams) -> Result<Image, CopError> {
+    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &SwirlParams) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
-
-        let ctx: Arc<GpuContext> = Arc::clone(inputs[0].ctx());
         let input = inputs[0];
 
-        let output = Image::create_storage(Arc::clone(&ctx), input.width(), input.height());
+        let output = Image::create_storage(Arc::clone(ctx), input.width(), input.height());
 
         let uniform = SwirlUniform {
             center: params.center,
@@ -145,7 +143,7 @@ mod tests {
         let input = Image::from_cpu(Arc::clone(&ctx), 8, 8, &data).expect("from_cpu failed");
 
         let params = SwirlParams::default();
-        let output = SwirlCop.execute(&[&input], &params).expect("execute failed");
+        let output = SwirlCop.execute(&ctx, &[&input], &params).expect("execute failed");
 
         assert_eq!(output.width(), 8);
         assert_eq!(output.height(), 8);

@@ -98,11 +98,12 @@ impl Cop for RampCop {
     }
 
     fn input_count(&self) -> (usize, usize) {
-        (0, 1)
+        (0, 0)
     }
 
     fn execute(
         &self,
+        ctx: &Arc<GpuContext>,
         inputs: &[&Image],
         params: &RampParams,
     ) -> Result<Image, CopError> {
@@ -112,13 +113,7 @@ impl Cop for RampCop {
             return Err(CopError::InvalidParam("ramp must have at least one stop".into()));
         }
 
-        let ctx: Arc<GpuContext> = if !inputs.is_empty() {
-            Arc::clone(inputs[0].ctx())
-        } else {
-            return Err(CopError::NoContext);
-        };
-
-        let output = Image::create_storage(Arc::clone(&ctx), params.width, params.height);
+        let output = Image::create_storage(Arc::clone(ctx), params.width, params.height);
 
         // --- Uniform buffer (ramp_type + stop_count) ---
         let uniform_data = RampUniform {
@@ -238,7 +233,7 @@ mod tests {
             height: 4,
         };
 
-        let img = generate_cop(ctx, &RampCop, &params).expect("execute failed");
+        let img = generate_cop(&ctx, &RampCop, &params).expect("execute failed");
         let pixels = img.to_cpu().expect("readback failed");
 
         // Leftmost pixel should be dark (R close to 0)
@@ -272,7 +267,7 @@ mod tests {
             height: 16,
         };
 
-        let img = generate_cop(ctx, &RampCop, &params).expect("execute failed");
+        let img = generate_cop(&ctx, &RampCop, &params).expect("execute failed");
         let pixels = img.to_cpu().expect("readback failed");
 
         // Center pixel (8, 8) should be close to first stop (red)
@@ -304,7 +299,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = generate_cop(ctx, &RampCop, &params);
+        let result = generate_cop(&ctx, &RampCop, &params);
         assert!(result.is_err(), "expected error with empty stops");
     }
 }

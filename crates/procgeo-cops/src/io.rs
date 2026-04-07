@@ -98,7 +98,7 @@ mod tests {
             width: 8,
             height: 8,
         };
-        let img = generate_cop(Arc::clone(&ctx), &ConstantCop, &params).expect("generate failed");
+        let img = generate_cop(&ctx, &ConstantCop, &params).expect("generate failed");
 
         let path = std::env::temp_dir().join("procgeo_cops_test_red.png");
         let save_params = SaveImageParams {

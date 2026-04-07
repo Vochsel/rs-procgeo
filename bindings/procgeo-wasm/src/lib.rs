@@ -1288,8 +1288,7 @@ pub fn cop_constant_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
     };
 
     let ctx = get_wasm_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
-    let inner = ConstantCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    let inner = ConstantCop.execute(&ctx, &[], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1308,8 +1307,7 @@ pub fn cop_checkerboard_wasm(params: Option<JsValue>) -> Result<CopImage, JsErro
     };
 
     let ctx = get_wasm_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
-    let inner = CheckerboardCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    let inner = CheckerboardCop.execute(&ctx, &[], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1340,8 +1338,7 @@ pub fn cop_noise_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
     };
 
     let ctx = get_wasm_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
-    let inner = NoiseCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    let inner = NoiseCop.execute(&ctx, &[], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1388,8 +1385,7 @@ pub fn cop_ramp_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
     };
 
     let ctx = get_wasm_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
-    let inner = RampCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    let inner = RampCop.execute(&ctx, &[], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1404,8 +1400,7 @@ pub fn cop_load_image_wasm(params: Option<JsValue>) -> Result<CopImage, JsError>
     };
 
     let ctx = get_wasm_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
-    let inner = LoadImageCop.execute(&[&carrier], &cop_params).map_err(cop_err)?;
+    let inner = LoadImageCop.execute(&ctx, &[], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1429,7 +1424,7 @@ pub fn cop_blur_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopIma
         radius_y: get_f32(&p, "radiusY", 4.0),
     };
 
-    let inner = BlurCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = BlurCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1444,7 +1439,7 @@ pub fn cop_flip_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopIma
         vertical: get_bool(&p, "vertical", true),
     };
 
-    let inner = FlipCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = FlipCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1465,7 +1460,7 @@ pub fn cop_mirror_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopI
         offset: get_f32(&p, "offset", 0.5),
     };
 
-    let inner = MirrorCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = MirrorCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1494,7 +1489,7 @@ pub fn cop_channel_swap_wasm(image: &CopImage, params: Option<JsValue>) -> Resul
         a: parse_channel(&get_str(&p, "a", "a")),
     };
 
-    let inner = ChannelSwapCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = ChannelSwapCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1517,7 +1512,7 @@ pub fn cop_resize_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopI
         filter,
     };
 
-    let inner = ResizeCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = ResizeCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1540,7 +1535,7 @@ pub fn cop_rotate_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopI
         filter,
     };
 
-    let inner = RotateCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = RotateCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1556,7 +1551,7 @@ pub fn cop_swirl_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopIm
         radius: get_f32(&p, "radius", 0.5),
     };
 
-    let inner = SwirlCop.execute(&[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = SwirlCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1585,7 +1580,7 @@ pub fn cop_composite_wasm(a: &CopImage, b: &CopImage, params: Option<JsValue>) -
         mix: get_f32(&p, "mix", 1.0),
     };
 
-    let inner = CompositeCop.execute(&[&a.inner, &b.inner], &cop_params).map_err(cop_err)?;
+    let inner = CompositeCop.execute(a.inner.ctx(), &[&a.inner, &b.inner], &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1615,25 +1610,16 @@ pub fn cop_custom_shader_wasm(
         height: get_u32(&p, "height", 256),
     };
 
-    // Build the inputs slice from optional images, or fall back to a carrier.
     let ctx = get_wasm_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
 
     let mut input_refs: Vec<&procgeo_cops::image::Image> = Vec::new();
-    match (&input_a, &input_b) {
-        (Some(a), Some(b)) => {
-            input_refs.push(&a.inner);
-            input_refs.push(&b.inner);
-        }
-        (Some(a), None) => {
-            input_refs.push(&a.inner);
-        }
-        _ => {
-            // No image inputs — use carrier so the COP gets a GPU context.
-            input_refs.push(&carrier);
-        }
+    if let Some(a) = &input_a {
+        input_refs.push(&a.inner);
+    }
+    if let Some(b) = &input_b {
+        input_refs.push(&b.inner);
     }
 
-    let inner = CustomShaderCop.execute(&input_refs, &cop_params).map_err(cop_err)?;
+    let inner = CustomShaderCop.execute(&ctx, &input_refs, &cop_params).map_err(cop_err)?;
     Ok(CopImage { inner })
 }

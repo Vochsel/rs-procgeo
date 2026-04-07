@@ -337,14 +337,45 @@ declare const pg: {
     listSops(): string[];
 
     // ── COP (Image Compositing) ──
-    /** Create a COP image with no inputs (generators). Params as JSON object. */
+    // Registry-based (dynamic dispatch by name)
     executeCopCreate(name: string, params?: Record<string, any>): CopImage;
-    /** Execute a single-input COP filter. */
     executeCop(name: string, image: CopImage, params?: Record<string, any>): CopImage;
-    /** Execute a two-input COP composite. */
     executeCopComposite(name: string, imageA: CopImage, imageB: CopImage, params?: Record<string, any>): CopImage;
-    /** List all registered COP names. */
     listCops(): string[];
+
+    // Typed COP functions — generators
+    /** Generate a solid color image. */
+    copConstant(params?: { color?: number[]; width?: number; height?: number }): CopImage;
+    /** Generate a checkerboard pattern. */
+    copCheckerboard(params?: { colorA?: number[]; colorB?: number[]; frequency?: number[]; width?: number; height?: number }): CopImage;
+    /** Generate procedural noise (perlin, simplex, worley). */
+    copNoise(params?: { noiseType?: string; frequency?: number; octaves?: number; lacunarity?: number; gain?: number; amplitude?: number; offset?: number[]; seed?: number; width?: number; height?: number }): CopImage;
+    /** Generate a gradient ramp. */
+    copRamp(params?: { rampType?: string; stops?: Array<{ position: number; color: number[] }>; width?: number; height?: number }): CopImage;
+    /** Load an image from a path. */
+    copLoadImage(params?: { path?: string }): CopImage;
+
+    // Typed COP functions — filters
+    /** Apply Gaussian or box blur. */
+    copBlur(image: CopImage, params?: { blurType?: string; radiusX?: number; radiusY?: number }): CopImage;
+    /** Flip an image horizontally/vertically. */
+    copFlip(image: CopImage, params?: { horizontal?: boolean; vertical?: boolean }): CopImage;
+    /** Mirror across an axis. */
+    copMirror(image: CopImage, params?: { axis?: string; offset?: number }): CopImage;
+    /** Reorder RGBA channels. */
+    copChannelSwap(image: CopImage, params?: { r?: string; g?: string; b?: string; a?: string }): CopImage;
+    /** Resize an image. */
+    copResize(image: CopImage, params?: { width?: number; height?: number; filter?: string }): CopImage;
+    /** Rotate an image. */
+    copRotate(image: CopImage, params?: { angle?: number; center?: number[]; filter?: string }): CopImage;
+    /** Apply a swirl distortion. */
+    copSwirl(image: CopImage, params?: { center?: number[]; angle?: number; radius?: number }): CopImage;
+
+    // Typed COP functions — composite & custom
+    /** Blend two images with various operations. */
+    copComposite(a: CopImage, b: CopImage, params?: { operation?: string; mix?: number }): CopImage;
+    /** Run a custom WGSL or GLSL shader. */
+    copCustomShader(inputA?: CopImage | null, inputB?: CopImage | null, params?: { source?: string; language?: string; width?: number; height?: number }): CopImage;
 };
 
 /** GPU-backed RGBA32Float image returned by COP operations. */

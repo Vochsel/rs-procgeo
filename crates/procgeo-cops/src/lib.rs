@@ -37,8 +37,6 @@ pub enum CopError {
     ShaderCompilation(String),
     #[error("image load error: {0}")]
     ImageLoad(String),
-    #[error("no GPU context available")]
-    NoContext,
     #[error("invalid parameter: {0}")]
     InvalidParam(String),
     #[error("{0}")]
@@ -66,9 +64,10 @@ pub enum FilterMode {
 pub trait Cop {
     type Params: Default;
 
-    /// Execute this COP with the given input images and parameters.
+    /// Execute this COP with the given GPU context, input images, and parameters.
     fn execute(
         &self,
+        ctx: &std::sync::Arc<context::GpuContext>,
         inputs: &[&image::Image],
         params: &Self::Params,
     ) -> Result<image::Image, CopError>;
@@ -106,7 +105,7 @@ pub trait ImageExt {
 #[cfg(feature = "gpu")]
 impl ImageExt for image::Image {
     fn apply<C: Cop>(self, cop: &C, params: &C::Params) -> Result<image::Image, CopError> {
-        cop.execute(&[&self], params)
+        cop.execute(self.ctx(), &[&self], params)
     }
 }
 
@@ -115,16 +114,13 @@ impl ImageExt for image::Image {
 // ---------------------------------------------------------------------------
 
 /// Generate an image from a COP that takes no inputs (generators).
-///
-/// Creates an empty carrier image so the COP has access to a GpuContext.
 #[cfg(feature = "gpu")]
 pub fn generate_cop<C: Cop>(
-    ctx: std::sync::Arc<context::GpuContext>,
+    ctx: &std::sync::Arc<context::GpuContext>,
     cop: &C,
     params: &C::Params,
 ) -> Result<image::Image, CopError> {
-    let carrier = image::Image::empty(ctx);
-    cop.execute(&[&carrier], params)
+    cop.execute(ctx, &[], params)
 }
 
 /// Compute a stable hash for a COP name, used as pipeline cache key.

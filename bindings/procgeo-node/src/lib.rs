@@ -1239,7 +1239,7 @@ pub fn save_cop_image(image: &CopImage, path: String) -> Result<()> {
 // Dedicated COP functions
 // ---------------------------------------------------------------------------
 
-// --- Generators (0 inputs — use carrier image) ---
+// --- Generators (0 inputs) ---
 
 #[napi(js_name = "copConstant")]
 pub fn cop_constant(params: Option<serde_json::Value>) -> Result<CopImage> {
@@ -1251,9 +1251,8 @@ pub fn cop_constant(params: Option<serde_json::Value>) -> Result<CopImage> {
         height: get_u32(&p, "height", 256),
     };
     let ctx = get_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
     let inner = procgeo_cops::generator::ConstantCop
-        .execute(&[&carrier], &cop_params)
+        .execute(&ctx, &[], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1270,9 +1269,8 @@ pub fn cop_checkerboard(params: Option<serde_json::Value>) -> Result<CopImage> {
         height: get_u32(&p, "height", 256),
     };
     let ctx = get_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
     let inner = procgeo_cops::generator::CheckerboardCop
-        .execute(&[&carrier], &cop_params)
+        .execute(&ctx, &[], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1300,9 +1298,8 @@ pub fn cop_noise(params: Option<serde_json::Value>) -> Result<CopImage> {
         height: get_u32(&p, "height", 256),
     };
     let ctx = get_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
     let inner = procgeo_cops::generator::NoiseCop
-        .execute(&[&carrier], &cop_params)
+        .execute(&ctx, &[], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1352,9 +1349,8 @@ pub fn cop_ramp(params: Option<serde_json::Value>) -> Result<CopImage> {
         height: get_u32(&p, "height", 256),
     };
     let ctx = get_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
     let inner = procgeo_cops::generator::RampCop
-        .execute(&[&carrier], &cop_params)
+        .execute(&ctx, &[], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1367,9 +1363,8 @@ pub fn cop_load_image(params: Option<serde_json::Value>) -> Result<CopImage> {
         path: get_str(&p, "path", "").to_string(),
     };
     let ctx = get_gpu_context()?;
-    let carrier = procgeo_cops::image::Image::empty(ctx);
     let inner = procgeo_cops::generator::LoadImageCop
-        .execute(&[&carrier], &cop_params)
+        .execute(&ctx, &[], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1391,7 +1386,7 @@ pub fn cop_blur(image: &CopImage, params: Option<serde_json::Value>) -> Result<C
         radius_y: get_f32(&p, "radius_y", 4.0),
     };
     let inner = procgeo_cops::filter::blur::BlurCop
-        .execute(&[&image.inner], &cop_params)
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1405,7 +1400,7 @@ pub fn cop_flip(image: &CopImage, params: Option<serde_json::Value>) -> Result<C
         vertical: get_bool(&p, "vertical", true),
     };
     let inner = procgeo_cops::filter::flip::FlipCop
-        .execute(&[&image.inner], &cop_params)
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1424,7 +1419,7 @@ pub fn cop_mirror(image: &CopImage, params: Option<serde_json::Value>) -> Result
         offset: get_f32(&p, "offset", 0.5),
     };
     let inner = procgeo_cops::filter::mirror::MirrorCop
-        .execute(&[&image.inner], &cop_params)
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1452,7 +1447,7 @@ pub fn cop_channel_swap(image: &CopImage, params: Option<serde_json::Value>) -> 
         a: parse_channel("a", Channel::A),
     };
     let inner = procgeo_cops::filter::channel_swap::ChannelSwapCop
-        .execute(&[&image.inner], &cop_params)
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1471,7 +1466,7 @@ pub fn cop_resize(image: &CopImage, params: Option<serde_json::Value>) -> Result
         filter,
     };
     let inner = procgeo_cops::filter::resize::ResizeCop
-        .execute(&[&image.inner], &cop_params)
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1490,7 +1485,7 @@ pub fn cop_rotate(image: &CopImage, params: Option<serde_json::Value>) -> Result
         filter,
     };
     let inner = procgeo_cops::filter::rotate::RotateCop
-        .execute(&[&image.inner], &cop_params)
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1505,7 +1500,7 @@ pub fn cop_swirl(image: &CopImage, params: Option<serde_json::Value>) -> Result<
         radius: get_f32(&p, "radius", 0.5),
     };
     let inner = procgeo_cops::filter::swirl::SwirlCop
-        .execute(&[&image.inner], &cop_params)
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1532,7 +1527,7 @@ pub fn cop_composite(a: &CopImage, b: &CopImage, params: Option<serde_json::Valu
         mix: get_f32(&p, "mix", 1.0),
     };
     let inner = procgeo_cops::composite::CompositeCop
-        .execute(&[&a.inner, &b.inner], &cop_params)
+        .execute(a.inner.ctx(), &[&a.inner, &b.inner], &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
@@ -1561,22 +1556,14 @@ pub fn cop_custom_shader(
     };
     let ctx = get_gpu_context()?;
     let mut inputs: Vec<&procgeo_cops::image::Image> = Vec::new();
-    let carrier;
-    match (input_a, input_b) {
-        (Some(a), Some(b)) => {
-            inputs.push(&a.inner);
-            inputs.push(&b.inner);
-        }
-        (Some(a), None) => {
-            inputs.push(&a.inner);
-        }
-        _ => {
-            carrier = procgeo_cops::image::Image::empty(ctx);
-            inputs.push(&carrier);
-        }
+    if let Some(a) = input_a {
+        inputs.push(&a.inner);
+    }
+    if let Some(b) = input_b {
+        inputs.push(&b.inner);
     }
     let inner = procgeo_cops::custom::CustomShaderCop
-        .execute(&inputs, &cop_params)
+        .execute(&ctx, &inputs, &cop_params)
         .map_err(cop_err)?;
     Ok(CopImage { inner })
 }

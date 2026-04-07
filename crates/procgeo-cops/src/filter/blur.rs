@@ -136,10 +136,8 @@ impl Cop for BlurCop {
         (1, 1)
     }
 
-    fn execute(&self, inputs: &[&Image], params: &BlurParams) -> Result<Image, CopError> {
+    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &BlurParams) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
-
-        let ctx: Arc<GpuContext> = Arc::clone(inputs[0].ctx());
         let input = inputs[0];
 
         let width = input.width();
@@ -150,9 +148,9 @@ impl Cop for BlurCop {
         let radius_y = params.radius_y.max(0.0) as i32;
 
         // Pass 1: horizontal blur — input → temp
-        let temp = Image::create_storage(Arc::clone(&ctx), width, height);
+        let temp = Image::create_storage(Arc::clone(ctx), width, height);
         run_pass(
-            &ctx,
+            ctx,
             input,
             &temp,
             radius_x,
@@ -163,9 +161,9 @@ impl Cop for BlurCop {
         )?;
 
         // Pass 2: vertical blur — temp → output
-        let output = Image::create_storage(Arc::clone(&ctx), width, height);
+        let output = Image::create_storage(Arc::clone(ctx), width, height);
         run_pass(
-            &ctx,
+            ctx,
             &temp,
             &output,
             radius_y,
@@ -205,7 +203,7 @@ mod tests {
             radius_y: 3.0,
         };
 
-        let output = BlurCop.execute(&[&input], &params).expect("execute failed");
+        let output = BlurCop.execute(&ctx, &[&input], &params).expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // Blurring a constant image should stay constant
@@ -253,7 +251,7 @@ mod tests {
             radius_y: 0.0,
         };
 
-        let output = BlurCop.execute(&[&input], &params).expect("execute failed");
+        let output = BlurCop.execute(&ctx, &[&input], &params).expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // Boundary pixels should be blended — neither pure white nor pure black

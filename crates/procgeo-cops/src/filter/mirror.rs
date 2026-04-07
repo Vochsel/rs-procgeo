@@ -57,13 +57,11 @@ impl Cop for MirrorCop {
         (1, 1)
     }
 
-    fn execute(&self, inputs: &[&Image], params: &MirrorParams) -> Result<Image, CopError> {
+    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &MirrorParams) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
-
-        let ctx: Arc<GpuContext> = Arc::clone(inputs[0].ctx());
         let input = inputs[0];
 
-        let output = Image::create_storage(Arc::clone(&ctx), input.width(), input.height());
+        let output = Image::create_storage(Arc::clone(ctx), input.width(), input.height());
 
         let uniform = MirrorUniform {
             axis: match params.axis {
@@ -163,7 +161,7 @@ mod tests {
             offset: 0.5,
         };
 
-        let output = MirrorCop.execute(&[&input], &params).expect("execute failed");
+        let output = MirrorCop.execute(&ctx, &[&input], &params).expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // Left half (x < 2) should be unchanged; right half mirrors left

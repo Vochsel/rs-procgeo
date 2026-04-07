@@ -82,15 +82,14 @@ impl Cop for ChannelSwapCop {
 
     fn execute(
         &self,
+        ctx: &Arc<GpuContext>,
         inputs: &[&Image],
         params: &ChannelSwapParams,
     ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
-
-        let ctx: Arc<GpuContext> = Arc::clone(inputs[0].ctx());
         let input = inputs[0];
 
-        let output = Image::create_storage(Arc::clone(&ctx), input.width(), input.height());
+        let output = Image::create_storage(Arc::clone(ctx), input.width(), input.height());
 
         let uniform = ChannelSwapUniform {
             r_src: params.r.as_u32(),
@@ -187,7 +186,7 @@ mod tests {
         };
 
         let output = ChannelSwapCop
-            .execute(&[&input], &params)
+            .execute(&ctx, &[&input], &params)
             .expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 

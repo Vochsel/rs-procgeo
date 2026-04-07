@@ -334,57 +334,57 @@ return geo;
 // Broad hills + medium ridges + fine Worley detail
 const size = 256;
 
-const hills = pg.executeCopCreate('noise', {
-  noise_type: 'Simplex', frequency: 2.0, octaves: 4,
+const hills = pg.copNoise({
+  noiseType: 'simplex', frequency: 2.0, octaves: 4,
   lacunarity: 2.0, gain: 0.5, amplitude: 1.0,
   seed: 0, width: size, height: size,
 });
 
-const ridges = pg.executeCopCreate('noise', {
-  noise_type: 'Perlin', frequency: 6.0, octaves: 6,
+const ridges = pg.copNoise({
+  noiseType: 'perlin', frequency: 6.0, octaves: 6,
   lacunarity: 2.2, gain: 0.45, amplitude: 0.4,
   seed: 42, width: size, height: size,
 });
 
-const detail = pg.executeCopCreate('noise', {
-  noise_type: 'Worley', frequency: 12.0, octaves: 2,
+const detail = pg.copNoise({
+  noiseType: 'worley', frequency: 12.0, octaves: 2,
   amplitude: 0.15, seed: 99, width: size, height: size,
 });
 
-let terrain = pg.executeCopComposite('composite', hills, ridges, {
-  operation: 'Add', mix: 0.6,
+let terrain = pg.copComposite(hills, ridges, {
+  operation: 'add', mix: 0.6,
 });
-terrain = pg.executeCopComposite('composite', terrain, detail, {
-  operation: 'Screen', mix: 0.4,
+terrain = pg.copComposite(terrain, detail, {
+  operation: 'screen', mix: 0.4,
 });
-terrain = pg.executeCop('blur', terrain, { radius_x: 2.0, radius_y: 2.0 });
+terrain = pg.copBlur(terrain, { radiusX: 2.0, radiusY: 2.0 });
 return terrain;
 `,
 
     copNeonGrid: `// Neon grid — checkerboard + radial glow + swirl
 const size = 256;
 
-const checker = pg.executeCopCreate('checkerboard', {
-  color_a: [0.9, 0.1, 0.9, 1.0],
-  color_b: [0.1, 0.9, 0.9, 1.0],
+const checker = pg.copCheckerboard({
+  colorA: [0.9, 0.1, 0.9, 1.0],
+  colorB: [0.1, 0.9, 0.9, 1.0],
   frequency: [12.0, 12.0],
   width: size, height: size,
 });
 
-const glow = pg.executeCopCreate('ramp', {
-  ramp_type: 'Radial',
+const glow = pg.copRamp({
+  rampType: 'radial',
   stops: [
-    [0.0, [1.0, 1.0, 1.0, 1.0]],
-    [0.6, [0.4, 0.2, 0.6, 1.0]],
-    [1.0, [0.02, 0.01, 0.05, 1.0]],
+    { position: 0.0, color: [1.0, 1.0, 1.0, 1.0] },
+    { position: 0.6, color: [0.4, 0.2, 0.6, 1.0] },
+    { position: 1.0, color: [0.02, 0.01, 0.05, 1.0] },
   ],
   width: size, height: size,
 });
 
-let result = pg.executeCopComposite('composite', checker, glow, {
-  operation: 'Multiply', mix: 1.0,
+let result = pg.copComposite(checker, glow, {
+  operation: 'multiply', mix: 1.0,
 });
-result = pg.executeCop('swirl', result, {
+result = pg.copSwirl(result, {
   center: [0.5, 0.5], angle: 120.0, radius: 0.6,
 });
 return result;
@@ -393,35 +393,35 @@ return result;
     copMarbleTexture: `// Marble texture — Worley veins over tinted Perlin base
 const size = 256;
 
-const base = pg.executeCopCreate('noise', {
-  noise_type: 'Perlin', frequency: 3.0, octaves: 4,
+const base = pg.copNoise({
+  noiseType: 'perlin', frequency: 3.0, octaves: 4,
   amplitude: 1.0, seed: 7, width: size, height: size,
 });
 
-const veins = pg.executeCopCreate('noise', {
-  noise_type: 'Worley', frequency: 5.0, octaves: 3,
+const veins = pg.copNoise({
+  noiseType: 'worley', frequency: 5.0, octaves: 3,
   lacunarity: 2.5, gain: 0.6, amplitude: 1.0,
   seed: 33, width: size, height: size,
 });
 
-const colorRamp = pg.executeCopCreate('ramp', {
-  ramp_type: 'Diagonal',
+const colorRamp = pg.copRamp({
+  rampType: 'diagonal',
   stops: [
-    [0.0, [0.92, 0.88, 0.82, 1.0]],
-    [0.35, [0.85, 0.78, 0.70, 1.0]],
-    [0.65, [0.70, 0.62, 0.55, 1.0]],
-    [1.0, [0.55, 0.48, 0.42, 1.0]],
+    { position: 0.0, color: [0.92, 0.88, 0.82, 1.0] },
+    { position: 0.35, color: [0.85, 0.78, 0.70, 1.0] },
+    { position: 0.65, color: [0.70, 0.62, 0.55, 1.0] },
+    { position: 1.0, color: [0.55, 0.48, 0.42, 1.0] },
   ],
   width: size, height: size,
 });
 
-let marble = pg.executeCopComposite('composite', colorRamp, base, {
-  operation: 'Multiply', mix: 0.7,
+let marble = pg.copComposite(colorRamp, base, {
+  operation: 'multiply', mix: 0.7,
 });
-marble = pg.executeCopComposite('composite', marble, veins, {
-  operation: 'Screen', mix: 0.3,
+marble = pg.copComposite(marble, veins, {
+  operation: 'screen', mix: 0.3,
 });
-marble = pg.executeCop('blur', marble, { radius_x: 1.5, radius_y: 1.5 });
+marble = pg.copBlur(marble, { radiusX: 1.5, radiusY: 1.5 });
 return marble;
 `,
 
@@ -454,53 +454,399 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
     textureStore(output, vec2i(gid.xy), vec4f(r, g, b, 1.0));
 }
 \`;
-return pg.executeCopCreate('custom_shader', {
-  source, language: 'Wgsl', width: size, height: size,
+return pg.copCustomShader(null, null, {
+  source, language: 'wgsl', width: size, height: size,
 });
 `,
 
     copGlowEffect: `// Bloom / glow — dual-layer blur composited over source
 const size = 256;
 
-const checker = pg.executeCopCreate('checkerboard', {
-  color_a: [0.0, 0.0, 0.0, 1.0],
-  color_b: [1.0, 0.7, 0.2, 1.0],
+const checker = pg.copCheckerboard({
+  colorA: [0.0, 0.0, 0.0, 1.0],
+  colorB: [1.0, 0.7, 0.2, 1.0],
   frequency: [6.0, 6.0],
   width: size, height: size,
 });
 
-const noise = pg.executeCopCreate('noise', {
-  noise_type: 'Simplex', frequency: 8.0, octaves: 3,
+const noise = pg.copNoise({
+  noiseType: 'simplex', frequency: 8.0, octaves: 3,
   amplitude: 1.0, seed: 5, width: size, height: size,
 });
 
-let source = pg.executeCopComposite('composite', checker, noise, {
-  operation: 'Multiply', mix: 0.4,
+let source = pg.copComposite(checker, noise, {
+  operation: 'multiply', mix: 0.4,
 });
 
-const bloomWide = pg.executeCop('blur', source, { radius_x: 20, radius_y: 20 });
-const bloomTight = pg.executeCop('blur', source, { radius_x: 8, radius_y: 8 });
+const bloomWide = pg.copBlur(source, { radiusX: 20, radiusY: 20 });
+const bloomTight = pg.copBlur(source, { radiusX: 8, radiusY: 8 });
 
-let bloom = pg.executeCopComposite('composite', bloomWide, bloomTight, {
-  operation: 'Add', mix: 0.5,
+let bloom = pg.copComposite(bloomWide, bloomTight, {
+  operation: 'add', mix: 0.5,
 });
 
-let glowed = pg.executeCopComposite('composite', source, bloom, {
-  operation: 'Add', mix: 0.6,
+let glowed = pg.copComposite(source, bloom, {
+  operation: 'add', mix: 0.6,
 });
 
-const vignette = pg.executeCopCreate('ramp', {
-  ramp_type: 'Radial',
+const vignette = pg.copRamp({
+  rampType: 'radial',
   stops: [
-    [0.0, [1.0, 1.0, 1.0, 1.0]],
-    [0.5, [0.9, 0.9, 0.9, 1.0]],
-    [1.0, [0.15, 0.1, 0.05, 1.0]],
+    { position: 0.0, color: [1.0, 1.0, 1.0, 1.0] },
+    { position: 0.5, color: [0.9, 0.9, 0.9, 1.0] },
+    { position: 1.0, color: [0.15, 0.1, 0.05, 1.0] },
   ],
   width: size, height: size,
 });
 
-return pg.executeCopComposite('composite', glowed, vignette, {
-  operation: 'Multiply', mix: 1.0,
+return pg.copComposite(glowed, vignette, {
+  operation: 'multiply', mix: 1.0,
 });
+`,
+
+    copRustyMetal: `// Rusty metal — corroded steel with patina and pitting
+const size = 512;
+
+// Base steel: dark, mostly uniform gray
+const steel = pg.copNoise({
+  noiseType: 'perlin', frequency: 1.5, octaves: 2,
+  amplitude: 0.15, seed: 10, width: size, height: size,
+});
+const steelColor = pg.copRamp({
+  rampType: 'linear',
+  stops: [
+    { position: 0.0, color: [0.22, 0.22, 0.24, 1.0] },
+    { position: 1.0, color: [0.35, 0.34, 0.33, 1.0] },
+  ],
+  width: size, height: size,
+});
+let base = pg.copComposite(steelColor, steel, {
+  operation: 'multiply', mix: 1.0,
+});
+
+// Rust patches: warm orange-brown Simplex noise at medium scale
+const rustMask = pg.copNoise({
+  noiseType: 'simplex', frequency: 3.0, octaves: 5,
+  lacunarity: 2.0, gain: 0.55, amplitude: 1.0,
+  seed: 77, width: size, height: size,
+});
+const rustColor = pg.copRamp({
+  rampType: 'linear',
+  stops: [
+    { position: 0.0, color: [0.45, 0.18, 0.05, 1.0] },
+    { position: 0.4, color: [0.62, 0.28, 0.08, 1.0] },
+    { position: 0.7, color: [0.50, 0.22, 0.06, 1.0] },
+    { position: 1.0, color: [0.35, 0.12, 0.04, 1.0] },
+  ],
+  width: size, height: size,
+});
+const rust = pg.copComposite(rustColor, rustMask, {
+  operation: 'multiply', mix: 1.0,
+});
+
+// Blend rust onto steel using screen for natural layering
+let result = pg.copComposite(base, rust, {
+  operation: 'screen', mix: 0.7,
+});
+
+// Pitting: fine Worley craters darkening the surface
+const pits = pg.copNoise({
+  noiseType: 'worley', frequency: 20.0, octaves: 1,
+  amplitude: 0.6, seed: 55, width: size, height: size,
+});
+result = pg.copComposite(result, pits, {
+  operation: 'multiply', mix: 0.25,
+});
+
+// Subtle blur for realism
+result = pg.copBlur(result, { radiusX: 0.8, radiusY: 0.8 });
+return result;
+`,
+
+    copWoodGrain: `// Wood grain — rings with knots and color variation
+const size = 512;
+
+// Ring structure: stretched Perlin creates directional grain
+const rings = pg.copNoise({
+  noiseType: 'perlin', frequency: 2.0, octaves: 6,
+  lacunarity: 2.0, gain: 0.5, amplitude: 1.0,
+  offset: [0.0, 0.0], seed: 3, width: size, height: size,
+});
+
+// Fine grain detail: high-frequency noise for wood fiber
+const grain = pg.copNoise({
+  noiseType: 'perlin', frequency: 40.0, octaves: 2,
+  amplitude: 0.3, seed: 19, width: size, height: size,
+});
+
+// Knot disturbance: low-frequency Worley for organic knot shapes
+const knots = pg.copNoise({
+  noiseType: 'worley', frequency: 1.5, octaves: 2,
+  amplitude: 0.5, seed: 61, width: size, height: size,
+});
+
+// Warm wood color ramp
+const woodColor = pg.copRamp({
+  rampType: 'linear',
+  stops: [
+    { position: 0.0, color: [0.35, 0.20, 0.10, 1.0] },
+    { position: 0.25, color: [0.55, 0.35, 0.18, 1.0] },
+    { position: 0.5, color: [0.65, 0.42, 0.22, 1.0] },
+    { position: 0.75, color: [0.50, 0.30, 0.15, 1.0] },
+    { position: 1.0, color: [0.40, 0.22, 0.10, 1.0] },
+  ],
+  width: size, height: size,
+});
+
+// Build the base: color modulated by ring pattern
+let wood = pg.copComposite(woodColor, rings, {
+  operation: 'multiply', mix: 0.8,
+});
+
+// Add fine grain texture
+wood = pg.copComposite(wood, grain, {
+  operation: 'multiply', mix: 0.15,
+});
+
+// Screen in knot regions for lighter, organic marks
+wood = pg.copComposite(wood, knots, {
+  operation: 'screen', mix: 0.2,
+});
+
+// Gentle horizontal blur to emphasize grain direction
+wood = pg.copBlur(wood, { radiusX: 2.0, radiusY: 0.5 });
+return wood;
+`,
+
+    copLavaFlow: `// Lava flow — incandescent magma with cooling crust
+const size = 512;
+
+// Hot magma base: bright orange-yellow Simplex turbulence
+const magma = pg.copNoise({
+  noiseType: 'simplex', frequency: 3.0, octaves: 6,
+  lacunarity: 2.2, gain: 0.5, amplitude: 1.0,
+  seed: 88, width: size, height: size,
+});
+const heatRamp = pg.copRamp({
+  rampType: 'linear',
+  stops: [
+    { position: 0.0, color: [1.0, 0.95, 0.4, 1.0] },
+    { position: 0.3, color: [1.0, 0.6, 0.05, 1.0] },
+    { position: 0.6, color: [0.9, 0.25, 0.0, 1.0] },
+    { position: 1.0, color: [0.4, 0.05, 0.0, 1.0] },
+  ],
+  width: size, height: size,
+});
+let lava = pg.copComposite(heatRamp, magma, {
+  operation: 'multiply', mix: 1.0,
+});
+
+// Cooling crust: Worley cell boundaries form dark rock plates
+const crust = pg.copNoise({
+  noiseType: 'worley', frequency: 6.0, octaves: 3,
+  lacunarity: 2.0, gain: 0.5, amplitude: 1.0,
+  seed: 14, width: size, height: size,
+});
+const crustColor = pg.copRamp({
+  rampType: 'linear',
+  stops: [
+    { position: 0.0, color: [0.08, 0.04, 0.02, 1.0] },
+    { position: 0.5, color: [0.15, 0.08, 0.04, 1.0] },
+    { position: 1.0, color: [0.25, 0.12, 0.06, 1.0] },
+  ],
+  width: size, height: size,
+});
+const darkCrust = pg.copComposite(crustColor, crust, {
+  operation: 'multiply', mix: 1.0,
+});
+
+// Composite: crust darkens everything, then hot cracks show through
+let result = pg.copComposite(darkCrust, lava, {
+  operation: 'screen', mix: 0.8,
+});
+
+// Emissive bloom: blur and add back for glow in cracks
+const glow = pg.copBlur(lava, { radiusX: 12.0, radiusY: 12.0 });
+result = pg.copComposite(result, glow, {
+  operation: 'add', mix: 0.3,
+});
+return result;
+`,
+
+    copCamouflage: `// Military camo — organic blobs in earthy tones
+const size = 512;
+
+// Layer 1: base tan
+const base = pg.copConstant({
+  color: [0.55, 0.50, 0.35, 1.0],
+  width: size, height: size,
+});
+
+// Layer 2: large dark green blobs
+const blobsGreen = pg.copNoise({
+  noiseType: 'simplex', frequency: 2.5, octaves: 3,
+  lacunarity: 1.8, gain: 0.6, amplitude: 1.0,
+  seed: 20, width: size, height: size,
+});
+const green = pg.copConstant({
+  color: [0.22, 0.32, 0.15, 1.0],
+  width: size, height: size,
+});
+const greenMasked = pg.copComposite(green, blobsGreen, {
+  operation: 'multiply', mix: 1.0,
+});
+let result = pg.copComposite(base, greenMasked, {
+  operation: 'screen', mix: 0.8,
+});
+
+// Layer 3: medium brown patches
+const blobsBrown = pg.copNoise({
+  noiseType: 'simplex', frequency: 3.5, octaves: 3,
+  lacunarity: 2.0, gain: 0.5, amplitude: 1.0,
+  seed: 44, width: size, height: size,
+});
+const brown = pg.copConstant({
+  color: [0.35, 0.22, 0.10, 1.0],
+  width: size, height: size,
+});
+const brownMasked = pg.copComposite(brown, blobsBrown, {
+  operation: 'multiply', mix: 1.0,
+});
+result = pg.copComposite(result, brownMasked, {
+  operation: 'screen', mix: 0.6,
+});
+
+// Layer 4: small dark splotches
+const splotches = pg.copNoise({
+  noiseType: 'simplex', frequency: 5.0, octaves: 2,
+  amplitude: 0.8, seed: 66, width: size, height: size,
+});
+const dark = pg.copConstant({
+  color: [0.10, 0.10, 0.08, 1.0],
+  width: size, height: size,
+});
+const darkMasked = pg.copComposite(dark, splotches, {
+  operation: 'multiply', mix: 1.0,
+});
+result = pg.copComposite(result, darkMasked, {
+  operation: 'screen', mix: 0.4,
+});
+
+// Soften edges for organic look
+result = pg.copBlur(result, { radiusX: 3.0, radiusY: 3.0 });
+return result;
+`,
+
+    copOceanCaustics: `// Ocean caustics — shimmering underwater light patterns
+const size = 512;
+
+// Dual-layer Worley noise creates caustic interference
+const caustics1 = pg.copNoise({
+  noiseType: 'worley', frequency: 8.0, octaves: 3,
+  lacunarity: 2.0, gain: 0.6, amplitude: 1.0,
+  seed: 7, width: size, height: size,
+});
+const caustics2 = pg.copNoise({
+  noiseType: 'worley', frequency: 10.0, octaves: 3,
+  lacunarity: 2.2, gain: 0.55, amplitude: 1.0,
+  seed: 31, width: size, height: size,
+});
+
+// Combine two Worley layers with min to get sharp bright edges
+let pattern = pg.copComposite(caustics1, caustics2, {
+  operation: 'min', mix: 1.0,
+});
+
+// Add subtle undulation with swirl
+pattern = pg.copSwirl(pattern, {
+  center: [0.45, 0.55], angle: 25.0, radius: 0.8,
+});
+
+// Color map: deep blue to bright aqua highlights
+const waterColor = pg.copRamp({
+  rampType: 'linear',
+  stops: [
+    { position: 0.0, color: [0.02, 0.06, 0.18, 1.0] },
+    { position: 0.3, color: [0.05, 0.15, 0.35, 1.0] },
+    { position: 0.6, color: [0.10, 0.35, 0.50, 1.0] },
+    { position: 0.85, color: [0.30, 0.70, 0.80, 1.0] },
+    { position: 1.0, color: [0.60, 0.95, 1.0, 1.0] },
+  ],
+  width: size, height: size,
+});
+
+let result = pg.copComposite(waterColor, pattern, {
+  operation: 'multiply', mix: 1.0,
+});
+
+// Soft bloom for the bright caustic lines
+const bloom = pg.copBlur(result, { radiusX: 6.0, radiusY: 6.0 });
+result = pg.copComposite(result, bloom, {
+  operation: 'add', mix: 0.25,
+});
+return result;
+`,
+
+    copTiledMosaic: `// Tiled mosaic — geometric tiles with grout lines and color variation
+const size = 512;
+
+// High-frequency checkerboard for tile grid
+const tiles = pg.copCheckerboard({
+  colorA: [0.85, 0.82, 0.75, 1.0],
+  colorB: [0.65, 0.60, 0.55, 1.0],
+  frequency: [16.0, 16.0],
+  width: size, height: size,
+});
+
+// Color variation per tile region using low-freq noise
+const tint = pg.copNoise({
+  noiseType: 'simplex', frequency: 4.0, octaves: 2,
+  amplitude: 0.6, seed: 5, width: size, height: size,
+});
+const colorPalette = pg.copRamp({
+  rampType: 'linear',
+  stops: [
+    { position: 0.0, color: [0.15, 0.30, 0.55, 1.0] },
+    { position: 0.25, color: [0.20, 0.50, 0.45, 1.0] },
+    { position: 0.5, color: [0.55, 0.35, 0.20, 1.0] },
+    { position: 0.75, color: [0.50, 0.20, 0.25, 1.0] },
+    { position: 1.0, color: [0.25, 0.25, 0.50, 1.0] },
+  ],
+  width: size, height: size,
+});
+const tileColor = pg.copComposite(colorPalette, tint, {
+  operation: 'multiply', mix: 1.0,
+});
+
+// Combine tile structure with color
+let result = pg.copComposite(tiles, tileColor, {
+  operation: 'multiply', mix: 0.8,
+});
+
+// Grout lines: fine Worley edges create the gap between tiles
+const grout = pg.copNoise({
+  noiseType: 'worley', frequency: 16.0, octaves: 1,
+  amplitude: 1.0, seed: 12, width: size, height: size,
+});
+const groutColor = pg.copConstant({
+  color: [0.30, 0.28, 0.25, 1.0],
+  width: size, height: size,
+});
+const groutLines = pg.copComposite(groutColor, grout, {
+  operation: 'screen', mix: 0.5,
+});
+result = pg.copComposite(result, groutLines, {
+  operation: 'multiply', mix: 0.6,
+});
+
+// Surface wear: subtle noise overlay
+const wear = pg.copNoise({
+  noiseType: 'perlin', frequency: 12.0, octaves: 3,
+  amplitude: 0.2, seed: 40, width: size, height: size,
+});
+result = pg.copComposite(result, wear, {
+  operation: 'multiply', mix: 0.15,
+});
+return result;
 `,
 };

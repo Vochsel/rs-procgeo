@@ -40,25 +40,19 @@ impl Cop for ConstantCop {
     }
 
     fn input_count(&self) -> (usize, usize) {
-        (0, 1)
+        (0, 0)
     }
 
     fn execute(
         &self,
+        ctx: &Arc<GpuContext>,
         inputs: &[&Image],
         params: &ConstantParams,
     ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
 
-        // Extract GPU context from the carrier image (first input)
-        let ctx: Arc<GpuContext> = if !inputs.is_empty() {
-            Arc::clone(inputs[0].ctx())
-        } else {
-            return Err(CopError::NoContext);
-        };
-
         // Create the output storage texture
-        let output = Image::create_storage(Arc::clone(&ctx), params.width, params.height);
+        let output = Image::create_storage(Arc::clone(ctx), params.width, params.height);
 
         // Create uniform buffer with the color data (4 x f32 = 16 bytes)
         let uniform_buffer = ctx.device().create_buffer(&wgpu::BufferDescriptor {
@@ -143,7 +137,7 @@ mod tests {
             height: 8,
         };
 
-        let img = generate_cop(ctx, &ConstantCop, &params).expect("execute failed");
+        let img = generate_cop(&ctx, &ConstantCop, &params).expect("execute failed");
         assert_eq!(img.width(), 8);
         assert_eq!(img.height(), 8);
 
@@ -176,7 +170,7 @@ mod tests {
         params.width = 4;
         params.height = 4;
 
-        let img = generate_cop(ctx, &ConstantCop, &params).expect("execute failed");
+        let img = generate_cop(&ctx, &ConstantCop, &params).expect("execute failed");
         assert_eq!(img.width(), 4);
         assert_eq!(img.height(), 4);
 

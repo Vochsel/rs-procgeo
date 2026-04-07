@@ -10,7 +10,7 @@ fn try_ctx() -> Option<Arc<GpuContext>> {
 fn full_chain_generate_filter_composite_save() {
     let Some(ctx) = try_ctx() else { eprintln!("Skipping — no GPU"); return; };
 
-    let noise = generate_cop(Arc::clone(&ctx), &procgeo_cops::generator::NoiseCop, &procgeo_cops::generator::NoiseParams {
+    let noise = generate_cop(&ctx, &procgeo_cops::generator::NoiseCop, &procgeo_cops::generator::NoiseParams {
         noise_type: procgeo_cops::generator::NoiseType::Simplex,
         frequency: 4.0,
         width: 64,
@@ -29,14 +29,14 @@ fn full_chain_generate_filter_composite_save() {
         ..Default::default()
     }).unwrap();
 
-    let checker = generate_cop(Arc::clone(&ctx), &procgeo_cops::generator::CheckerboardCop, &procgeo_cops::generator::CheckerboardParams {
+    let checker = generate_cop(&ctx, &procgeo_cops::generator::CheckerboardCop, &procgeo_cops::generator::CheckerboardParams {
         frequency: [8.0, 8.0],
         width: 64,
         height: 64,
         ..Default::default()
     }).unwrap();
 
-    let result = procgeo_cops::composite::CompositeCop.execute(&[&swirled, &checker], &procgeo_cops::composite::CompositeParams {
+    let result = procgeo_cops::composite::CompositeCop.execute(&ctx, &[&swirled, &checker], &procgeo_cops::composite::CompositeParams {
         operation: procgeo_cops::composite::CompOp::Multiply,
         mix: 1.0,
     }).unwrap();

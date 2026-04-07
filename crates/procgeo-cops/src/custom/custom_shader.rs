@@ -75,7 +75,7 @@ impl Cop for CustomShaderCop {
         (0, 8)
     }
 
-    fn execute(&self, inputs: &[&Image], params: &CustomShaderParams) -> Result<Image, CopError> {
+    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &CustomShaderParams) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
 
         if params.source.trim().is_empty() {
@@ -84,13 +84,7 @@ impl Cop for CustomShaderCop {
             ));
         }
 
-        let ctx: Arc<GpuContext> = if !inputs.is_empty() {
-            Arc::clone(inputs[0].ctx())
-        } else {
-            return Err(CopError::NoContext);
-        };
-
-        let output = Image::create_storage(Arc::clone(&ctx), params.width, params.height);
+        let output = Image::create_storage(Arc::clone(ctx), params.width, params.height);
 
         // Obtain WGSL source — transpile from GLSL if needed.
         let wgsl_source: String = match params.language {
@@ -114,8 +108,7 @@ impl Cop for CustomShaderCop {
 
         // Build bind group entries.
         // Binding 0 is always the output storage texture.
-        // Bindings 1..N are the real input textures (empty/carrier images are excluded
-        // because they exist only to carry the GPU context to generator COPs).
+        // Bindings 1..N are the input textures.
         let mut entries: Vec<wgpu::BindGroupEntry> = Vec::new();
 
         entries.push(wgpu::BindGroupEntry {
@@ -123,14 +116,7 @@ impl Cop for CustomShaderCop {
             resource: wgpu::BindingResource::TextureView(&output_view),
         });
 
-        // Collect non-carrier input views (width > 0 means it's a real image)
-        let real_inputs: Vec<&Image> = inputs
-            .iter()
-            .copied()
-            .filter(|img| img.width() > 0 && img.height() > 0)
-            .collect();
-
-        let input_views: Vec<wgpu::TextureView> = real_inputs
+        let input_views: Vec<wgpu::TextureView> = inputs
             .iter()
             .map(|img| img.texture().create_view(&wgpu::TextureViewDescriptor::default()))
             .collect();
@@ -276,7 +262,7 @@ mod tests {
             uniforms: HashMap::new(),
         };
 
-        let img = generate_cop(Arc::clone(&ctx), &CustomShaderCop, &params)
+        let img = generate_cop(&ctx, &CustomShaderCop, &params)
             .expect("execute failed");
         let pixels = img.to_cpu().expect("readback failed");
 
@@ -301,7 +287,7 @@ mod tests {
             uniforms: HashMap::new(),
         };
 
-        let result = generate_cop(Arc::clone(&ctx), &CustomShaderCop, &params);
+        let result = generate_cop(&ctx, &CustomShaderCop, &params);
         assert!(result.is_err(), "expected error for empty source");
     }
 }

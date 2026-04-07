@@ -63,8 +63,8 @@ EOF
 ok "package.json configured"
 
 step "Copying Three.js bridge into package"
-cp "$ROOT/../procgeo-three/index.js" pkg/three.js
-cp "$ROOT/../procgeo-three/index.d.ts" pkg/three.d.ts
+cp "$ROOT/../../utils/procgeo-three/index.js" pkg/three.js
+cp "$ROOT/../../utils/procgeo-three/index.d.ts" pkg/three.d.ts
 ok "Three.js bridge included"
 
 step "Adding README"

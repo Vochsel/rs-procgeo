@@ -49,13 +49,11 @@ impl Cop for FlipCop {
         (1, 1)
     }
 
-    fn execute(&self, inputs: &[&Image], params: &FlipParams) -> Result<Image, CopError> {
+    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &FlipParams) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
-
-        let ctx: Arc<GpuContext> = Arc::clone(inputs[0].ctx());
         let input = inputs[0];
 
-        let output = Image::create_storage(Arc::clone(&ctx), input.width(), input.height());
+        let output = Image::create_storage(Arc::clone(ctx), input.width(), input.height());
 
         let uniform = FlipUniform {
             horizontal: params.horizontal as u32,
@@ -152,7 +150,7 @@ mod tests {
             vertical: false,
         };
 
-        let output = FlipCop.execute(&[&input], &params).expect("execute failed");
+        let output = FlipCop.execute(&ctx, &[&input], &params).expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // After horizontal flip, order should be [1.0, 0.75, 0.5, 0.25]
@@ -201,7 +199,7 @@ mod tests {
             vertical: true,
         };
 
-        let output = FlipCop.execute(&[&input], &params).expect("execute failed");
+        let output = FlipCop.execute(&ctx, &[&input], &params).expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // After vertical flip, top row should be blue and bottom row should be red

@@ -52,13 +52,11 @@ impl Cop for RotateCop {
         (1, 1)
     }
 
-    fn execute(&self, inputs: &[&Image], params: &RotateParams) -> Result<Image, CopError> {
+    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &RotateParams) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
-
-        let ctx: Arc<GpuContext> = Arc::clone(inputs[0].ctx());
         let input = inputs[0];
 
-        let output = Image::create_storage(Arc::clone(&ctx), input.width(), input.height());
+        let output = Image::create_storage(Arc::clone(ctx), input.width(), input.height());
 
         let uniform = RotateUniform {
             center: params.center,
@@ -159,7 +157,7 @@ mod tests {
             filter: FilterMode::Nearest,
         };
 
-        let output = RotateCop.execute(&[&input], &params).expect("execute failed");
+        let output = RotateCop.execute(&ctx, &[&input], &params).expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         assert_eq!(pixels.len(), data.len());

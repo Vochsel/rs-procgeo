@@ -86,15 +86,13 @@ impl Cop for CompositeCop {
         (2, 2)
     }
 
-    fn execute(&self, inputs: &[&Image], params: &CompositeParams) -> Result<Image, CopError> {
+    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &CompositeParams) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
-
-        let ctx: Arc<GpuContext> = Arc::clone(inputs[0].ctx());
         let input_a = inputs[0];
         let input_b = inputs[1];
 
         // Output dimensions match input_a
-        let output = Image::create_storage(Arc::clone(&ctx), input_a.width(), input_a.height());
+        let output = Image::create_storage(Arc::clone(ctx), input_a.width(), input_a.height());
 
         let uniform = CompositeUniform {
             operation: params.operation.as_u32(),
@@ -206,7 +204,7 @@ mod tests {
             operation: CompOp::Multiply,
             mix: 1.0,
         };
-        let out = CompositeCop.execute(&[&a, &b], &params).expect("execute failed");
+        let out = CompositeCop.execute(&ctx, &[&a, &b], &params).expect("execute failed");
         let pixels = out.to_cpu().expect("readback failed");
 
         for chunk in pixels.chunks_exact(4) {
@@ -230,7 +228,7 @@ mod tests {
             operation: CompOp::Add,
             mix: 1.0,
         };
-        let out = CompositeCop.execute(&[&a, &b], &params).expect("execute failed");
+        let out = CompositeCop.execute(&ctx, &[&a, &b], &params).expect("execute failed");
         let pixels = out.to_cpu().expect("readback failed");
 
         for chunk in pixels.chunks_exact(4) {
@@ -250,13 +248,13 @@ mod tests {
         let params = CompositeParams::default();
 
         // Too few inputs
-        let result = CompositeCop.execute(&[&a], &params);
+        let result = CompositeCop.execute(&ctx, &[&a], &params);
         assert!(result.is_err(), "expected error for 1 input");
 
         // Too many inputs
         let b = solid(Arc::clone(&ctx), 0.0, 1.0, 0.0, 1.0);
         let c = solid(Arc::clone(&ctx), 0.0, 0.0, 1.0, 1.0);
-        let result = CompositeCop.execute(&[&a, &b, &c], &params);
+        let result = CompositeCop.execute(&ctx, &[&a, &b, &c], &params);
         assert!(result.is_err(), "expected error for 3 inputs");
     }
 }

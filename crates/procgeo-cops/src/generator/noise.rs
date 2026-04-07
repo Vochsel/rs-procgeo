@@ -109,23 +109,18 @@ impl Cop for NoiseCop {
     }
 
     fn input_count(&self) -> (usize, usize) {
-        (0, 1)
+        (0, 0)
     }
 
     fn execute(
         &self,
+        ctx: &Arc<GpuContext>,
         inputs: &[&Image],
         params: &NoiseParams,
     ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
 
-        let ctx: Arc<GpuContext> = if !inputs.is_empty() {
-            Arc::clone(inputs[0].ctx())
-        } else {
-            return Err(CopError::NoContext);
-        };
-
-        let output = Image::create_storage(Arc::clone(&ctx), params.width, params.height);
+        let output = Image::create_storage(Arc::clone(ctx), params.width, params.height);
 
         let uniform_data = NoiseUniform {
             frequency: params.frequency,
@@ -225,7 +220,7 @@ mod tests {
             ..Default::default()
         };
 
-        let img = generate_cop(ctx, &NoiseCop, &params).expect("execute failed");
+        let img = generate_cop(&ctx, &NoiseCop, &params).expect("execute failed");
         let pixels = img.to_cpu().expect("readback failed");
         assert!(is_non_flat(&pixels), "Perlin noise produced a flat image");
     }
@@ -241,7 +236,7 @@ mod tests {
             ..Default::default()
         };
 
-        let img = generate_cop(ctx, &NoiseCop, &params).expect("execute failed");
+        let img = generate_cop(&ctx, &NoiseCop, &params).expect("execute failed");
         let pixels = img.to_cpu().expect("readback failed");
         assert!(is_non_flat(&pixels), "Simplex noise produced a flat image");
     }
@@ -257,7 +252,7 @@ mod tests {
             ..Default::default()
         };
 
-        let img = generate_cop(ctx, &NoiseCop, &params).expect("execute failed");
+        let img = generate_cop(&ctx, &NoiseCop, &params).expect("execute failed");
         let pixels = img.to_cpu().expect("readback failed");
         assert!(is_non_flat(&pixels), "Worley noise produced a flat image");
     }
@@ -278,8 +273,8 @@ mod tests {
             ..params_a.clone()
         };
 
-        let img_a = generate_cop(Arc::clone(&ctx), &NoiseCop, &params_a).expect("execute failed");
-        let img_b = generate_cop(ctx, &NoiseCop, &params_b).expect("execute failed");
+        let img_a = generate_cop(&ctx, &NoiseCop, &params_a).expect("execute failed");
+        let img_b = generate_cop(&ctx, &NoiseCop, &params_b).expect("execute failed");
 
         let pixels_a = img_a.to_cpu().expect("readback failed");
         let pixels_b = img_b.to_cpu().expect("readback failed");

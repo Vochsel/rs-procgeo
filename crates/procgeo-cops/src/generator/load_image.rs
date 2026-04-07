@@ -35,11 +35,12 @@ impl Cop for LoadImageCop {
     }
 
     fn input_count(&self) -> (usize, usize) {
-        (0, 1)
+        (0, 0)
     }
 
     fn execute(
         &self,
+        ctx: &Arc<GpuContext>,
         inputs: &[&Image],
         params: &LoadImageParams,
     ) -> Result<Image, CopError> {
@@ -48,12 +49,6 @@ impl Cop for LoadImageCop {
         if params.path.is_empty() {
             return Err(CopError::ImageLoad("path is empty".into()));
         }
-
-        let ctx: Arc<GpuContext> = if !inputs.is_empty() {
-            Arc::clone(inputs[0].ctx())
-        } else {
-            return Err(CopError::NoContext);
-        };
 
         // Decode the image from disk and convert to RGBA f32
         let dyn_image = image::open(&params.path)
@@ -64,7 +59,7 @@ impl Cop for LoadImageCop {
         let height = rgba_f32.height();
         let flat: &[f32] = &rgba_f32;
 
-        Image::from_cpu(ctx, width, height, flat)
+        Image::from_cpu(Arc::clone(ctx), width, height, flat)
             .map_err(|e| CopError::ImageLoad(format!("GPU upload failed: {e}")))
     }
 }
@@ -89,7 +84,7 @@ mod tests {
         let Some(ctx) = try_ctx() else { return; };
 
         let params = LoadImageParams { path: String::new() };
-        let result = generate_cop(ctx, &LoadImageCop, &params);
+        let result = generate_cop(&ctx, &LoadImageCop, &params);
         assert!(
             result.is_err(),
             "expected error for empty path, got Ok"
@@ -109,7 +104,7 @@ mod tests {
         let params = LoadImageParams {
             path: "/nonexistent/path/to/image.png".into(),
         };
-        let result = generate_cop(ctx, &LoadImageCop, &params);
+        let result = generate_cop(&ctx, &LoadImageCop, &params);
         assert!(
             result.is_err(),
             "expected error for missing file, got Ok"

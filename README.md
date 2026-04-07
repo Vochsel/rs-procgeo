@@ -45,10 +45,11 @@ procgeo (umbrella crate, re-exports + prelude)
  ├── procgeo-core     Geometry model, attributes, groups, math
  ├── procgeo-sops     SOP implementations, feature-gated by category
  ├── procgeo-io       Format readers/writers (OBJ, glTF)
- └── bindings/
-      ├── procgeo-node   TypeScript/Node.js (napi-rs)
-      ├── procgeo-py     Python (PyO3/maturin)
-      ├── procgeo-wasm   WebAssembly (wasm-bindgen)
+ ├── bindings/
+ │    ├── procgeo-node   TypeScript/Node.js (napi-rs)
+ │    ├── procgeo-py     Python (PyO3/maturin)
+ │    └── procgeo-wasm   WebAssembly (wasm-bindgen)
+ └── utils/
       └── procgeo-three  Three.js bridge (toMesh, toBufferGeometry, etc.)
 ```
 

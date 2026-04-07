@@ -67,16 +67,7 @@ where
                 .map_err(|e| CopError::InvalidParam(format!("{e}")))?
         };
 
-        let (min, _max) = self.input_count();
-
-        // For generators (min == 0), inject an empty carrier image so the COP
-        // can access the GPU context even when no inputs are provided.
-        if min == 0 && inputs.is_empty() {
-            let carrier = crate::image::Image::empty(Arc::clone(ctx));
-            return self.cop.execute(&[&carrier], &params);
-        }
-
-        self.cop.execute(inputs, &params)
+        self.cop.execute(ctx, inputs, &params)
     }
 
     fn name(&self) -> &'static str {
