@@ -31,32 +31,6 @@ const BYTES_PER_PIXEL: u32 = 16;
 const COPY_BYTES_PER_ROW_ALIGNMENT: u32 = 256;
 
 impl Image {
-    /// Create an empty 0x0 image that carries a context reference.
-    /// Internally allocates a 1x1 texture since wgpu requires non-zero dimensions.
-    pub fn empty(ctx: Arc<GpuContext>) -> Self {
-        let texture = ctx.device().create_texture(&wgpu::TextureDescriptor {
-            label: Some("empty"),
-            size: wgpu::Extent3d {
-                width: 1,
-                height: 1,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: IMAGE_FORMAT,
-            usage: STORAGE_USAGE,
-            view_formats: &[],
-        });
-
-        Self {
-            ctx,
-            texture,
-            width: 0,
-            height: 0,
-        }
-    }
-
     /// Create a GPU storage texture of the given dimensions.
     pub fn create_storage(ctx: Arc<GpuContext>, width: u32, height: u32) -> Self {
         let texture = ctx.device().create_texture(&wgpu::TextureDescriptor {
@@ -325,24 +299,6 @@ fn align_up(value: u32, alignment: u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_empty_image() {
-        let ctx = match GpuContext::new_blocking() {
-            Ok(ctx) => Arc::new(ctx),
-            Err(e) => {
-                eprintln!("Skipping empty image test: {e}");
-                return;
-            }
-        };
-
-        let img = Image::empty(ctx);
-        assert_eq!(img.width(), 0);
-        assert_eq!(img.height(), 0);
-
-        let data = img.to_cpu().unwrap();
-        assert!(data.is_empty());
-    }
 
     #[test]
     fn test_roundtrip_from_cpu_to_cpu() {
