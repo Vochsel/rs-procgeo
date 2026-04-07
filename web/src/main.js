@@ -105,6 +105,21 @@ function updateScene(geo) {
     updateSpreadsheet();
 }
 
+function fitCameraToScene() {
+    const box = new THREE.Box3().setFromObject(meshGroup);
+    if (box.isEmpty()) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const dist = maxDim / (2 * Math.tan((camera.fov * Math.PI) / 360)) * 1.4;
+    camera.position.copy(center).add(new THREE.Vector3(dist * 0.6, dist * 0.5, dist * 0.7));
+    controls.target.copy(center);
+    camera.near = dist * 0.01;
+    camera.far = dist * 20;
+    camera.updateProjectionMatrix();
+    controls.update();
+}
+
 // Render loop
 function render() {
     requestAnimationFrame(render);
@@ -586,7 +601,8 @@ loadWasm().then(async () => {
     if (urlCode) {
         editor.setValue(urlCode);
     }
-    executeCode(editor.getValue());
+    await executeCode(editor.getValue());
+    if (urlCode) fitCameraToScene();
 }).catch(e => {
     setStatus(`Failed to load WASM: ${e.message}`, 'error');
     console.error(e);
