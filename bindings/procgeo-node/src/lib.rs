@@ -479,6 +479,80 @@ pub fn point_deform(
 }
 
 #[napi]
+pub fn boolean_op(
+    a: &Geometry,
+    b: &Geometry,
+    params: Option<serde_json::Value>,
+) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let operation = match get_str(&p, "operation", "union") {
+        "intersect" => procgeo_sops::boolean::BooleanOp::Intersect,
+        "subtract" => procgeo_sops::boolean::BooleanOp::Subtract,
+        "shatter" => procgeo_sops::boolean::BooleanOp::Shatter,
+        "seam" => procgeo_sops::boolean::BooleanOp::Seam,
+        "detect" => procgeo_sops::boolean::BooleanOp::Detect,
+        "resolve" => procgeo_sops::boolean::BooleanOp::Resolve,
+        "custom" => procgeo_sops::boolean::BooleanOp::Custom,
+        _ => procgeo_sops::boolean::BooleanOp::Union,
+    };
+    let treat_a_as = match get_str(&p, "treat_a_as", "solid") {
+        "surface" => procgeo_sops::boolean::BooleanTreatAs::Surface,
+        _ => procgeo_sops::boolean::BooleanTreatAs::Solid,
+    };
+    let treat_b_as = match get_str(&p, "treat_b_as", "solid") {
+        "surface" => procgeo_sops::boolean::BooleanTreatAs::Surface,
+        _ => procgeo_sops::boolean::BooleanTreatAs::Solid,
+    };
+    let detriangulate = match get_str(&p, "detriangulate", "all") {
+        "only_unchanged" => procgeo_sops::boolean::Detriangulate::OnlyUnchanged,
+        "none" => procgeo_sops::boolean::Detriangulate::None,
+        _ => procgeo_sops::boolean::Detriangulate::All,
+    };
+    let custom_match = match get_str(&p, "custom_match", "both") {
+        "a" => procgeo_sops::boolean::CustomMatch::A,
+        "b" => procgeo_sops::boolean::CustomMatch::B,
+        "exactly_one" => procgeo_sops::boolean::CustomMatch::ExactlyOne,
+        _ => procgeo_sops::boolean::CustomMatch::Both,
+    };
+    let a_depth_min = p.get("a_depth_min").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+    let a_depth_max = p.get("a_depth_max").and_then(|v| v.as_i64()).unwrap_or(9999) as i32;
+    let b_depth_min = p.get("b_depth_min").and_then(|v| v.as_i64()).unwrap_or(1) as i32;
+    let b_depth_max = p.get("b_depth_max").and_then(|v| v.as_i64()).unwrap_or(9999) as i32;
+    let params = procgeo_sops::boolean::BooleanParams {
+        group_a: p.get("group_a").and_then(|v| v.as_str()).map(String::from),
+        group_b: p.get("group_b").and_then(|v| v.as_str()).map(String::from),
+        treat_a_as,
+        treat_b_as,
+        operation,
+        detriangulate,
+        custom_match,
+        collapse_tiny_edges: get_bool(&p, "collapse_tiny_edges", true),
+        resolve_self_a: get_bool(&p, "resolve_self_a", false),
+        resolve_self_b: get_bool(&p, "resolve_self_b", false),
+        assume_seam_flat: get_bool(&p, "assume_seam_flat", true),
+        unique_seam_points: get_bool(&p, "unique_seam_points", false),
+        edge_length_threshold: get_f32(&p, "edge_length_threshold", 1e-5),
+        a_depth_range: [a_depth_min, a_depth_max],
+        b_depth_range: [b_depth_min, b_depth_max],
+        merge_adjacent: get_bool(&p, "merge_adjacent", true),
+        generate_aa_seams: get_bool(&p, "generate_aa_seams", false),
+        generate_bb_seams: get_bool(&p, "generate_bb_seams", false),
+        generate_ab_seams: get_bool(&p, "generate_ab_seams", true),
+        a_inside_b_group: p.get("a_inside_b_group").and_then(|v| v.as_str()).map(String::from),
+        a_outside_b_group: p.get("a_outside_b_group").and_then(|v| v.as_str()).map(String::from),
+        b_inside_a_group: p.get("b_inside_a_group").and_then(|v| v.as_str()).map(String::from),
+        b_outside_a_group: p.get("b_outside_a_group").and_then(|v| v.as_str()).map(String::from),
+        aa_seam_edge_group: p.get("aa_seam_edge_group").and_then(|v| v.as_str()).map(String::from),
+        bb_seam_edge_group: p.get("bb_seam_edge_group").and_then(|v| v.as_str()).map(String::from),
+        ab_seam_edge_group: p.get("ab_seam_edge_group").and_then(|v| v.as_str()).map(String::from),
+    };
+    let inner = procgeo_sops::boolean::BooleanSop
+        .execute(&[&a.inner, &b.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
 pub fn compute_normals(geo: &Geometry) -> Result<Geometry> {
     let inner = procgeo_sops::normals::NormalSop
         .execute(

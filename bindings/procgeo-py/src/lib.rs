@@ -1391,6 +1391,47 @@ fn point_deform(
     Ok(Geometry { inner })
 }
 
+#[pyfunction]
+#[pyo3(signature = (a, b, operation="union", treat_a_as="solid", treat_b_as="solid", collapse_tiny_edges=true))]
+fn boolean_op(
+    a: &Geometry,
+    b: &Geometry,
+    operation: &str,
+    treat_a_as: &str,
+    treat_b_as: &str,
+    collapse_tiny_edges: bool,
+) -> PyResult<Geometry> {
+    let op = match operation {
+        "intersect" => procgeo_sops::boolean::BooleanOp::Intersect,
+        "subtract" => procgeo_sops::boolean::BooleanOp::Subtract,
+        "shatter" => procgeo_sops::boolean::BooleanOp::Shatter,
+        "seam" => procgeo_sops::boolean::BooleanOp::Seam,
+        "detect" => procgeo_sops::boolean::BooleanOp::Detect,
+        "resolve" => procgeo_sops::boolean::BooleanOp::Resolve,
+        "custom" => procgeo_sops::boolean::BooleanOp::Custom,
+        _ => procgeo_sops::boolean::BooleanOp::Union,
+    };
+    let ta = match treat_a_as {
+        "surface" => procgeo_sops::boolean::BooleanTreatAs::Surface,
+        _ => procgeo_sops::boolean::BooleanTreatAs::Solid,
+    };
+    let tb = match treat_b_as {
+        "surface" => procgeo_sops::boolean::BooleanTreatAs::Surface,
+        _ => procgeo_sops::boolean::BooleanTreatAs::Solid,
+    };
+    let params = procgeo_sops::boolean::BooleanParams {
+        operation: op,
+        treat_a_as: ta,
+        treat_b_as: tb,
+        collapse_tiny_edges,
+        ..Default::default()
+    };
+    let inner = procgeo_sops::boolean::BooleanSop
+        .execute(&[&a.inner, &b.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 /// The procgeo Python module.
 #[pymodule]
 fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1409,6 +1450,7 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(transform, m)?)?;
     m.add_function(wrap_pyfunction!(bend, m)?)?;
     m.add_function(wrap_pyfunction!(point_deform, m)?)?;
+    m.add_function(wrap_pyfunction!(boolean_op, m)?)?;
     m.add_function(wrap_pyfunction!(compute_normals, m)?)?;
     m.add_function(wrap_pyfunction!(merge, m)?)?;
     m.add_function(wrap_pyfunction!(subdivide, m)?)?;

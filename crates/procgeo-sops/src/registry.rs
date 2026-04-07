@@ -262,6 +262,12 @@ pub fn default_registry() -> SopRegistry {
         r.add(crate::deform::PointDeformSop);
     }
 
+    // Boolean
+    #[cfg(feature = "boolean")]
+    {
+        r.add(crate::boolean::BooleanSop);
+    }
+
     r
 }
 
