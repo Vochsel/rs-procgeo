@@ -96,7 +96,9 @@ impl Sop for AttribSortSop {
                     .collect();
 
                 values.sort_by(|a, b| {
-                    a[comp].partial_cmp(&b[comp]).unwrap_or(std::cmp::Ordering::Equal)
+                    a[comp]
+                        .partial_cmp(&b[comp])
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 });
 
                 if matches!(params.order, AttribSortOrder::Descending) {
@@ -123,8 +125,8 @@ impl Sop for AttribSortSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::attributes::create::{AttribCreateSop, AttribCreateParams};
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::attributes::create::{AttribCreateParams, AttribCreateSop};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
 
@@ -139,9 +141,7 @@ mod tests {
             ..Default::default()
         };
         let mut result = geo.apply(&sop, &params).unwrap();
-        let handle = result
-            .find_attrib::<f32>(AttribClass::Point, name)
-            .unwrap();
+        let handle = result.find_attrib::<f32>(AttribClass::Point, name).unwrap();
         for (i, &v) in values.iter().enumerate() {
             result.set_attrib(&handle, i, v).unwrap();
         }
@@ -228,7 +228,9 @@ mod tests {
             [1.0, 7.0, 0.0],
             [1.0, 4.0, 0.0],
         ];
-        let handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "vel").unwrap();
+        let handle = geo
+            .find_attrib::<[f32; 3]>(AttribClass::Point, "vel")
+            .unwrap();
         for (i, &v) in vecs.iter().enumerate() {
             geo.set_attrib(&handle, i, v).unwrap();
         }

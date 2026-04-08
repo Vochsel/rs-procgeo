@@ -104,11 +104,9 @@ fn run_pass(
         ],
     });
 
-    let mut encoder =
-        ctx.device()
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some(label),
-            });
+    let mut encoder = ctx
+        .device()
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some(label) });
 
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -136,7 +134,12 @@ impl Cop for BlurCop {
         (1, 1)
     }
 
-    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &BlurParams) -> Result<Image, CopError> {
+    fn execute(
+        &self,
+        ctx: &Arc<GpuContext>,
+        inputs: &[&Image],
+        params: &BlurParams,
+    ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
         let input = inputs[0];
 
@@ -192,9 +195,7 @@ mod tests {
         };
 
         // Constant red image
-        let data: Vec<f32> = (0..8 * 8)
-            .flat_map(|_| [0.5f32, 0.3, 0.1, 1.0])
-            .collect();
+        let data: Vec<f32> = (0..8 * 8).flat_map(|_| [0.5f32, 0.3, 0.1, 1.0]).collect();
         let input = Image::from_cpu(Arc::clone(&ctx), 8, 8, &data).expect("from_cpu failed");
 
         let params = BlurParams {
@@ -203,7 +204,9 @@ mod tests {
             radius_y: 3.0,
         };
 
-        let output = BlurCop.execute(&ctx, &[&input], &params).expect("execute failed");
+        let output = BlurCop
+            .execute(&ctx, &[&input], &params)
+            .expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // Blurring a constant image should stay constant
@@ -251,7 +254,9 @@ mod tests {
             radius_y: 0.0,
         };
 
-        let output = BlurCop.execute(&ctx, &[&input], &params).expect("execute failed");
+        let output = BlurCop
+            .execute(&ctx, &[&input], &params)
+            .expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // Boundary pixels should be blended — neither pure white nor pure black

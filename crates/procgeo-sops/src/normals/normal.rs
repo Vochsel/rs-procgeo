@@ -52,10 +52,7 @@ impl Sop for NormalSop {
             }
 
             // Gather positions
-            let positions: Vec<Vec3> = point_handles
-                .iter()
-                .map(|&ph| geo.point_pos(ph))
-                .collect();
+            let positions: Vec<Vec3> = point_handles.iter().map(|&ph| geo.point_pos(ph)).collect();
 
             // Newell's method: face normal is sum of cross products of consecutive edges
             // N = sum_i (v_i - v_0) × (v_{i+1} - v_0) ... but proper Newell's:
@@ -99,26 +96,32 @@ impl Sop for NormalSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
-    use crate::creation::grid::{GridSop, GridParams, GridOrientation};
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::creation::grid::{GridOrientation, GridParams, GridSop};
     use crate::{GeometryExt, generate};
+    use approx::assert_relative_eq;
 
     #[test]
     fn normal_on_grid() {
         // XZ grid: all face normals should point in ±Y
-        let grid = generate(&GridSop, &GridParams {
-            size: [2.0, 2.0],
-            rows: 3,
-            cols: 3,
-            center: Vec3::ZERO,
-            orientation: GridOrientation::XZ,
-        }).unwrap();
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                size: [2.0, 2.0],
+                rows: 3,
+                cols: 3,
+                center: Vec3::ZERO,
+                orientation: GridOrientation::XZ,
+            },
+        )
+        .unwrap();
 
         let sop = NormalSop;
         let result = grid.apply(&sop, &NormalParams).unwrap();
 
-        let n_handle = result.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+        let n_handle = result
+            .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
+            .unwrap();
         for i in 0..result.num_points() {
             let n = result.get_attrib(&n_handle, i).unwrap();
             let nv = Vec3::from(n);
@@ -144,7 +147,9 @@ mod tests {
         let sop = NormalSop;
         let result = box_geo.apply(&sop, &NormalParams).unwrap();
 
-        let n_handle = result.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+        let n_handle = result
+            .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
+            .unwrap();
         for i in 0..result.num_points() {
             let n = result.get_attrib(&n_handle, i).unwrap();
             let nv = Vec3::from(n);

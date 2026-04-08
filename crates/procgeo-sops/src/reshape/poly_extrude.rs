@@ -141,7 +141,7 @@ impl Sop for PolyExtrudeSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use glam::Vec3;
@@ -153,9 +153,9 @@ mod tests {
     fn make_single_quad() -> Geometry {
         let mut geo = Geometry::new();
         let p0 = geo.add_point(Vec3::new(-0.5, 0.0, -0.5));
-        let p1 = geo.add_point(Vec3::new( 0.5, 0.0, -0.5));
-        let p2 = geo.add_point(Vec3::new( 0.5, 0.0,  0.5));
-        let p3 = geo.add_point(Vec3::new(-0.5, 0.0,  0.5));
+        let p1 = geo.add_point(Vec3::new(0.5, 0.0, -0.5));
+        let p2 = geo.add_point(Vec3::new(0.5, 0.0, 0.5));
+        let p3 = geo.add_point(Vec3::new(-0.5, 0.0, 0.5));
         // CCW winding from +Y → outward normal points +Y
         geo.add_face(&[p0, p3, p2, p1]);
         geo
@@ -167,8 +167,16 @@ mod tests {
         let params = PolyExtrudeParams::default(); // distance=1, output_front=true, output_side=true
         let result = make_single_quad().apply(&PolyExtrudeSop, &params).unwrap();
 
-        assert_eq!(result.num_prims(), 5, "expected 4 sides + 1 front = 5 prims");
-        assert_eq!(result.num_points(), 8, "expected 4 orig + 4 extruded = 8 points");
+        assert_eq!(
+            result.num_prims(),
+            5,
+            "expected 4 sides + 1 front = 5 prims"
+        );
+        assert_eq!(
+            result.num_points(),
+            8,
+            "expected 4 orig + 4 extruded = 8 points"
+        );
     }
 
     #[test]
@@ -199,8 +207,16 @@ mod tests {
         let params = PolyExtrudeParams::default();
         let result = make_box().apply(&PolyExtrudeSop, &params).unwrap();
 
-        assert_eq!(result.num_prims(), 30, "expected 6*5=30 prims for extruded box");
-        assert_eq!(result.num_points(), 8 + 6 * 4, "expected 8 orig + 24 extruded = 32 points");
+        assert_eq!(
+            result.num_prims(),
+            30,
+            "expected 6*5=30 prims for extruded box"
+        );
+        assert_eq!(
+            result.num_points(),
+            8 + 6 * 4,
+            "expected 8 orig + 24 extruded = 32 points"
+        );
     }
 
     #[test]

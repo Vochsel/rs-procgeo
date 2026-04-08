@@ -10,14 +10,14 @@ pub mod image;
 pub mod io;
 pub mod registry;
 
-#[cfg(feature = "generator")]
-pub mod generator;
-#[cfg(feature = "filter")]
-pub mod filter;
 #[cfg(feature = "composite")]
 pub mod composite;
 #[cfg(feature = "custom")]
 pub mod custom;
+#[cfg(feature = "filter")]
+pub mod filter;
+#[cfg(feature = "generator")]
+pub mod generator;
 
 // ---------------------------------------------------------------------------
 // Error

@@ -47,19 +47,19 @@ impl Sop for BoxSop {
         // p2 = (+x, -y, +z)
         // p3 = (-x, -y, +z)
         let p0 = geo.add_point(c + Vec3::new(-half.x, -half.y, -half.z));
-        let p1 = geo.add_point(c + Vec3::new( half.x, -half.y, -half.z));
-        let p2 = geo.add_point(c + Vec3::new( half.x, -half.y,  half.z));
-        let p3 = geo.add_point(c + Vec3::new(-half.x, -half.y,  half.z));
+        let p1 = geo.add_point(c + Vec3::new(half.x, -half.y, -half.z));
+        let p2 = geo.add_point(c + Vec3::new(half.x, -half.y, half.z));
+        let p3 = geo.add_point(c + Vec3::new(-half.x, -half.y, half.z));
 
         // Top face points (y = +half.y)
         // p4 = (-x, +y, -z)
         // p5 = (+x, +y, -z)
         // p6 = (+x, +y, +z)
         // p7 = (-x, +y, +z)
-        let p4 = geo.add_point(c + Vec3::new(-half.x,  half.y, -half.z));
-        let p5 = geo.add_point(c + Vec3::new( half.x,  half.y, -half.z));
-        let p6 = geo.add_point(c + Vec3::new( half.x,  half.y,  half.z));
-        let p7 = geo.add_point(c + Vec3::new(-half.x,  half.y,  half.z));
+        let p4 = geo.add_point(c + Vec3::new(-half.x, half.y, -half.z));
+        let p5 = geo.add_point(c + Vec3::new(half.x, half.y, -half.z));
+        let p6 = geo.add_point(c + Vec3::new(half.x, half.y, half.z));
+        let p7 = geo.add_point(c + Vec3::new(-half.x, half.y, half.z));
 
         // Bottom face: normal pointing -Y (outward)
         geo.add_face(&[p0, p1, p2, p3]);
@@ -81,8 +81,8 @@ impl Sop for BoxSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     use crate::generate;
+    use approx::assert_relative_eq;
 
     #[test]
     fn box_default() {
@@ -98,9 +98,9 @@ mod tests {
         assert_relative_eq!(bb.min.x, -0.5, epsilon = 1e-5);
         assert_relative_eq!(bb.min.y, -0.5, epsilon = 1e-5);
         assert_relative_eq!(bb.min.z, -0.5, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.x,  0.5, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.y,  0.5, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.z,  0.5, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.x, 0.5, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.y, 0.5, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.z, 0.5, epsilon = 1e-5);
     }
 
     #[test]
@@ -115,11 +115,11 @@ mod tests {
 
         let bb = geo.bounding_box();
         assert_relative_eq!(bb.min.x, -1.0, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.x,  1.0, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.x, 1.0, epsilon = 1e-5);
         assert_relative_eq!(bb.min.y, -2.0, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.y,  2.0, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.y, 2.0, epsilon = 1e-5);
         assert_relative_eq!(bb.min.z, -3.0, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.z,  3.0, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.z, 3.0, epsilon = 1e-5);
     }
 
     #[test]
@@ -132,10 +132,10 @@ mod tests {
         let geo = generate(&sop, &params).unwrap();
 
         let bb = geo.bounding_box();
-        assert_relative_eq!(bb.min.x,  9.5, epsilon = 1e-5);
+        assert_relative_eq!(bb.min.x, 9.5, epsilon = 1e-5);
         assert_relative_eq!(bb.max.x, 10.5, epsilon = 1e-5);
-        assert_relative_eq!(bb.min.y,  4.5, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.y,  5.5, epsilon = 1e-5);
+        assert_relative_eq!(bb.min.y, 4.5, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.y, 5.5, epsilon = 1e-5);
         assert_relative_eq!(bb.min.z, -3.5, epsilon = 1e-5);
         assert_relative_eq!(bb.max.z, -2.5, epsilon = 1e-5);
     }
@@ -158,7 +158,12 @@ mod tests {
         let dummy = Geometry::new();
         let result = sop.execute(&[&dummy], &params);
         assert!(result.is_err());
-        if let Err(SopError::WrongInputCount { expected_min, expected_max, got }) = result {
+        if let Err(SopError::WrongInputCount {
+            expected_min,
+            expected_max,
+            got,
+        }) = result
+        {
             assert_eq!(expected_min, 0);
             assert_eq!(expected_max, 0);
             assert_eq!(got, 1);

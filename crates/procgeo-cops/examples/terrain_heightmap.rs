@@ -7,10 +7,10 @@
 
 use std::sync::Arc;
 
-use procgeo_cops::prelude::*;
-use procgeo_cops::generator::{NoiseCop, NoiseParams, NoiseType, ConstantCop, ConstantParams};
+use procgeo_cops::composite::{CompOp, CompositeCop, CompositeParams};
 use procgeo_cops::filter::{BlurCop, BlurParams};
-use procgeo_cops::composite::{CompositeCop, CompositeParams, CompOp};
+use procgeo_cops::generator::{ConstantCop, ConstantParams, NoiseCop, NoiseParams, NoiseType};
+use procgeo_cops::prelude::*;
 
 fn main() {
     let ctx = Arc::new(

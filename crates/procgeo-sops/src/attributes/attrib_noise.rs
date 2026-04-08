@@ -14,8 +14,8 @@ pub enum NoiseType {
     #[default]
     Perlin,
     Simplex,
-    Worley,      // F1 (distance to nearest)
-    WorleyF2F1,  // F2 - F1
+    Worley,     // F1 (distance to nearest)
+    WorleyF2F1, // F2 - F1
 }
 
 /// How to combine noise with existing attribute values.
@@ -53,7 +53,7 @@ pub enum NoiseRange {
     ZeroCentered, // [-amplitude, +amplitude]
     #[default]
     Positive, // [0, amplitude]
-    MinMax,   // [min_value, max_value]
+    MinMax,       // [min_value, max_value]
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -66,7 +66,7 @@ pub struct AttribNoiseParams {
     pub operation: NoiseOperation,
 
     // Noise pattern
-    pub element_size: f32,  // feature size (frequency = 1/size)
+    pub element_size: f32, // feature size (frequency = 1/size)
     pub offset: [f32; 3],
     pub seed: u64,
 
@@ -83,8 +83,8 @@ pub struct AttribNoiseParams {
     pub roughness: f32,
 
     // Value correction
-    pub gain: f32,  // 0.5 = no effect
-    pub bias: f32,  // 0.5 = no effect
+    pub gain: f32, // 0.5 = no effect
+    pub bias: f32, // 0.5 = no effect
 }
 
 impl Default for AttribNoiseParams {
@@ -274,8 +274,7 @@ fn simplex(pos: [f32; 3], seed: u64) -> f32 {
 fn cell_feature_point(cx: i32, cy: i32, cz: i32, seed: u64) -> [f32; 3] {
     // Three independent hashes for x, y, z jitter
     let hx = {
-        let mut h = (cx as u64)
-            .wrapping_mul(73_856_093)
+        let mut h = (cx as u64).wrapping_mul(73_856_093)
             ^ (cy as u64).wrapping_mul(19_349_663)
             ^ (cz as u64).wrapping_mul(83_492_791)
             ^ seed;
@@ -284,8 +283,7 @@ fn cell_feature_point(cx: i32, cy: i32, cz: i32, seed: u64) -> [f32; 3] {
         h
     };
     let hy = {
-        let mut h = (cx as u64)
-            .wrapping_mul(19_349_663)
+        let mut h = (cx as u64).wrapping_mul(19_349_663)
             ^ (cy as u64).wrapping_mul(83_492_791)
             ^ (cz as u64).wrapping_mul(73_856_093)
             ^ seed.wrapping_add(1);
@@ -294,8 +292,7 @@ fn cell_feature_point(cx: i32, cy: i32, cz: i32, seed: u64) -> [f32; 3] {
         h
     };
     let hz = {
-        let mut h = (cx as u64)
-            .wrapping_mul(83_492_791)
+        let mut h = (cx as u64).wrapping_mul(83_492_791)
             ^ (cy as u64).wrapping_mul(73_856_093)
             ^ (cz as u64).wrapping_mul(19_349_663)
             ^ seed.wrapping_add(2);
@@ -658,7 +655,7 @@ impl Sop for AttribNoiseSop {
 mod tests {
     use super::*;
     use crate::creation::grid::{GridParams, GridSop};
-    use crate::{generate, GeometryExt};
+    use crate::{GeometryExt, generate};
 
     fn make_grid() -> Geometry {
         generate(
@@ -764,30 +761,38 @@ mod tests {
             )
             .unwrap();
 
-        let hs = single.find_attrib::<f32>(AttribClass::Point, "single").unwrap();
-        let hf = fractal.find_attrib::<f32>(AttribClass::Point, "fractal").unwrap();
+        let hs = single
+            .find_attrib::<f32>(AttribClass::Point, "single")
+            .unwrap();
+        let hf = fractal
+            .find_attrib::<f32>(AttribClass::Point, "fractal")
+            .unwrap();
 
         // Compute variance of each: fractal should have higher variation
         let n = single.num_points() as f32;
         let mean_s: f32 = (0..single.num_points())
             .map(|i| single.get_attrib(&hs, i).unwrap())
-            .sum::<f32>() / n;
+            .sum::<f32>()
+            / n;
         let mean_f: f32 = (0..fractal.num_points())
             .map(|i| fractal.get_attrib(&hf, i).unwrap())
-            .sum::<f32>() / n;
+            .sum::<f32>()
+            / n;
 
         let var_s: f32 = (0..single.num_points())
             .map(|i| {
                 let d = single.get_attrib(&hs, i).unwrap() - mean_s;
                 d * d
             })
-            .sum::<f32>() / n;
+            .sum::<f32>()
+            / n;
         let var_f: f32 = (0..fractal.num_points())
             .map(|i| {
                 let d = fractal.get_attrib(&hf, i).unwrap() - mean_f;
                 d * d
             })
-            .sum::<f32>() / n;
+            .sum::<f32>()
+            / n;
 
         // Both should have non-trivial variation; fractal should have at least as much
         assert!(var_s > 0.0, "single octave noise has zero variance");
@@ -893,9 +898,7 @@ mod tests {
             ..Default::default()
         };
         let result = geo.apply(&sop, &params).unwrap();
-        let handle = result
-            .find_attrib::<f32>(AttribClass::Point, "zc")
-            .unwrap();
+        let handle = result.find_attrib::<f32>(AttribClass::Point, "zc").unwrap();
 
         for i in 0..result.num_points() {
             let v = result.get_attrib(&handle, i).unwrap();
@@ -913,8 +916,14 @@ mod tests {
             .collect();
         let has_negative = vals.iter().any(|&v| v < 0.0);
         let has_positive = vals.iter().any(|&v| v > 0.0);
-        assert!(has_negative, "ZeroCentered noise should have negative values");
-        assert!(has_positive, "ZeroCentered noise should have positive values");
+        assert!(
+            has_negative,
+            "ZeroCentered noise should have negative values"
+        );
+        assert!(
+            has_positive,
+            "ZeroCentered noise should have positive values"
+        );
     }
 
     // -----------------------------------------------------------------------

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use procgeo_core::{AttribClass, Geometry, PrimHandle, Primitive, PolyType};
+use procgeo_core::{AttribClass, Geometry, PolyType, PrimHandle, Primitive};
 use serde_json::json;
 
 use crate::{GeometryWriter, IoError};
@@ -91,7 +91,9 @@ pub fn build_glb(geo: &Geometry) -> Result<Vec<u8>, IoError> {
     if let Some(ref nh) = n_handle {
         normals.reserve(num_pts);
         for i in 0..num_pts {
-            let n = geo.get_attrib(nh, i).map_err(|e| IoError::Parse(e.to_string()))?;
+            let n = geo
+                .get_attrib(nh, i)
+                .map_err(|e| IoError::Parse(e.to_string()))?;
             normals.push(n);
         }
     }
@@ -101,7 +103,9 @@ pub fn build_glb(geo: &Geometry) -> Result<Vec<u8>, IoError> {
     if let Some(ref cdh) = cd_handle {
         colors.reserve(num_pts);
         for i in 0..num_pts {
-            let cd = geo.get_attrib(cdh, i).map_err(|e| IoError::Parse(e.to_string()))?;
+            let cd = geo
+                .get_attrib(cdh, i)
+                .map_err(|e| IoError::Parse(e.to_string()))?;
             colors.push(cd);
         }
     }
@@ -316,8 +320,8 @@ pub fn build_glb(geo: &Geometry) -> Result<Vec<u8>, IoError> {
     // ------------------------------------------------------------------
     // 6. Build JSON chunk bytes (padded to 4-byte alignment with spaces)
     // ------------------------------------------------------------------
-    let mut json_bytes = serde_json::to_vec(&gltf_json)
-        .map_err(|e| IoError::Parse(e.to_string()))?;
+    let mut json_bytes =
+        serde_json::to_vec(&gltf_json).map_err(|e| IoError::Parse(e.to_string()))?;
     pad_to_4(&mut json_bytes, 0x20); // spaces for JSON padding
 
     // ------------------------------------------------------------------
@@ -342,7 +346,7 @@ pub fn build_glb(geo: &Geometry) -> Result<Vec<u8>, IoError> {
 
     // GLB header
     push_u32_le(&mut glb, 0x46546C67); // magic "glTF"
-    push_u32_le(&mut glb, 2);           // version
+    push_u32_le(&mut glb, 2); // version
     push_u32_le(&mut glb, total_length);
 
     // JSON chunk
@@ -403,7 +407,7 @@ mod tests {
 
     #[test]
     fn gltf_write_box() {
-        use procgeo_sops::creation::{BoxSop, BoxParams};
+        use procgeo_sops::creation::{BoxParams, BoxSop};
         use procgeo_sops::generate;
 
         let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
@@ -416,9 +420,9 @@ mod tests {
 
     #[test]
     fn gltf_write_with_normals() {
-        use procgeo_sops::creation::{BoxSop, BoxParams};
-        use procgeo_sops::normals::{NormalSop, NormalParams};
-        use procgeo_sops::{generate, GeometryExt};
+        use procgeo_sops::creation::{BoxParams, BoxSop};
+        use procgeo_sops::normals::{NormalParams, NormalSop};
+        use procgeo_sops::{GeometryExt, generate};
 
         let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
         let geo_with_normals = box_geo.apply(&NormalSop, &NormalParams).unwrap();
@@ -431,10 +435,11 @@ mod tests {
 
         // Verify the JSON chunk contains "NORMAL" accessor
         // JSON chunk starts at byte 12, chunk data at byte 20
-        let json_data_len =
-            u32::from_le_bytes(buf[12..16].try_into().unwrap()) as usize;
+        let json_data_len = u32::from_le_bytes(buf[12..16].try_into().unwrap()) as usize;
         let json_bytes = &buf[20..20 + json_data_len];
-        let json_str = std::str::from_utf8(json_bytes).unwrap().trim_end_matches(char::is_whitespace);
+        let json_str = std::str::from_utf8(json_bytes)
+            .unwrap()
+            .trim_end_matches(char::is_whitespace);
         let json: serde_json::Value = serde_json::from_str(json_str).unwrap();
 
         // Check NORMAL key exists in the mesh primitive attributes

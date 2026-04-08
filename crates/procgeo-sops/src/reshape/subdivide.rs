@@ -49,24 +49,23 @@ fn subdivide_once(geo: &Geometry) -> Geometry {
     // Cache for edge midpoints: key = (min_idx, max_idx), value = new PointHandle
     let mut edge_mids: HashMap<(usize, usize), PointHandle> = HashMap::new();
 
-    let get_or_create_edge_mid =
-        |a: usize,
-         b: usize,
-         edge_mids: &mut HashMap<(usize, usize), PointHandle>,
-         out: &mut Geometry,
-         geo: &Geometry|
-         -> PointHandle {
-            let key = (a.min(b), a.max(b));
-            if let Some(&h) = edge_mids.get(&key) {
-                return h;
-            }
-            let pa = geo.point_pos(PointHandle::from_index(a));
-            let pb = geo.point_pos(PointHandle::from_index(b));
-            let mid_pos = (pa + pb) * 0.5;
-            let h = out.add_point(mid_pos);
-            edge_mids.insert(key, h);
-            h
-        };
+    let get_or_create_edge_mid = |a: usize,
+                                  b: usize,
+                                  edge_mids: &mut HashMap<(usize, usize), PointHandle>,
+                                  out: &mut Geometry,
+                                  geo: &Geometry|
+     -> PointHandle {
+        let key = (a.min(b), a.max(b));
+        if let Some(&h) = edge_mids.get(&key) {
+            return h;
+        }
+        let pa = geo.point_pos(PointHandle::from_index(a));
+        let pb = geo.point_pos(PointHandle::from_index(b));
+        let mid_pos = (pa + pb) * 0.5;
+        let h = out.add_point(mid_pos);
+        edge_mids.insert(key, h);
+        h
+    };
 
     for prim_idx in 0..geo.num_prims() {
         let ph = PrimHandle::from_index(prim_idx);
@@ -89,11 +88,7 @@ fn subdivide_once(geo: &Geometry) -> Geometry {
         };
 
         // Compute face centroid
-        let centroid: Vec3 = pt_handles
-            .iter()
-            .map(|&p| geo.point_pos(p))
-            .sum::<Vec3>()
-            / n as f32;
+        let centroid: Vec3 = pt_handles.iter().map(|&p| geo.point_pos(p)).sum::<Vec3>() / n as f32;
         let center_h = out.add_point(centroid);
 
         if n == 3 {
@@ -196,8 +191,7 @@ fn catmull_clark_once(geo: &Geometry) -> Geometry {
         let ph = PrimHandle::from_index(prim_idx);
         let pt_handles = geo.prim_points(ph);
         let n = pt_handles.len();
-        let centroid: Vec3 = pt_handles.iter().map(|&p| geo.point_pos(p)).sum::<Vec3>()
-            / n as f32;
+        let centroid: Vec3 = pt_handles.iter().map(|&p| geo.point_pos(p)).sum::<Vec3>() / n as f32;
         face_points.push(centroid);
     }
 
@@ -296,7 +290,9 @@ fn catmull_clark_once(geo: &Geometry) -> Geometry {
         let boundary_edges: Vec<(usize, usize)> = adj_edges
             .iter()
             .filter(|&&key| {
-                edge_to_faces.get(&key).is_some_and(|faces| faces.len() == 1)
+                edge_to_faces
+                    .get(&key)
+                    .is_some_and(|faces| faces.len() == 1)
             })
             .copied()
             .collect();
@@ -422,7 +418,7 @@ impl Sop for SubdivideSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
     use glam::Vec3;
 
@@ -448,7 +444,10 @@ mod tests {
     #[test]
     fn subdivide_single_quad() {
         // 1 quad (4 pts) → depth 1 → 4 quads, 9 points (4 corners + 4 edge mids + 1 center)
-        let params = SubdivideParams { depth: 1, mode: SubdivideMode::Linear };
+        let params = SubdivideParams {
+            depth: 1,
+            mode: SubdivideMode::Linear,
+        };
         let result = make_quad().apply(&SubdivideSop, &params).unwrap();
 
         assert_eq!(result.num_prims(), 4, "expected 4 sub-quads");
@@ -461,18 +460,28 @@ mod tests {
         // 1 triangle (3 pts) → depth 1 → 4 triangles, 6 points (3 corners + 3 edge mids + 1 unused centroid)
         // Note: we add an unreferenced centroid point for triangles (a known limitation)
         // So point count will be 7 (3 + 3 + 1 unused center)
-        let params = SubdivideParams { depth: 1, mode: SubdivideMode::Linear };
+        let params = SubdivideParams {
+            depth: 1,
+            mode: SubdivideMode::Linear,
+        };
         let result = make_triangle().apply(&SubdivideSop, &params).unwrap();
 
         assert_eq!(result.num_prims(), 4, "expected 4 sub-triangles");
         // 3 corners + 3 edge mids + 1 unused centroid = 7
-        assert_eq!(result.num_points(), 7, "expected 7 points (3+3+1 unused centroid)");
+        assert_eq!(
+            result.num_points(),
+            7,
+            "expected 7 points (3+3+1 unused centroid)"
+        );
     }
 
     #[test]
     fn subdivide_box() {
         // Box has 6 quad faces → depth 1 → 24 quads
-        let params = SubdivideParams { depth: 1, mode: SubdivideMode::Linear };
+        let params = SubdivideParams {
+            depth: 1,
+            mode: SubdivideMode::Linear,
+        };
         let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
         let result = box_geo.apply(&SubdivideSop, &params).unwrap();
 
@@ -482,7 +491,10 @@ mod tests {
     #[test]
     fn subdivide_depth_2() {
         // 1 quad → 4 at depth 1 → 16 at depth 2
-        let params = SubdivideParams { depth: 2, mode: SubdivideMode::Linear };
+        let params = SubdivideParams {
+            depth: 2,
+            mode: SubdivideMode::Linear,
+        };
         let result = make_quad().apply(&SubdivideSop, &params).unwrap();
 
         assert_eq!(result.num_prims(), 16, "expected 16 quads at depth 2");
@@ -495,17 +507,31 @@ mod tests {
     #[test]
     fn catmull_clark_quad() {
         // Single quad → 4 quads, 9 points (same count as linear but different positions)
-        let params = SubdivideParams { depth: 1, mode: SubdivideMode::CatmullClark };
+        let params = SubdivideParams {
+            depth: 1,
+            mode: SubdivideMode::CatmullClark,
+        };
         let result = make_quad().apply(&SubdivideSop, &params).unwrap();
 
-        assert_eq!(result.num_prims(), 4, "CC: expected 4 sub-quads from single quad");
-        assert_eq!(result.num_points(), 9, "CC: expected 9 points (4 updated verts + 4 edge pts + 1 face pt)");
+        assert_eq!(
+            result.num_prims(),
+            4,
+            "CC: expected 4 sub-quads from single quad"
+        );
+        assert_eq!(
+            result.num_points(),
+            9,
+            "CC: expected 9 points (4 updated verts + 4 edge pts + 1 face pt)"
+        );
     }
 
     #[test]
     fn catmull_clark_box() {
         // Box (6 quads) → 24 quads after 1 CC subdivision
-        let params = SubdivideParams { depth: 1, mode: SubdivideMode::CatmullClark };
+        let params = SubdivideParams {
+            depth: 1,
+            mode: SubdivideMode::CatmullClark,
+        };
         let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
         let orig_bbox = box_geo.bounding_box();
         let result = box_geo.apply(&SubdivideSop, &params).unwrap();
@@ -527,11 +553,20 @@ mod tests {
     #[test]
     fn catmull_clark_preserves_topology() {
         // CC and linear should produce the same face count at same depth
-        let linear_params = SubdivideParams { depth: 1, mode: SubdivideMode::Linear };
-        let cc_params = SubdivideParams { depth: 1, mode: SubdivideMode::CatmullClark };
+        let linear_params = SubdivideParams {
+            depth: 1,
+            mode: SubdivideMode::Linear,
+        };
+        let cc_params = SubdivideParams {
+            depth: 1,
+            mode: SubdivideMode::CatmullClark,
+        };
 
         let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-        let linear_result = box_geo.clone().apply(&SubdivideSop, &linear_params).unwrap();
+        let linear_result = box_geo
+            .clone()
+            .apply(&SubdivideSop, &linear_params)
+            .unwrap();
         let cc_result = box_geo.apply(&SubdivideSop, &cc_params).unwrap();
 
         assert_eq!(

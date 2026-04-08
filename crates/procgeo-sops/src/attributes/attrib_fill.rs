@@ -181,19 +181,22 @@ impl Sop for AttribFillSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::attributes::create::{AttribCreateSop, AttribCreateParams};
-    use crate::creation::grid::{GridSop, GridParams, GridOrientation};
+    use crate::attributes::create::{AttribCreateParams, AttribCreateSop};
+    use crate::creation::grid::{GridOrientation, GridParams, GridSop};
     use crate::{GeometryExt, generate};
     use glam::Vec3;
 
     fn make_grid_with_corner_boundary() -> Geometry {
-        let geo = generate(&GridSop, &GridParams {
-            size: [4.0, 4.0],
-            rows: 5,
-            cols: 5,
-            center: Vec3::ZERO,
-            orientation: GridOrientation::XZ,
-        })
+        let geo = generate(
+            &GridSop,
+            &GridParams {
+                size: [4.0, 4.0],
+                rows: 5,
+                cols: 5,
+                center: Vec3::ZERO,
+                orientation: GridOrientation::XZ,
+            },
+        )
         .unwrap();
 
         // Create "heat" attribute, all 0.0

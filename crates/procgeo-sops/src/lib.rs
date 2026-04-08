@@ -6,42 +6,42 @@ use thiserror::Error;
 pub mod registry;
 pub use registry::{DynSop, SopRegistry, default_registry};
 
-#[cfg(feature = "creation")]
-pub mod creation;
-#[cfg(feature = "transform")]
-pub mod transform;
-#[cfg(feature = "normals")]
-pub mod normals;
-#[cfg(feature = "merge")]
-pub mod merge;
 #[cfg(feature = "attributes")]
 pub mod attributes;
-#[cfg(feature = "groups_sops")]
-pub mod groups;
-#[cfg(feature = "delete")]
-pub mod delete;
+#[cfg(feature = "boolean")]
+pub mod boolean;
+#[cfg(feature = "color")]
+pub mod color;
 #[cfg(feature = "copy")]
 pub mod copy;
+#[cfg(feature = "creation")]
+pub mod creation;
+#[cfg(feature = "deform")]
+pub mod deform;
+#[cfg(feature = "delete")]
+pub mod delete;
+#[cfg(feature = "groups_sops")]
+pub mod groups;
+#[cfg(feature = "measure_sops")]
+pub mod measure;
+#[cfg(feature = "merge")]
+pub mod merge;
+#[cfg(feature = "normals")]
+pub mod normals;
+#[cfg(feature = "quadwild")]
+pub mod quadwild;
 #[cfg(feature = "reshape")]
 pub mod reshape;
 #[cfg(feature = "scatter")]
 pub mod scatter;
 #[cfg(feature = "topology")]
 pub mod topology;
-#[cfg(feature = "measure_sops")]
-pub mod measure;
+#[cfg(feature = "transform")]
+pub mod transform;
 #[cfg(feature = "utility_sops")]
 pub mod utility;
-#[cfg(feature = "color")]
-pub mod color;
 #[cfg(feature = "voronoi")]
 pub mod voronoi;
-#[cfg(feature = "deform")]
-pub mod deform;
-#[cfg(feature = "boolean")]
-pub mod boolean;
-#[cfg(feature = "quadwild")]
-pub mod quadwild;
 
 #[derive(Debug, Error)]
 pub enum SopError {

@@ -71,6 +71,10 @@ export class Geometry {
     constructor();
     pointPos(index: number): Float32Array;
     /**
+     * Return whether a primitive is closed.
+     */
+    primIsClosed(prim_index: number): boolean;
+    /**
      * Get the point indices for a specific primitive.
      */
     primPointIndices(prim_index: number): Uint32Array;
@@ -171,11 +175,19 @@ export function createCircle(params?: any | null): Geometry;
 
 export function createGrid(params?: any | null): Geometry;
 
+export function createHelix(params?: any | null): Geometry;
+
+export function createIcosphere(params?: any | null): Geometry;
+
 export function createLine(params?: any | null): Geometry;
 
 export function createMetaball(params?: any | null): Geometry;
 
 export function createSphere(params?: any | null): Geometry;
+
+export function createSpiral(params?: any | null): Geometry;
+
+export function createTeapot(params?: any | null): Geometry;
 
 export function createTorus(params?: any | null): Geometry;
 
@@ -308,9 +320,13 @@ export interface InitOutput {
     readonly createBox: (a: number) => [number, number, number];
     readonly createCircle: (a: number) => [number, number, number];
     readonly createGrid: (a: number) => [number, number, number];
+    readonly createHelix: (a: number) => [number, number, number];
+    readonly createIcosphere: (a: number) => [number, number, number];
     readonly createLine: (a: number) => [number, number, number];
     readonly createMetaball: (a: number) => [number, number, number];
     readonly createSphere: (a: number) => [number, number, number];
+    readonly createSpiral: (a: number) => [number, number, number];
+    readonly createTeapot: (a: number) => [number, number, number];
     readonly createTorus: (a: number) => [number, number, number];
     readonly createTube: (a: number) => [number, number, number];
     readonly deleteSop: (a: number, b: number) => [number, number, number];
@@ -339,6 +355,7 @@ export interface InitOutput {
     readonly geometry_numPrims: (a: number) => number;
     readonly geometry_numVertices: (a: number) => number;
     readonly geometry_pointPos: (a: number, b: number) => [number, number];
+    readonly geometry_primIsClosed: (a: number, b: number) => number;
     readonly geometry_primPointIndices: (a: number, b: number) => [number, number];
     readonly geometry_primVertexCount: (a: number, b: number) => number;
     readonly geometry_setPointPos: (a: number, b: number, c: number, d: number, e: number) => void;

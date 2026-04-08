@@ -1,6 +1,6 @@
+use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 
 use glam::Vec3;
@@ -204,7 +204,7 @@ fn sort_prims(geo: &Geometry, params: &SortParams) -> Result<Geometry, SopError>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
 
     fn make_box() -> Geometry {
@@ -283,7 +283,8 @@ mod tests {
         for prim_idx in 0..result.num_prims() {
             let ph = PrimHandle::from_index(prim_idx);
             let pts = result.prim_points(ph);
-            let centroid_y = pts.iter().map(|&h| result.point_pos(h).y).sum::<f32>() / pts.len() as f32;
+            let centroid_y =
+                pts.iter().map(|&h| result.point_pos(h).y).sum::<f32>() / pts.len() as f32;
             assert!(centroid_y >= prev_y - 1e-6, "prims not sorted by Y");
             prev_y = centroid_y;
         }

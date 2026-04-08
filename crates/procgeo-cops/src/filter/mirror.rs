@@ -57,7 +57,12 @@ impl Cop for MirrorCop {
         (1, 1)
     }
 
-    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &MirrorParams) -> Result<Image, CopError> {
+    fn execute(
+        &self,
+        ctx: &Arc<GpuContext>,
+        inputs: &[&Image],
+        params: &MirrorParams,
+    ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
         let input = inputs[0];
 
@@ -111,11 +116,11 @@ impl Cop for MirrorCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("mirror_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("mirror_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -161,7 +166,9 @@ mod tests {
             offset: 0.5,
         };
 
-        let output = MirrorCop.execute(&ctx, &[&input], &params).expect("execute failed");
+        let output = MirrorCop
+            .execute(&ctx, &[&input], &params)
+            .expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // Left half (x < 2) should be unchanged; right half mirrors left

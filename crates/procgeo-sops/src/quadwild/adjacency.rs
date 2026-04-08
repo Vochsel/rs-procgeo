@@ -15,11 +15,7 @@ pub struct EdgeKey(pub usize, pub usize);
 
 impl EdgeKey {
     pub fn new(a: usize, b: usize) -> Self {
-        if a < b {
-            EdgeKey(a, b)
-        } else {
-            EdgeKey(b, a)
-        }
+        if a < b { EdgeKey(a, b) } else { EdgeKey(b, a) }
     }
 }
 

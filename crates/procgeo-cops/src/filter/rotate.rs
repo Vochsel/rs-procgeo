@@ -52,7 +52,12 @@ impl Cop for RotateCop {
         (1, 1)
     }
 
-    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &RotateParams) -> Result<Image, CopError> {
+    fn execute(
+        &self,
+        ctx: &Arc<GpuContext>,
+        inputs: &[&Image],
+        params: &RotateParams,
+    ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
         let input = inputs[0];
 
@@ -106,11 +111,11 @@ impl Cop for RotateCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("rotate_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("rotate_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -157,7 +162,9 @@ mod tests {
             filter: FilterMode::Nearest,
         };
 
-        let output = RotateCop.execute(&ctx, &[&input], &params).expect("execute failed");
+        let output = RotateCop
+            .execute(&ctx, &[&input], &params)
+            .expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         assert_eq!(pixels.len(), data.len());

@@ -89,7 +89,12 @@ pub fn trace_field_curves(
             if curve.points.len() >= 2 {
                 let ci = curves.len();
                 add_node(&curve.points[0], ci, &mut nodes, &mut node_curves);
-                add_node(curve.points.last().unwrap(), ci, &mut nodes, &mut node_curves);
+                add_node(
+                    curve.points.last().unwrap(),
+                    ci,
+                    &mut nodes,
+                    &mut node_curves,
+                );
                 curves.push(curve);
             }
         }
@@ -170,9 +175,7 @@ fn trace_sharp_features(
                 }
 
                 // Trace a chain of sharp edges
-                let mut chain_points = vec![
-                    geo.point_pos(PointHandle::from_index(start)),
-                ];
+                let mut chain_points = vec![geo.point_pos(PointHandle::from_index(start))];
                 let mut chain_faces = Vec::new();
                 let mut current = start;
                 let mut next_pt = next;
@@ -256,14 +259,11 @@ fn trace_streamline(
         let next_pos = current_pos + current_dir * step_size;
 
         // Find which face contains the next position (or the nearest face)
-        let (next_face, snapped_pos) = find_containing_face(
-            geo, adj, current_face, next_pos, &visited_faces,
-        );
+        let (next_face, snapped_pos) =
+            find_containing_face(geo, adj, current_face, next_pos, &visited_faces);
 
         // Check if we hit a boundary or sharp edge
-        let crossed_sharp = check_sharp_crossing(
-            adj, sharp, current_face, next_face,
-        );
+        let crossed_sharp = check_sharp_crossing(adj, sharp, current_face, next_face);
 
         points.push(snapped_pos);
         face_seq.push(next_face);
@@ -356,12 +356,7 @@ fn face_centroid_dist(geo: &Geometry, adj: &MeshAdjacency, fi: usize, target: Ve
 }
 
 /// Check if moving between two faces crosses a sharp edge.
-fn check_sharp_crossing(
-    adj: &MeshAdjacency,
-    sharp: &SharpEdges,
-    f0: usize,
-    f1: usize,
-) -> bool {
+fn check_sharp_crossing(adj: &MeshAdjacency, sharp: &SharpEdges, f0: usize, f1: usize) -> bool {
     if f0 == f1 {
         return false;
     }
@@ -428,7 +423,11 @@ mod tests {
         for r in 0..3 {
             for c in 0..3 {
                 geo.add_face(&[pts[r * w + c], pts[r * w + c + 1], pts[(r + 1) * w + c + 1]]);
-                geo.add_face(&[pts[r * w + c], pts[(r + 1) * w + c + 1], pts[(r + 1) * w + c]]);
+                geo.add_face(&[
+                    pts[r * w + c],
+                    pts[(r + 1) * w + c + 1],
+                    pts[(r + 1) * w + c],
+                ]);
             }
         }
         let adj = MeshAdjacency::build(&geo).unwrap();

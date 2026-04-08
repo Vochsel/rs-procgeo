@@ -7,19 +7,16 @@
 
 use std::sync::Arc;
 
-use procgeo_cops::prelude::*;
-use procgeo_cops::generator::{
-    CheckerboardCop, CheckerboardParams,
-    RampCop, RampParams, RampType,
-    NoiseCop, NoiseParams, NoiseType,
-};
+use procgeo_cops::composite::{CompOp, CompositeCop, CompositeParams};
 use procgeo_cops::filter::{BlurCop, BlurParams, BlurType};
-use procgeo_cops::composite::{CompositeCop, CompositeParams, CompOp};
+use procgeo_cops::generator::{
+    CheckerboardCop, CheckerboardParams, NoiseCop, NoiseParams, NoiseType, RampCop, RampParams,
+    RampType,
+};
+use procgeo_cops::prelude::*;
 
 fn main() {
-    let ctx = Arc::new(
-        GpuContext::new_blocking().expect("Failed to init GPU"),
-    );
+    let ctx = Arc::new(GpuContext::new_blocking().expect("Failed to init GPU"));
 
     let size = 512;
 

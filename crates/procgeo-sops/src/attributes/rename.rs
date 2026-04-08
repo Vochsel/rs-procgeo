@@ -46,11 +46,11 @@ impl Sop for AttribRenameSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::attributes::create::{AttribCreateSop, AttribCreateParams};
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::attributes::create::{AttribCreateParams, AttribCreateSop};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
-    use procgeo_core::{AttribType, TypeQualifier};
     use approx::assert_relative_eq;
+    use procgeo_core::{AttribType, TypeQualifier};
 
     #[test]
     fn rename_attribute() {
@@ -69,7 +69,11 @@ mod tests {
         let geo_with_attrib = box_geo.apply(&create_sop, &create_params).unwrap();
 
         // Verify "Cd" exists
-        assert!(geo_with_attrib.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").is_ok());
+        assert!(
+            geo_with_attrib
+                .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
+                .is_ok()
+        );
 
         // Rename "Cd" -> "color"
         let rename_sop = AttribRenameSop;
@@ -81,10 +85,16 @@ mod tests {
         let result = geo_with_attrib.apply(&rename_sop, &rename_params).unwrap();
 
         // Old name should be gone
-        assert!(result.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").is_err());
+        assert!(
+            result
+                .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
+                .is_err()
+        );
 
         // New name should exist with the same data
-        let handle = result.find_attrib::<[f32; 3]>(AttribClass::Point, "color").unwrap();
+        let handle = result
+            .find_attrib::<[f32; 3]>(AttribClass::Point, "color")
+            .unwrap();
         for i in 0..result.num_points() {
             let v = result.get_attrib(&handle, i).unwrap();
             assert_relative_eq!(v[0], 0.5, epsilon = 1e-6);

@@ -1,3 +1,3 @@
 pub mod transform_sop;
 
-pub use transform_sop::{TransformSop, TransformParams};
+pub use transform_sop::{TransformParams, TransformSop};

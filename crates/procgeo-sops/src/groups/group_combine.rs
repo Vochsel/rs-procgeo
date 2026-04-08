@@ -57,12 +57,16 @@ impl Sop for GroupCombineSop {
                 let a = geo
                     .groups()
                     .point_group(&params.name_a)
-                    .ok_or_else(|| SopError::InvalidParam(format!("group '{}' not found", params.name_a)))?
+                    .ok_or_else(|| {
+                        SopError::InvalidParam(format!("group '{}' not found", params.name_a))
+                    })?
                     .clone();
                 let b = geo
                     .groups()
                     .point_group(&params.name_b)
-                    .ok_or_else(|| SopError::InvalidParam(format!("group '{}' not found", params.name_b)))?
+                    .ok_or_else(|| {
+                        SopError::InvalidParam(format!("group '{}' not found", params.name_b))
+                    })?
                     .clone();
 
                 let mut result_group = apply_op(&a, &b, params.operation, geo.num_points());
@@ -77,12 +81,16 @@ impl Sop for GroupCombineSop {
                 let a = geo
                     .groups()
                     .prim_group(&params.name_a)
-                    .ok_or_else(|| SopError::InvalidParam(format!("group '{}' not found", params.name_a)))?
+                    .ok_or_else(|| {
+                        SopError::InvalidParam(format!("group '{}' not found", params.name_a))
+                    })?
                     .clone();
                 let b = geo
                     .groups()
                     .prim_group(&params.name_b)
-                    .ok_or_else(|| SopError::InvalidParam(format!("group '{}' not found", params.name_b)))?
+                    .ok_or_else(|| {
+                        SopError::InvalidParam(format!("group '{}' not found", params.name_b))
+                    })?
                     .clone();
 
                 let mut result_group = apply_op(&a, &b, params.operation, geo.num_prims());
@@ -110,9 +118,9 @@ fn apply_op(a: &ElementGroup, b: &ElementGroup, op: GroupBooleanOp, size: usize)
 
 #[cfg(test)]
 mod tests {
+    use super::super::group_create::{GroupCreateMode, GroupCreateParams, GroupCreateSop};
     use super::*;
-    use super::super::group_create::{GroupCreateSop, GroupCreateParams, GroupCreateMode};
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
 
     fn make_two_point_groups() -> procgeo_core::Geometry {

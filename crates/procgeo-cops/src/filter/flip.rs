@@ -49,7 +49,12 @@ impl Cop for FlipCop {
         (1, 1)
     }
 
-    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &FlipParams) -> Result<Image, CopError> {
+    fn execute(
+        &self,
+        ctx: &Arc<GpuContext>,
+        inputs: &[&Image],
+        params: &FlipParams,
+    ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
         let input = inputs[0];
 
@@ -100,11 +105,11 @@ impl Cop for FlipCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("flip_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("flip_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -138,10 +143,7 @@ mod tests {
 
         // 4x1 image: gradient [0.25, 0.5, 0.75, 1.0] in red channel
         let data: Vec<f32> = vec![
-            0.25, 0.0, 0.0, 1.0,
-            0.5,  0.0, 0.0, 1.0,
-            0.75, 0.0, 0.0, 1.0,
-            1.0,  0.0, 0.0, 1.0,
+            0.25, 0.0, 0.0, 1.0, 0.5, 0.0, 0.0, 1.0, 0.75, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
         ];
         let input = Image::from_cpu(Arc::clone(&ctx), 4, 1, &data).expect("from_cpu failed");
 
@@ -150,7 +152,9 @@ mod tests {
             vertical: false,
         };
 
-        let output = FlipCop.execute(&ctx, &[&input], &params).expect("execute failed");
+        let output = FlipCop
+            .execute(&ctx, &[&input], &params)
+            .expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // After horizontal flip, order should be [1.0, 0.75, 0.5, 0.25]
@@ -199,7 +203,9 @@ mod tests {
             vertical: true,
         };
 
-        let output = FlipCop.execute(&ctx, &[&input], &params).expect("execute failed");
+        let output = FlipCop
+            .execute(&ctx, &[&input], &params)
+            .expect("execute failed");
         let pixels = output.to_cpu().expect("readback failed");
 
         // After vertical flip, top row should be blue and bottom row should be red

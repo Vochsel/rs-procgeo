@@ -79,10 +79,7 @@ impl Sop for PolyReduceSop {
         let faces: Vec<Vec<usize>> = (0..num_prims)
             .map(|i| {
                 let ph = PrimHandle::from_index(i);
-                geo.prim_points(ph)
-                    .iter()
-                    .map(|h| h.index())
-                    .collect()
+                geo.prim_points(ph).iter().map(|h| h.index()).collect()
             })
             .collect();
 
@@ -100,9 +97,9 @@ impl Sop for PolyReduceSop {
                 let a = face[i];
                 let b = face[(i + 1) % n];
                 let key = (a.min(b), a.max(b));
-                edge_set.entry(key).or_insert_with(|| {
-                    (points[a] - points[b]).length()
-                });
+                edge_set
+                    .entry(key)
+                    .or_insert_with(|| (points[a] - points[b]).length());
             }
         }
 
@@ -220,8 +217,8 @@ impl Sop for PolyReduceSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::grid::{GridSop, GridParams};
-    use crate::reshape::subdivide::{SubdivideSop, SubdivideParams, SubdivideMode};
+    use crate::creation::grid::{GridParams, GridSop};
+    use crate::reshape::subdivide::{SubdivideMode, SubdivideParams, SubdivideSop};
     use crate::{GeometryExt, generate};
 
     fn make_subdivided_grid() -> Geometry {
@@ -263,10 +260,7 @@ mod tests {
             result.num_prims(),
             orig_prims
         );
-        assert!(
-            result.num_prims() > 0,
-            "should still have some prims"
-        );
+        assert!(result.num_prims() > 0, "should still have some prims");
     }
 
     #[test]

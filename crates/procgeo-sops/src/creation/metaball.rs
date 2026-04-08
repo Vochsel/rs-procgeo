@@ -1,8 +1,8 @@
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
-use procgeo_core::attribute::{AttribClass, AttribDefault, TypeQualifier};
 use procgeo_core::Geometry;
+use procgeo_core::attribute::{AttribClass, AttribDefault, TypeQualifier};
 
 use crate::{Sop, SopError};
 
@@ -688,8 +688,16 @@ mod tests {
         assert!(geo.num_prims() > 0);
         let bb = geo.bounding_box();
         // Should extend in both X directions beyond the centers (-0.5, 0.5)
-        assert!(bb.max.x > 0.5, "max.x={} should exceed right center", bb.max.x);
-        assert!(bb.min.x < -0.5, "min.x={} should exceed left center", bb.min.x);
+        assert!(
+            bb.max.x > 0.5,
+            "max.x={} should exceed right center",
+            bb.max.x
+        );
+        assert!(
+            bb.min.x < -0.5,
+            "min.x={} should exceed left center",
+            bb.min.x
+        );
     }
 
     #[test]
@@ -720,7 +728,11 @@ mod tests {
     #[test]
     fn metaball_kernels() {
         // All kernel types should produce valid geometry
-        for kernel in [MetaballKernel::Blinn, MetaballKernel::Wyvill, MetaballKernel::Hart] {
+        for kernel in [
+            MetaballKernel::Blinn,
+            MetaballKernel::Wyvill,
+            MetaballKernel::Hart,
+        ] {
             let sop = MetaballSop;
             let params = MetaballParams {
                 kernel,

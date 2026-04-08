@@ -24,8 +24,12 @@ const EPS: f32 = 1e-8;
 /// [`TriTriResult::Segment`] for the general case, or
 /// [`TriTriResult::Coplanar`] when the triangles lie on the same plane.
 pub fn tri_tri_intersection(
-    a0: Vec3, a1: Vec3, a2: Vec3,
-    b0: Vec3, b1: Vec3, b2: Vec3,
+    a0: Vec3,
+    a1: Vec3,
+    a2: Vec3,
+    b0: Vec3,
+    b1: Vec3,
+    b2: Vec3,
 ) -> TriTriResult {
     // --- Step 1-3: Plane of B and signed distances of A vertices to it ---
     let nb = (b1 - b0).cross(b2 - b0);
@@ -36,13 +40,23 @@ pub fn tri_tri_intersection(
     let mut da2 = nb.dot(a2) - db;
 
     // Snap tiny values to zero.
-    if da0.abs() < EPS { da0 = 0.0; }
-    if da1.abs() < EPS { da1 = 0.0; }
-    if da2.abs() < EPS { da2 = 0.0; }
+    if da0.abs() < EPS {
+        da0 = 0.0;
+    }
+    if da1.abs() < EPS {
+        da1 = 0.0;
+    }
+    if da2.abs() < EPS {
+        da2 = 0.0;
+    }
 
     // --- Step 4: If all A on same side → None ---
-    if da0 > 0.0 && da1 > 0.0 && da2 > 0.0 { return TriTriResult::None; }
-    if da0 < 0.0 && da1 < 0.0 && da2 < 0.0 { return TriTriResult::None; }
+    if da0 > 0.0 && da1 > 0.0 && da2 > 0.0 {
+        return TriTriResult::None;
+    }
+    if da0 < 0.0 && da1 < 0.0 && da2 < 0.0 {
+        return TriTriResult::None;
+    }
 
     // --- Step 5: Plane of A and signed distances of B vertices to it ---
     let na = (a1 - a0).cross(a2 - a0);
@@ -52,20 +66,26 @@ pub fn tri_tri_intersection(
     let mut db1 = na.dot(b1) - da;
     let mut db2 = na.dot(b2) - da;
 
-    if db0.abs() < EPS { db0 = 0.0; }
-    if db1.abs() < EPS { db1 = 0.0; }
-    if db2.abs() < EPS { db2 = 0.0; }
+    if db0.abs() < EPS {
+        db0 = 0.0;
+    }
+    if db1.abs() < EPS {
+        db1 = 0.0;
+    }
+    if db2.abs() < EPS {
+        db2 = 0.0;
+    }
 
-    if db0 > 0.0 && db1 > 0.0 && db2 > 0.0 { return TriTriResult::None; }
-    if db0 < 0.0 && db1 < 0.0 && db2 < 0.0 { return TriTriResult::None; }
+    if db0 > 0.0 && db1 > 0.0 && db2 > 0.0 {
+        return TriTriResult::None;
+    }
+    if db0 < 0.0 && db1 < 0.0 && db2 < 0.0 {
+        return TriTriResult::None;
+    }
 
     // --- Step 6: Coplanar case ---
     if da0 == 0.0 && da1 == 0.0 && da2 == 0.0 {
-        return coplanar_intersection(
-            a0, a1, a2,
-            b0, b1, b2,
-            na,
-        );
+        return coplanar_intersection(a0, a1, a2, b0, b1, b2, na);
     }
 
     // --- Step 7: Intersection line direction ---
@@ -98,8 +118,16 @@ pub fn tri_tri_intersection(
     }
 
     // Compute start/end points from the appropriate interval endpoint.
-    let start = if a_min_t >= b_min_t { a_min_pt } else { b_min_pt };
-    let end = if a_max_t <= b_max_t { a_max_pt } else { b_max_pt };
+    let start = if a_min_t >= b_min_t {
+        a_min_pt
+    } else {
+        b_min_pt
+    };
+    let end = if a_max_t <= b_max_t {
+        a_max_pt
+    } else {
+        b_max_pt
+    };
 
     TriTriResult::Segment { start, end }
 }
@@ -111,8 +139,12 @@ pub fn tri_tri_intersection(
 /// Returns `(min_proj, min_point, max_proj, max_point)` or `None` if the
 /// triangle does not straddle the plane at all.
 fn triangle_interval(
-    v0: Vec3, v1: Vec3, v2: Vec3,
-    d0: f32, d1: f32, d2: f32,
+    v0: Vec3,
+    v1: Vec3,
+    v2: Vec3,
+    d0: f32,
+    d1: f32,
+    d2: f32,
     dir: Vec3,
 ) -> Option<(f32, Vec3, f32, Vec3)> {
     let mut pts: Vec<Vec3> = Vec::with_capacity(3);
@@ -177,8 +209,12 @@ fn triangle_interval(
 /// axis most aligned with the shared normal) and computing the intersection
 /// polygon vertices.
 fn coplanar_intersection(
-    a0: Vec3, a1: Vec3, a2: Vec3,
-    b0: Vec3, b1: Vec3, b2: Vec3,
+    a0: Vec3,
+    a1: Vec3,
+    a2: Vec3,
+    b0: Vec3,
+    b1: Vec3,
+    b2: Vec3,
     normal: Vec3,
 ) -> TriTriResult {
     let abs_n = normal.abs();
@@ -192,9 +228,7 @@ fn coplanar_intersection(
         (0, 1) // drop Z
     };
 
-    let project = |v: Vec3| -> [f32; 2] {
-        [component(v, ax1), component(v, ax2)]
-    };
+    let project = |v: Vec3| -> [f32; 2] { [component(v, ax1), component(v, ax2)] };
 
     let pa0 = project(a0);
     let pa1 = project(a1);
@@ -258,7 +292,8 @@ fn coplanar_intersection(
         points_2d
             .iter()
             .map(|p| {
-                let restored = (d - component(normal, ax1) * p[0] - component(normal, ax2) * p[1]) / n_drop;
+                let restored =
+                    (d - component(normal, ax1) * p[0] - component(normal, ax2) * p[1]) / n_drop;
                 set_component(p[0], p[1], restored, ax1, ax2, drop_axis)
             })
             .collect()
@@ -274,10 +309,7 @@ fn coplanar_intersection(
 /// Compute the intersection point of two 2D line segments, if any.
 ///
 /// Returns `None` when the segments do not intersect or are parallel.
-fn segment_segment_2d(
-    a0: [f32; 2], a1: [f32; 2],
-    b0: [f32; 2], b1: [f32; 2],
-) -> Option<[f32; 2]> {
+fn segment_segment_2d(a0: [f32; 2], a1: [f32; 2], b0: [f32; 2], b1: [f32; 2]) -> Option<[f32; 2]> {
     let dx_a = a1[0] - a0[0];
     let dy_a = a1[1] - a0[1];
     let dx_b = b1[0] - b0[0];
@@ -300,10 +332,7 @@ fn segment_segment_2d(
 
     if t >= lo && t <= hi && u >= lo && u <= hi {
         let t_clamped = t.clamp(0.0, 1.0);
-        Some([
-            a0[0] + t_clamped * dx_a,
-            a0[1] + t_clamped * dy_a,
-        ])
+        Some([a0[0] + t_clamped * dx_a, a0[1] + t_clamped * dy_a])
     } else {
         None
     }
@@ -346,7 +375,14 @@ fn component(v: Vec3, axis: usize) -> f32 {
 
 /// Build a Vec3 from two projected coordinates and a restored coordinate.
 #[inline]
-fn set_component(c1: f32, c2: f32, restored: f32, ax1: usize, ax2: usize, drop_axis: usize) -> Vec3 {
+fn set_component(
+    c1: f32,
+    c2: f32,
+    restored: f32,
+    ax1: usize,
+    ax2: usize,
+    drop_axis: usize,
+) -> Vec3 {
     let mut arr = [0.0f32; 3];
     arr[ax1] = c1;
     arr[ax2] = c2;
@@ -432,7 +468,11 @@ mod tests {
         let b2 = Vec3::new(10.5, 11.0, 10.0);
 
         let result = tri_tri_intersection(a0, a1, a2, b0, b1, b2);
-        assert_eq!(result, TriTriResult::None, "Separated triangles should not intersect");
+        assert_eq!(
+            result,
+            TriTriResult::None,
+            "Separated triangles should not intersect"
+        );
     }
 
     // ------------------------------------------------------------------
@@ -491,8 +531,10 @@ mod tests {
                 let s = *start;
                 let e = *end;
                 assert!(
-                    (approx_eq(s, Vec3::new(0.0, 0.0, 0.0)) && approx_eq(e, Vec3::new(1.0, 0.0, 0.0)))
-                    || (approx_eq(s, Vec3::new(1.0, 0.0, 0.0)) && approx_eq(e, Vec3::new(0.0, 0.0, 0.0))),
+                    (approx_eq(s, Vec3::new(0.0, 0.0, 0.0))
+                        && approx_eq(e, Vec3::new(1.0, 0.0, 0.0)))
+                        || (approx_eq(s, Vec3::new(1.0, 0.0, 0.0))
+                            && approx_eq(e, Vec3::new(0.0, 0.0, 0.0))),
                     "Edge-touching triangles should produce segment along shared edge, got {s:?} → {e:?}"
                 );
                 println!("Touching segment: {start:?} → {end:?}");
@@ -522,7 +564,11 @@ mod tests {
         let b2 = Vec3::new(0.5, 1.0, 5.0);
 
         let result = tri_tri_intersection(a0, a1, a2, b0, b1, b2);
-        assert_eq!(result, TriTriResult::None, "Parallel non-coplanar triangles should not intersect");
+        assert_eq!(
+            result,
+            TriTriResult::None,
+            "Parallel non-coplanar triangles should not intersect"
+        );
     }
 
     // ------------------------------------------------------------------

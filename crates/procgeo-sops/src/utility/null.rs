@@ -29,7 +29,7 @@ impl Sop for NullSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
     use glam::Vec3;
 

@@ -155,16 +155,13 @@ impl TriangleBvh {
     /// Recursively build nodes; returns the index of the created node.
     fn build_recursive(&mut self, indices: &mut [usize]) -> usize {
         // Compute union AABB for all triangles in this set.
-        let aabb = indices
-            .iter()
-            .map(|&i| self.triangles[i].aabb())
-            .fold(
-                Aabb {
-                    min: Vec3::splat(f32::MAX),
-                    max: Vec3::splat(f32::MIN),
-                },
-                |acc, b| acc.union(&b),
-            );
+        let aabb = indices.iter().map(|&i| self.triangles[i].aabb()).fold(
+            Aabb {
+                min: Vec3::splat(f32::MAX),
+                max: Vec3::splat(f32::MIN),
+            },
+            |acc, b| acc.union(&b),
+        );
 
         // Leaf case.
         if indices.len() == 1 {

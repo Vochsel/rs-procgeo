@@ -53,10 +53,7 @@ impl Default for RampParams {
     fn default() -> Self {
         Self {
             ramp_type: RampType::default(),
-            stops: vec![
-                (0.0, [0.0, 0.0, 0.0, 1.0]),
-                (1.0, [1.0, 1.0, 1.0, 1.0]),
-            ],
+            stops: vec![(0.0, [0.0, 0.0, 0.0, 1.0]), (1.0, [1.0, 1.0, 1.0, 1.0])],
             width: 256,
             height: 256,
         }
@@ -110,7 +107,9 @@ impl Cop for RampCop {
         self.validate_inputs(inputs)?;
 
         if params.stops.is_empty() {
-            return Err(CopError::InvalidParam("ramp must have at least one stop".into()));
+            return Err(CopError::InvalidParam(
+                "ramp must have at least one stop".into(),
+            ));
         }
 
         let output = Image::create_storage(Arc::clone(ctx), params.width, params.height);
@@ -181,11 +180,11 @@ impl Cop for RampCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("ramp_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("ramp_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -220,15 +219,14 @@ mod tests {
 
     #[test]
     fn linear_ramp_left_dark_right_bright() {
-        let Some(ctx) = try_ctx() else { return; };
+        let Some(ctx) = try_ctx() else {
+            return;
+        };
 
         // 8-wide linear ramp: black at 0, white at 1
         let params = RampParams {
             ramp_type: RampType::Linear,
-            stops: vec![
-                (0.0, [0.0, 0.0, 0.0, 1.0]),
-                (1.0, [1.0, 1.0, 1.0, 1.0]),
-            ],
+            stops: vec![(0.0, [0.0, 0.0, 0.0, 1.0]), (1.0, [1.0, 1.0, 1.0, 1.0])],
             width: 8,
             height: 4,
         };
@@ -238,10 +236,7 @@ mod tests {
 
         // Leftmost pixel should be dark (R close to 0)
         let left_r = pixels[0];
-        assert!(
-            left_r < 0.2,
-            "left pixel should be dark, got R={left_r}"
-        );
+        assert!(left_r < 0.2, "left pixel should be dark, got R={left_r}");
 
         // Rightmost pixel (x=7) should be bright (R close to 1)
         let right_base = (7) * 4; // pixel at (7, 0)
@@ -254,15 +249,14 @@ mod tests {
 
     #[test]
     fn radial_ramp_center_is_first_stop() {
-        let Some(ctx) = try_ctx() else { return; };
+        let Some(ctx) = try_ctx() else {
+            return;
+        };
 
         // Radial ramp: first stop is red at center, second stop is blue at edge
         let params = RampParams {
             ramp_type: RampType::Radial,
-            stops: vec![
-                (0.0, [1.0, 0.0, 0.0, 1.0]),
-                (1.0, [0.0, 0.0, 1.0, 1.0]),
-            ],
+            stops: vec![(0.0, [1.0, 0.0, 0.0, 1.0]), (1.0, [0.0, 0.0, 1.0, 1.0])],
             width: 16,
             height: 16,
         };

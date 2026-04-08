@@ -61,11 +61,8 @@ impl Cop for ConstantCop {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        ctx.queue().write_buffer(
-            &uniform_buffer,
-            0,
-            bytemuck::cast_slice(&params.color),
-        );
+        ctx.queue()
+            .write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&params.color));
 
         // Create a texture view for the output
         let output_view = output
@@ -94,11 +91,11 @@ impl Cop for ConstantCop {
         });
 
         // Encode and dispatch the compute shader
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("constant_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("constant_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {

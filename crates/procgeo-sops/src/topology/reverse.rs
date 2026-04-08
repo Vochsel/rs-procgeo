@@ -42,12 +42,12 @@ impl Sop for ReverseSop {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::creation::grid::{GridOrientation, GridParams, GridSop};
+    use crate::normals::normal::{NormalParams, NormalSop};
+    use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use glam::Vec3;
     use procgeo_core::{AttribClass, Geometry};
-    use crate::creation::grid::{GridSop, GridParams, GridOrientation};
-    use crate::normals::normal::{NormalSop, NormalParams};
-    use crate::{GeometryExt, generate};
 
     #[test]
     fn reverse_changes_winding() {
@@ -73,23 +73,31 @@ mod tests {
     fn reverse_inverts_normals() {
         // Build an XZ grid, compute normals, reverse, compute normals again
         // The normals after reverse should be opposite in sign
-        let grid = generate(&GridSop, &GridParams {
-            size: [2.0, 2.0],
-            rows: 3,
-            cols: 3,
-            center: Vec3::ZERO,
-            orientation: GridOrientation::XZ,
-        }).unwrap();
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                size: [2.0, 2.0],
+                rows: 3,
+                cols: 3,
+                center: Vec3::ZERO,
+                orientation: GridOrientation::XZ,
+            },
+        )
+        .unwrap();
 
         // Normal before reverse
         let with_normals = grid.clone().apply(&NormalSop, &NormalParams).unwrap();
-        let n_handle = with_normals.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+        let n_handle = with_normals
+            .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
+            .unwrap();
         let normal_before: Vec3 = Vec3::from(with_normals.get_attrib(&n_handle, 4).unwrap());
 
         // Reverse and recompute normals
         let reversed = grid.apply(&ReverseSop, &ReverseParams).unwrap();
         let with_normals_after = reversed.apply(&NormalSop, &NormalParams).unwrap();
-        let n_handle2 = with_normals_after.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+        let n_handle2 = with_normals_after
+            .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
+            .unwrap();
         let normal_after: Vec3 = Vec3::from(with_normals_after.get_attrib(&n_handle2, 4).unwrap());
 
         // Normals should be approximately opposite

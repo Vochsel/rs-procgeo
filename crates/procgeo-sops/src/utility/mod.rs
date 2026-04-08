@@ -3,5 +3,5 @@
 pub mod enumerate;
 pub mod null;
 
-pub use enumerate::{EnumerateSop, EnumerateParams};
-pub use null::{NullSop, NullParams};
+pub use enumerate::{EnumerateParams, EnumerateSop};
+pub use null::{NullParams, NullSop};

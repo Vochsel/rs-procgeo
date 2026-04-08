@@ -1,7 +1,7 @@
 use std::io::{BufRead, BufReader, Read, Write};
 
 use glam::Vec3;
-use procgeo_core::{AttribClass, Geometry, PrimHandle, Primitive, PolyType};
+use procgeo_core::{AttribClass, Geometry, PolyType, PrimHandle, Primitive};
 
 use crate::{GeometryReader, GeometryWriter, IoError};
 
@@ -19,7 +19,12 @@ impl GeometryWriter for ObjWriter {
     fn write(&self, geo: &Geometry, writer: &mut dyn Write) -> Result<(), IoError> {
         // Header
         writeln!(writer, "# ProcGeo OBJ export")?;
-        writeln!(writer, "# points: {}  prims: {}", geo.num_points(), geo.num_prims())?;
+        writeln!(
+            writer,
+            "# points: {}  prims: {}",
+            geo.num_points(),
+            geo.num_prims()
+        )?;
         writeln!(writer)?;
 
         // Detect whether the "N" point attribute exists
@@ -36,7 +41,8 @@ impl GeometryWriter for ObjWriter {
                 .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
                 .expect("just verified N exists");
             for i in 0..geo.num_points() {
-                let n = geo.get_attrib(&n_handle, i)
+                let n = geo
+                    .get_attrib(&n_handle, i)
                     .map_err(|e| IoError::Parse(e.to_string()))?;
                 writeln!(writer, "vn {} {} {}", n[0], n[1], n[2])?;
             }
@@ -60,7 +66,7 @@ impl GeometryWriter for ObjWriter {
                             for ph in &pt_handles {
                                 let idx = ph.index() + 1; // 1-based
                                 if has_normals {
-                                    write!(writer, " {}//{}",  idx, idx)?;
+                                    write!(writer, " {}//{}", idx, idx)?;
                                 } else {
                                     write!(writer, " {}", idx)?;
                                 }
@@ -142,7 +148,10 @@ impl GeometryReader for ObjReader {
                         .collect::<Result<_, _>>()?;
 
                     if indices.len() < 2 {
-                        return Err(IoError::Parse(format!("face needs at least 2 indices: {}", line)));
+                        return Err(IoError::Parse(format!(
+                            "face needs at least 2 indices: {}",
+                            line
+                        )));
                     }
 
                     use procgeo_core::PointHandle;
@@ -166,7 +175,10 @@ impl GeometryReader for ObjReader {
                         .collect::<Result<_, _>>()?;
 
                     if indices.len() < 2 {
-                        return Err(IoError::Parse(format!("polyline needs at least 2 indices: {}", line)));
+                        return Err(IoError::Parse(format!(
+                            "polyline needs at least 2 indices: {}",
+                            line
+                        )));
                     }
 
                     use procgeo_core::PointHandle;
@@ -212,10 +224,26 @@ mod tests {
         ObjWriter.write(&geo, &mut buf).unwrap();
 
         let output = String::from_utf8(buf).unwrap();
-        assert!(output.contains("v 0 0 0"), "missing v 0 0 0\n---\n{}", output);
-        assert!(output.contains("v 1 0 0"), "missing v 1 0 0\n---\n{}", output);
-        assert!(output.contains("v 0 1 0"), "missing v 0 1 0\n---\n{}", output);
-        assert!(output.contains("f 1 2 3"), "missing f 1 2 3\n---\n{}", output);
+        assert!(
+            output.contains("v 0 0 0"),
+            "missing v 0 0 0\n---\n{}",
+            output
+        );
+        assert!(
+            output.contains("v 1 0 0"),
+            "missing v 1 0 0\n---\n{}",
+            output
+        );
+        assert!(
+            output.contains("v 0 1 0"),
+            "missing v 0 1 0\n---\n{}",
+            output
+        );
+        assert!(
+            output.contains("f 1 2 3"),
+            "missing f 1 2 3\n---\n{}",
+            output
+        );
     }
 
     #[test]
@@ -249,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_obj_roundtrip_box() {
-        use procgeo_sops::creation::{BoxSop, BoxParams};
+        use procgeo_sops::creation::{BoxParams, BoxSop};
         use procgeo_sops::generate;
 
         let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();

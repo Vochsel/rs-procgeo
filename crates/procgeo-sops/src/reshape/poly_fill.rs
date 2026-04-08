@@ -177,10 +177,7 @@ impl Sop for PolyFillSop {
         for prim_idx in 0..geo.num_prims() {
             let ph = PrimHandle::from_index(prim_idx);
             let pts = geo.prim_points(ph);
-            let new_pts: Vec<PointHandle> = pts
-                .iter()
-                .map(|&p| orig_handles[p.index()])
-                .collect();
+            let new_pts: Vec<PointHandle> = pts.iter().map(|&p| orig_handles[p.index()]).collect();
             out.add_face(&new_pts);
         }
 
@@ -195,10 +192,8 @@ impl Sop for PolyFillSop {
         for loop_pts in &loops {
             match params.mode {
                 PolyFillMode::SinglePolygon => {
-                    let handles: Vec<PointHandle> = loop_pts
-                        .iter()
-                        .map(|&i| orig_handles[i])
-                        .collect();
+                    let handles: Vec<PointHandle> =
+                        loop_pts.iter().map(|&i| orig_handles[i]).collect();
                     out.add_face(&handles);
                 }
                 PolyFillMode::TriangleFan => {
@@ -237,7 +232,7 @@ impl Sop for PolyFillSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
 
     /// Create a box with one face removed (creating a hole).
@@ -250,7 +245,11 @@ mod tests {
     #[test]
     fn fill_single_polygon() {
         let geo = box_with_hole();
-        assert_eq!(geo.num_prims(), 5, "box with one face removed should have 5 prims");
+        assert_eq!(
+            geo.num_prims(),
+            5,
+            "box with one face removed should have 5 prims"
+        );
 
         let params = PolyFillParams {
             mode: PolyFillMode::SinglePolygon,

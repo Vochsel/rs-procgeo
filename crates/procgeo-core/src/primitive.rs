@@ -17,7 +17,10 @@ pub struct PolygonPrim {
 
 impl PolygonPrim {
     pub fn new(vertices: SmallVec<[VertexHandle; 4]>, poly_type: PolyType) -> Self {
-        Self { vertices, poly_type }
+        Self {
+            vertices,
+            poly_type,
+        }
     }
 }
 
@@ -95,9 +98,8 @@ mod tests {
     #[test]
     fn add_polygon() {
         let mut storage = PrimStorage::new();
-        let verts: SmallVec<[VertexHandle; 4]> = (0..3)
-            .map(|i| VertexHandle::from_index(i))
-            .collect();
+        let verts: SmallVec<[VertexHandle; 4]> =
+            (0..3).map(|i| VertexHandle::from_index(i)).collect();
         let prim = Primitive::Polygon(PolygonPrim::new(verts, PolyType::Closed));
         let handle = storage.add(prim);
 
@@ -108,9 +110,8 @@ mod tests {
     #[test]
     fn polygon_vertices() {
         let mut storage = PrimStorage::new();
-        let verts: SmallVec<[VertexHandle; 4]> = (0..4)
-            .map(|i| VertexHandle::from_index(i))
-            .collect();
+        let verts: SmallVec<[VertexHandle; 4]> =
+            (0..4).map(|i| VertexHandle::from_index(i)).collect();
         let prim = Primitive::Polygon(PolygonPrim::new(verts, PolyType::Closed));
         let handle = storage.add(prim);
 
@@ -122,9 +123,8 @@ mod tests {
 
     #[test]
     fn smallvec_inline_for_quad() {
-        let verts: SmallVec<[VertexHandle; 4]> = (0..4)
-            .map(|i| VertexHandle::from_index(i))
-            .collect();
+        let verts: SmallVec<[VertexHandle; 4]> =
+            (0..4).map(|i| VertexHandle::from_index(i)).collect();
         // A quad (4 vertices) should fit inline without heap allocation.
         assert!(!verts.spilled());
     }

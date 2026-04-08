@@ -44,8 +44,8 @@ impl Sop for AttribDeleteSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::attributes::create::{AttribCreateSop, AttribCreateParams};
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::attributes::create::{AttribCreateParams, AttribCreateSop};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
     use procgeo_core::AttribType;
 
@@ -65,7 +65,11 @@ mod tests {
         let geo_with_attrib = box_geo.apply(&create_sop, &create_params).unwrap();
 
         // Verify it exists
-        assert!(geo_with_attrib.find_attrib::<f32>(AttribClass::Point, "pscale").is_ok());
+        assert!(
+            geo_with_attrib
+                .find_attrib::<f32>(AttribClass::Point, "pscale")
+                .is_ok()
+        );
 
         // Now delete it
         let delete_sop = AttribDeleteSop;
@@ -76,7 +80,11 @@ mod tests {
         let result = geo_with_attrib.apply(&delete_sop, &delete_params).unwrap();
 
         // Verify it is gone
-        assert!(result.find_attrib::<f32>(AttribClass::Point, "pscale").is_err());
+        assert!(
+            result
+                .find_attrib::<f32>(AttribClass::Point, "pscale")
+                .is_err()
+        );
     }
 
     #[test]

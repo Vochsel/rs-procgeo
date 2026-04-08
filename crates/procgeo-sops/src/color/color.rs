@@ -60,7 +60,7 @@ impl Sop for ColorSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
 
     fn make_box() -> Geometry {
@@ -70,7 +70,9 @@ mod tests {
     #[test]
     fn color_sets_cd() {
         let box_geo = make_box();
-        let params = ColorParams { color: [1.0, 0.0, 0.0] };
+        let params = ColorParams {
+            color: [1.0, 0.0, 0.0],
+        };
         let result = box_geo.apply(&ColorSop, &params).unwrap();
 
         let handle = result
@@ -88,8 +90,12 @@ mod tests {
         let box_geo = make_box();
 
         // Apply blue first, then green
-        let params_blue = ColorParams { color: [0.0, 0.0, 1.0] };
-        let params_green = ColorParams { color: [0.0, 1.0, 0.0] };
+        let params_blue = ColorParams {
+            color: [0.0, 0.0, 1.0],
+        };
+        let params_green = ColorParams {
+            color: [0.0, 1.0, 0.0],
+        };
 
         let result = box_geo
             .apply(&ColorSop, &params_blue)
@@ -103,7 +109,11 @@ mod tests {
 
         for i in 0..result.num_points() {
             let cd = result.get_attrib(&handle, i).unwrap();
-            assert_eq!(cd, [0.0, 1.0, 0.0], "point {i} should be green after overwrite");
+            assert_eq!(
+                cd,
+                [0.0, 1.0, 0.0],
+                "point {i} should be green after overwrite"
+            );
         }
     }
 
@@ -115,8 +125,10 @@ mod tests {
         let result = box_geo.apply(&ColorSop, &params).unwrap();
 
         // find_attrib on Point class must succeed
-        assert!(result
-            .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
-            .is_ok());
+        assert!(
+            result
+                .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
+                .is_ok()
+        );
     }
 }

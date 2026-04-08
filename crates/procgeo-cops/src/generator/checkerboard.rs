@@ -111,11 +111,11 @@ impl Cop for CheckerboardCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("checkerboard_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("checkerboard_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -168,7 +168,12 @@ mod tests {
         // Helper to read pixel at (x, y)
         let pixel = |x: usize, y: usize| -> [f32; 4] {
             let base = (y * 4 + x) * 4;
-            [pixels[base], pixels[base + 1], pixels[base + 2], pixels[base + 3]]
+            [
+                pixels[base],
+                pixels[base + 1],
+                pixels[base + 2],
+                pixels[base + 3],
+            ]
         };
 
         // Top-left pixel (0,0) should be color_a (black)

@@ -75,9 +75,7 @@ impl Sop for RevolveSop {
 
         let axis = params.axis.normalize_or_zero();
         if axis.length_squared() < 0.5 {
-            return Err(SopError::InvalidParam(
-                "axis must be non-zero".to_string(),
-            ));
+            return Err(SopError::InvalidParam("axis must be non-zero".to_string()));
         }
 
         let input = inputs[0];
@@ -97,10 +95,7 @@ impl Sop for RevolveSop {
         for prim_idx in 0..input.num_prims() {
             let ph = PrimHandle::from_index(prim_idx);
             let pts = input.prim_points(ph);
-            let profile: Vec<Vec3> = pts
-                .iter()
-                .map(|&pt| input.point_pos(pt))
-                .collect();
+            let profile: Vec<Vec3> = pts.iter().map(|&pt| input.point_pos(pt)).collect();
             if profile.len() >= 2 {
                 profiles.push(profile);
             }

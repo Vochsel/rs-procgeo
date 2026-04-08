@@ -9,8 +9,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use procgeo_cops::prelude::*;
 use procgeo_cops::custom::{CustomShaderCop, CustomShaderParams, ShaderLang};
+use procgeo_cops::prelude::*;
 
 const PLASMA_WGSL: &str = r#"
 @group(0) @binding(0) var output: texture_storage_2d<rgba32float, write>;
@@ -48,9 +48,7 @@ fn main(@builtin(global_invocation_id) gid: vec3u) {
 "#;
 
 fn main() {
-    let ctx = Arc::new(
-        GpuContext::new_blocking().expect("Failed to init GPU"),
-    );
+    let ctx = Arc::new(GpuContext::new_blocking().expect("Failed to init GPU"));
 
     let size = 512;
 

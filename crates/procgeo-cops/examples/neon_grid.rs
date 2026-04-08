@@ -7,19 +7,16 @@
 
 use std::sync::Arc;
 
-use procgeo_cops::prelude::*;
-use procgeo_cops::generator::{
-    CheckerboardCop, CheckerboardParams,
-    NoiseCop, NoiseParams, NoiseType,
-    RampCop, RampParams, RampType,
-};
+use procgeo_cops::composite::{CompOp, CompositeCop, CompositeParams};
 use procgeo_cops::filter::{BlurCop, BlurParams, SwirlCop, SwirlParams};
-use procgeo_cops::composite::{CompositeCop, CompositeParams, CompOp};
+use procgeo_cops::generator::{
+    CheckerboardCop, CheckerboardParams, NoiseCop, NoiseParams, NoiseType, RampCop, RampParams,
+    RampType,
+};
+use procgeo_cops::prelude::*;
 
 fn main() {
-    let ctx = Arc::new(
-        GpuContext::new_blocking().expect("Failed to init GPU"),
-    );
+    let ctx = Arc::new(GpuContext::new_blocking().expect("Failed to init GPU"));
 
     let size = 1024;
 
@@ -29,7 +26,7 @@ fn main() {
         &CheckerboardCop,
         &CheckerboardParams {
             color_a: [1.0, 0.05, 0.9, 1.0], // hot magenta
-            color_b: [0.0, 0.95, 1.0, 1.0],  // electric cyan
+            color_b: [0.0, 0.95, 1.0, 1.0], // electric cyan
             frequency: [24.0, 24.0],
             width: size,
             height: size,
@@ -90,9 +87,9 @@ fn main() {
         &RampParams {
             ramp_type: RampType::Diagonal,
             stops: vec![
-                (0.0, [1.0, 0.4, 0.2, 1.0]),   // warm orange
-                (0.5, [0.8, 0.2, 0.9, 1.0]),    // purple
-                (1.0, [0.1, 0.5, 1.0, 1.0]),    // blue
+                (0.0, [1.0, 0.4, 0.2, 1.0]), // warm orange
+                (0.5, [0.8, 0.2, 0.9, 1.0]), // purple
+                (1.0, [0.1, 0.5, 1.0, 1.0]), // blue
             ],
             width: size,
             height: size,
@@ -238,5 +235,8 @@ fn main() {
     )
     .expect("save failed");
 
-    println!("Wrote neon_grid.png ({}x{}) — neon checkerboard with radial glow + swirl", size, size);
+    println!(
+        "Wrote neon_grid.png ({}x{}) — neon checkerboard with radial glow + swirl",
+        size, size
+    );
 }

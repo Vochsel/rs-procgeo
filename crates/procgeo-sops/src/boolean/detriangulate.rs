@@ -218,7 +218,10 @@ pub fn detriangulate(
     // Group fragments by (mesh_id, source_prim).
     let mut groups: HashMap<(u8, usize), Vec<usize>> = HashMap::new();
     for (i, f) in fragments.iter().enumerate() {
-        groups.entry((f.mesh_id, f.source_prim)).or_default().push(i);
+        groups
+            .entry((f.mesh_id, f.source_prim))
+            .or_default()
+            .push(i);
     }
 
     let mut polygons: Vec<Polygon> = Vec::new();

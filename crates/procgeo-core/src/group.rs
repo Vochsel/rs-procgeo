@@ -257,9 +257,7 @@ impl GroupMap {
     // --- Edge groups --------------------------------------------------------
 
     pub fn create_edge_group(&mut self, name: impl Into<String>) {
-        self.edge_groups
-            .entry(name.into())
-            .or_default();
+        self.edge_groups.entry(name.into()).or_default();
     }
 
     pub fn edge_group(&self, name: &str) -> Option<&EdgeGroup> {

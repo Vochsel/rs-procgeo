@@ -8,7 +8,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
-use procgeo_cops::prelude::*;
 use procgeo_cops::composite::{CompOp, CompositeCop, CompositeParams};
 use procgeo_cops::custom::{CustomShaderCop, CustomShaderParams, ShaderLang};
 use procgeo_cops::filter::{BlurCop, BlurParams, BlurType, SwirlCop, SwirlParams};
@@ -16,6 +15,7 @@ use procgeo_cops::generator::{
     CheckerboardCop, CheckerboardParams, NoiseCop, NoiseParams, NoiseType, RampCop, RampParams,
     RampType,
 };
+use procgeo_cops::prelude::*;
 
 const SIZE: u32 = 4096;
 
@@ -88,7 +88,10 @@ fn terrain_heightmap(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&hills, &ridges],
-            &CompositeParams { operation: CompOp::Add, mix: 0.6 },
+            &CompositeParams {
+                operation: CompOp::Add,
+                mix: 0.6,
+            },
         )
         .unwrap();
 
@@ -96,12 +99,23 @@ fn terrain_heightmap(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&combined, &detail],
-            &CompositeParams { operation: CompOp::Screen, mix: 0.4 },
+            &CompositeParams {
+                operation: CompOp::Screen,
+                mix: 0.4,
+            },
         )
         .unwrap();
 
     BlurCop
-        .execute(ctx, &[&terrain], &BlurParams { radius_x: 2.0, radius_y: 2.0, ..Default::default() })
+        .execute(
+            ctx,
+            &[&terrain],
+            &BlurParams {
+                radius_x: 2.0,
+                radius_y: 2.0,
+                ..Default::default()
+            },
+        )
         .unwrap()
 }
 
@@ -139,7 +153,10 @@ fn neon_grid(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&checker, &glow],
-            &CompositeParams { operation: CompOp::Multiply, mix: 1.0 },
+            &CompositeParams {
+                operation: CompOp::Multiply,
+                mix: 1.0,
+            },
         )
         .unwrap();
 
@@ -147,7 +164,11 @@ fn neon_grid(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&composited],
-            &SwirlParams { center: [0.5, 0.5], angle: 120.0, radius: 0.6 },
+            &SwirlParams {
+                center: [0.5, 0.5],
+                angle: 120.0,
+                radius: 0.6,
+            },
         )
         .unwrap()
 }
@@ -208,7 +229,10 @@ fn marble_texture(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&color_ramp, &base],
-            &CompositeParams { operation: CompOp::Multiply, mix: 0.7 },
+            &CompositeParams {
+                operation: CompOp::Multiply,
+                mix: 0.7,
+            },
         )
         .unwrap();
 
@@ -216,12 +240,23 @@ fn marble_texture(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&tinted, &veins],
-            &CompositeParams { operation: CompOp::Screen, mix: 0.3 },
+            &CompositeParams {
+                operation: CompOp::Screen,
+                mix: 0.3,
+            },
         )
         .unwrap();
 
     BlurCop
-        .execute(ctx, &[&marble], &BlurParams { radius_x: 1.5, radius_y: 1.5, ..Default::default() })
+        .execute(
+            ctx,
+            &[&marble],
+            &BlurParams {
+                radius_x: 1.5,
+                radius_y: 1.5,
+                ..Default::default()
+            },
+        )
         .unwrap()
 }
 
@@ -303,7 +338,10 @@ fn glow_effect(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&checker, &noise],
-            &CompositeParams { operation: CompOp::Multiply, mix: 0.4 },
+            &CompositeParams {
+                operation: CompOp::Multiply,
+                mix: 0.4,
+            },
         )
         .unwrap();
 
@@ -311,7 +349,11 @@ fn glow_effect(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&source],
-            &BlurParams { blur_type: BlurType::Gaussian, radius_x: 20.0, radius_y: 20.0 },
+            &BlurParams {
+                blur_type: BlurType::Gaussian,
+                radius_x: 20.0,
+                radius_y: 20.0,
+            },
         )
         .unwrap();
 
@@ -319,7 +361,11 @@ fn glow_effect(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&source],
-            &BlurParams { blur_type: BlurType::Gaussian, radius_x: 8.0, radius_y: 8.0 },
+            &BlurParams {
+                blur_type: BlurType::Gaussian,
+                radius_x: 8.0,
+                radius_y: 8.0,
+            },
         )
         .unwrap();
 
@@ -327,7 +373,10 @@ fn glow_effect(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&bloom_wide, &bloom_tight],
-            &CompositeParams { operation: CompOp::Add, mix: 0.5 },
+            &CompositeParams {
+                operation: CompOp::Add,
+                mix: 0.5,
+            },
         )
         .unwrap();
 
@@ -335,7 +384,10 @@ fn glow_effect(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&source, &bloom],
-            &CompositeParams { operation: CompOp::Add, mix: 0.6 },
+            &CompositeParams {
+                operation: CompOp::Add,
+                mix: 0.6,
+            },
         )
         .unwrap();
 
@@ -359,15 +411,16 @@ fn glow_effect(ctx: &Arc<GpuContext>) -> Image {
         .execute(
             ctx,
             &[&glowed, &vignette],
-            &CompositeParams { operation: CompOp::Multiply, mix: 1.0 },
+            &CompositeParams {
+                operation: CompOp::Multiply,
+                mix: 1.0,
+            },
         )
         .unwrap()
 }
 
 fn main() {
-    let ctx = Arc::new(
-        GpuContext::new_blocking().expect("Failed to init GPU"),
-    );
+    let ctx = Arc::new(GpuContext::new_blocking().expect("Failed to init GPU"));
 
     println!("Rendering all 5 COP demos at 4K ({SIZE}x{SIZE})...\n");
 

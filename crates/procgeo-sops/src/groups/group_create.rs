@@ -154,8 +154,9 @@ impl Sop for GroupCreateSop {
                             if pts.is_empty() {
                                 continue;
                             }
-                            let centroid: Vec3 = pts.iter().map(|&ph| geo.point_pos(ph)).sum::<Vec3>()
-                                / pts.len() as f32;
+                            let centroid: Vec3 =
+                                pts.iter().map(|&ph| geo.point_pos(ph)).sum::<Vec3>()
+                                    / pts.len() as f32;
                             if centroid.x >= params.bbox_min.x
                                 && centroid.x <= params.bbox_max.x
                                 && centroid.y >= params.bbox_min.y
@@ -203,7 +204,7 @@ impl Sop for GroupCreateSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
 
     #[test]

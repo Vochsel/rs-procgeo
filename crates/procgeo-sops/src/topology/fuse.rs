@@ -58,8 +58,7 @@ impl Sop for FuseSop {
         // For each point, check only the 27 neighboring cells (3x3x3) instead
         // of all previous points.
         let mut merge_map: Vec<usize> = (0..num_pts).collect();
-        let mut grid: HashMap<CellKey, Vec<usize>> =
-            HashMap::with_capacity(num_pts.min(1 << 20));
+        let mut grid: HashMap<CellKey, Vec<usize>> = HashMap::with_capacity(num_pts.min(1 << 20));
 
         for (i, entry) in merge_map.iter_mut().enumerate() {
             let pi = geo.point_pos(PointHandle::from_index(i));
@@ -122,9 +121,7 @@ impl Sop for FuseSop {
         }
 
         // Final remap: old_pt_idx -> new geometry index
-        let final_remap: Vec<usize> = (0..num_pts)
-            .map(|i| new_index[merge_map[i]])
-            .collect();
+        let final_remap: Vec<usize> = (0..num_pts).map(|i| new_index[merge_map[i]]).collect();
 
         // Add prims with remapped point indices
         for prim_idx in 0..geo.num_prims() {
@@ -155,8 +152,8 @@ impl Sop for FuseSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
-    use crate::merge::{MergeSop, MergeParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::merge::{MergeParams, MergeSop};
     use crate::{GeometryExt, generate};
     use glam::Vec3;
 
@@ -175,7 +172,11 @@ mod tests {
         let params = FuseParams { distance: 0.001 };
         let result = merged.apply(&FuseSop, &params).unwrap();
 
-        assert_eq!(result.num_points(), 8, "expected 8 unique points after fuse");
+        assert_eq!(
+            result.num_points(),
+            8,
+            "expected 8 unique points after fuse"
+        );
         assert_eq!(result.num_prims(), 12, "expected 12 prims (6+6) after fuse");
     }
 
@@ -189,11 +190,19 @@ mod tests {
         // Fuse with tolerance 0.001 → not fused
         let params_small = FuseParams { distance: 0.001 };
         let result_small = geo.clone().apply(&FuseSop, &params_small).unwrap();
-        assert_eq!(result_small.num_points(), 2, "should not fuse with small tolerance");
+        assert_eq!(
+            result_small.num_points(),
+            2,
+            "should not fuse with small tolerance"
+        );
 
         // Fuse with tolerance 0.1 → fused
         let params_large = FuseParams { distance: 0.1 };
         let result_large = geo.apply(&FuseSop, &params_large).unwrap();
-        assert_eq!(result_large.num_points(), 1, "should fuse with large tolerance");
+        assert_eq!(
+            result_large.num_points(),
+            1,
+            "should fuse with large tolerance"
+        );
     }
 }

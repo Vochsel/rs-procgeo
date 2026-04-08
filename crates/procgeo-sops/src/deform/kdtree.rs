@@ -160,12 +160,7 @@ impl KdTree {
     // KNN search
     // -----------------------------------------------------------------------
 
-    fn knn_recursive(
-        node: &KdNode,
-        points: &[Vec3],
-        query: Vec3,
-        heap: &mut BoundedMaxHeap,
-    ) {
+    fn knn_recursive(node: &KdNode, points: &[Vec3], query: Vec3, heap: &mut BoundedMaxHeap) {
         let pos = points[node.point_idx];
         let dist_sq = (pos - query).length_squared();
         heap.push(node.point_idx, dist_sq);
@@ -322,7 +317,10 @@ mod tests {
         let indices: Vec<usize> = results.iter().map(|r| r.0).collect();
         assert!(indices.contains(&0), "origin should be found");
         assert!(indices.contains(&3), "point (0.5,0.5,0) should be found");
-        assert!(indices.contains(&1), "point at x=1 is on the boundary (dist_sq <= radius_sq) and should be included");
+        assert!(
+            indices.contains(&1),
+            "point at x=1 is on the boundary (dist_sq <= radius_sq) and should be included"
+        );
         // Point 2 is at distance 2.0, should not be found.
         assert!(!indices.contains(&2), "point at x=2 should not be found");
         // Point 4 is far away.
@@ -365,10 +363,7 @@ mod tests {
 
     #[test]
     fn knn_k_larger_than_points() {
-        let points = vec![
-            Vec3::new(1.0, 0.0, 0.0),
-            Vec3::new(2.0, 0.0, 0.0),
-        ];
+        let points = vec![Vec3::new(1.0, 0.0, 0.0), Vec3::new(2.0, 0.0, 0.0)];
         let tree = KdTree::build(&points);
         let results = tree.k_nearest(Vec3::ZERO, 10);
         assert_eq!(results.len(), 2, "should return all points when k > n");

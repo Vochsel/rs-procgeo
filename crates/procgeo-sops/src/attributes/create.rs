@@ -55,8 +55,15 @@ impl Sop for AttribCreateSop {
             AttribType::String => AttribDefault::String(params.value_string.clone()),
             AttribType::Int64 => AttribDefault::Int64(params.value_int as i64),
             AttribType::Float64 => AttribDefault::Float64(params.value_float as f64),
-            AttribType::Vector2 => AttribDefault::Vector2([params.value_vector3[0], params.value_vector3[1]]),
-            AttribType::Vector4 => AttribDefault::Vector4([params.value_vector3[0], params.value_vector3[1], params.value_vector3[2], 0.0]),
+            AttribType::Vector2 => {
+                AttribDefault::Vector2([params.value_vector3[0], params.value_vector3[1]])
+            }
+            AttribType::Vector4 => AttribDefault::Vector4([
+                params.value_vector3[0],
+                params.value_vector3[1],
+                params.value_vector3[2],
+                0.0,
+            ]),
             AttribType::Matrix3 => AttribDefault::Matrix3([0.0; 9]),
             AttribType::Matrix4 => AttribDefault::Matrix4([0.0; 16]),
         };
@@ -112,7 +119,12 @@ impl Sop for AttribCreateSop {
             }
             AttribType::Vector4 => {
                 let handle = geo.find_attrib::<[f32; 4]>(params.class, &params.name)?;
-                let v = [params.value_vector3[0], params.value_vector3[1], params.value_vector3[2], 0.0];
+                let v = [
+                    params.value_vector3[0],
+                    params.value_vector3[1],
+                    params.value_vector3[2],
+                    0.0,
+                ];
                 for i in 0..count {
                     geo.set_attrib(&handle, i, v)?;
                 }
@@ -144,8 +156,8 @@ impl Sop for AttribCreateSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
-    use crate::creation::grid::{GridSop, GridParams, GridOrientation};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::creation::grid::{GridOrientation, GridParams, GridSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use glam::Vec3;
@@ -165,7 +177,9 @@ mod tests {
         };
         let result = box_geo.apply(&sop, &params).unwrap();
 
-        let handle = result.find_attrib::<f32>(AttribClass::Point, "pscale").unwrap();
+        let handle = result
+            .find_attrib::<f32>(AttribClass::Point, "pscale")
+            .unwrap();
         for i in 0..result.num_points() {
             assert_relative_eq!(result.get_attrib(&handle, i).unwrap(), 1.5, epsilon = 1e-6);
         }
@@ -173,13 +187,17 @@ mod tests {
 
     #[test]
     fn create_vector3_attrib() {
-        let grid = generate(&GridSop, &GridParams {
-            size: [2.0, 2.0],
-            rows: 3,
-            cols: 3,
-            center: Vec3::ZERO,
-            orientation: GridOrientation::XZ,
-        }).unwrap();
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                size: [2.0, 2.0],
+                rows: 3,
+                cols: 3,
+                center: Vec3::ZERO,
+                orientation: GridOrientation::XZ,
+            },
+        )
+        .unwrap();
 
         let sop = AttribCreateSop;
         let params = AttribCreateParams {
@@ -192,7 +210,9 @@ mod tests {
         };
         let result = grid.apply(&sop, &params).unwrap();
 
-        let handle = result.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").unwrap();
+        let handle = result
+            .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
+            .unwrap();
         for i in 0..result.num_points() {
             let v = result.get_attrib(&handle, i).unwrap();
             assert_relative_eq!(v[0], 1.0, epsilon = 1e-6);
@@ -215,7 +235,9 @@ mod tests {
         };
         let result = box_geo.apply(&sop, &params).unwrap();
 
-        let handle = result.find_attrib::<i32>(AttribClass::Primitive, "id").unwrap();
+        let handle = result
+            .find_attrib::<i32>(AttribClass::Primitive, "id")
+            .unwrap();
         for i in 0..result.num_prims() {
             assert_eq!(result.get_attrib(&handle, i).unwrap(), 42);
         }
@@ -235,7 +257,9 @@ mod tests {
         };
         let result = box_geo.apply(&sop, &params).unwrap();
 
-        let handle = result.find_attrib::<String>(AttribClass::Detail, "name").unwrap();
+        let handle = result
+            .find_attrib::<String>(AttribClass::Detail, "name")
+            .unwrap();
         assert_eq!(result.get_attrib(&handle, 0).unwrap(), "test");
     }
 }

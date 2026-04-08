@@ -114,6 +114,8 @@ interface ProcGeoGeometry {
     attribDataString(klass: ProcGeoAttribClassRef, name: string): string[] | undefined;
     /** Get the point indices for a specific primitive. */
     primPointIndices(primIndex: number): Uint32Array;
+    /** Return whether a primitive is closed. */
+    primIsClosed(primIndex: number): boolean;
     /** Get the number of vertices in a specific primitive. */
     primVertexCount(primIndex: number): number;
     /** Get which point a vertex maps to. */
@@ -171,6 +173,23 @@ interface ProcGeoCreateLineParams {
     points?: number;
 }
 
+interface ProcGeoCreateSpiralParams {
+    startRadius?: number;
+    endRadius?: number;
+    height?: number;
+    turns?: number;
+    points?: number;
+    center?: ProcGeoVec3;
+}
+
+interface ProcGeoCreateHelixParams {
+    radius?: number;
+    height?: number;
+    turns?: number;
+    points?: number;
+    center?: ProcGeoVec3;
+}
+
 interface ProcGeoCreateCircleParams {
     radius?: number;
     divisions?: number;
@@ -192,6 +211,18 @@ interface ProcGeoCreateTorusParams {
     rows?: number;
     cols?: number;
     center?: ProcGeoVec3;
+}
+
+interface ProcGeoCreateIcosphereParams {
+    radius?: number;
+    subdivisions?: number;
+    center?: ProcGeoVec3;
+}
+
+interface ProcGeoCreateTeapotParams {
+    size?: ProcGeoVec3;
+    center?: ProcGeoVec3;
+    resolution?: number;
 }
 
 interface ProcGeoTransformParams {
@@ -609,9 +640,13 @@ interface ProcGeoModule {
     createGrid(params?: ProcGeoCreateGridParams): ProcGeoGeometry;
     createSphere(params?: ProcGeoCreateSphereParams): ProcGeoGeometry;
     createLine(params?: ProcGeoCreateLineParams): ProcGeoGeometry;
+    createSpiral(params?: ProcGeoCreateSpiralParams): ProcGeoGeometry;
+    createHelix(params?: ProcGeoCreateHelixParams): ProcGeoGeometry;
     createCircle(params?: ProcGeoCreateCircleParams): ProcGeoGeometry;
     createTube(params?: ProcGeoCreateTubeParams): ProcGeoGeometry;
     createTorus(params?: ProcGeoCreateTorusParams): ProcGeoGeometry;
+    createIcosphere(params?: ProcGeoCreateIcosphereParams): ProcGeoGeometry;
+    createTeapot(params?: ProcGeoCreateTeapotParams): ProcGeoGeometry;
     createMetaball(params?: ProcGeoCreateMetaballParams): ProcGeoGeometry;
     revolve(geo: ProcGeoGeometry, params?: ProcGeoRevolveParams): ProcGeoGeometry;
 

@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use glam::Vec3;
 
-use procgeo_core::{AttribClass, AttribDefault, Geometry, PrimHandle, TypeQualifier};
 #[cfg(test)]
 use procgeo_core::PointHandle;
+use procgeo_core::{AttribClass, AttribDefault, Geometry, PrimHandle, TypeQualifier};
 
 use crate::{Sop, SopError};
 
@@ -20,7 +20,10 @@ pub struct ScatterParams {
 
 impl Default for ScatterParams {
     fn default() -> Self {
-        ScatterParams { count: 100, seed: 0 }
+        ScatterParams {
+            count: 100,
+            seed: 0,
+        }
     }
 }
 
@@ -164,7 +167,7 @@ impl Sop for ScatterSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::grid::{GridSop, GridParams};
+    use crate::creation::grid::{GridParams, GridSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
 
@@ -174,7 +177,10 @@ mod tests {
 
     #[test]
     fn scatter_count() {
-        let params = ScatterParams { count: 100, seed: 0 };
+        let params = ScatterParams {
+            count: 100,
+            seed: 0,
+        };
         let result = make_grid().apply(&ScatterSop, &params).unwrap();
         assert_eq!(result.num_points(), 100);
         assert_eq!(result.num_prims(), 0);
@@ -186,7 +192,10 @@ mod tests {
         let grid = make_grid();
         let bbox = grid.bounding_box();
 
-        let params = ScatterParams { count: 200, seed: 42 };
+        let params = ScatterParams {
+            count: 200,
+            seed: 42,
+        };
         let result = grid.apply(&ScatterSop, &params).unwrap();
         assert_eq!(result.num_points(), 200);
 
@@ -194,12 +203,16 @@ mod tests {
             assert!(
                 pt_pos.x >= bbox.min.x - 1e-4 && pt_pos.x <= bbox.max.x + 1e-4,
                 "point x={} outside grid bbox x [{}, {}]",
-                pt_pos.x, bbox.min.x, bbox.max.x
+                pt_pos.x,
+                bbox.min.x,
+                bbox.max.x
             );
             assert!(
                 pt_pos.z >= bbox.min.z - 1e-4 && pt_pos.z <= bbox.max.z + 1e-4,
                 "point z={} outside grid bbox z [{}, {}]",
-                pt_pos.z, bbox.min.z, bbox.max.z
+                pt_pos.z,
+                bbox.min.z,
+                bbox.max.z
             );
         }
     }
@@ -207,7 +220,10 @@ mod tests {
     #[test]
     fn scatter_deterministic() {
         let grid = make_grid();
-        let params = ScatterParams { count: 50, seed: 123 };
+        let params = ScatterParams {
+            count: 50,
+            seed: 123,
+        };
         let r1 = grid.clone().apply(&ScatterSop, &params).unwrap();
         let r2 = grid.apply(&ScatterSop, &params).unwrap();
 

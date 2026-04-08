@@ -111,8 +111,7 @@ fn solid_angle(p: DVec3, a: DVec3, b: DVec3, c: DVec3) -> f64 {
     }
 
     let numerator = pa.dot(pb.cross(pc));
-    let denominator =
-        la * lb * lc + pa.dot(pb) * lc + pa.dot(pc) * lb + pb.dot(pc) * la;
+    let denominator = la * lb * lc + pa.dot(pb) * lc + pa.dot(pc) * lb + pb.dot(pc) * la;
 
     2.0 * numerator.atan2(denominator)
 }
@@ -135,9 +134,19 @@ mod tests {
         // Helper: push two CCW triangles for a quad given four corners in CCW
         // order when viewed from the outside.
         let mut push_quad = |a: Vec3, b: Vec3, c: Vec3, d: Vec3| {
-            tris.push(Triangle { v0: a, v1: b, v2: c, index: idx });
+            tris.push(Triangle {
+                v0: a,
+                v1: b,
+                v2: c,
+                index: idx,
+            });
             idx += 1;
-            tris.push(Triangle { v0: a, v1: c, v2: d, index: idx });
+            tris.push(Triangle {
+                v0: a,
+                v1: c,
+                v2: d,
+                index: idx,
+            });
             idx += 1;
         };
 
@@ -212,14 +221,20 @@ mod tests {
     fn depth_inside_is_one() {
         let tris = unit_cube_triangles();
         let depth = classify_depth(Vec3::ZERO, &tris);
-        assert_eq!(depth, 1, "depth at centre of closed cube should be 1, got {depth}");
+        assert_eq!(
+            depth, 1,
+            "depth at centre of closed cube should be 1, got {depth}"
+        );
     }
 
     #[test]
     fn depth_outside_is_zero() {
         let tris = unit_cube_triangles();
         let depth = classify_depth(Vec3::new(5.0, 0.0, 0.0), &tris);
-        assert_eq!(depth, 0, "depth far outside the cube should be 0, got {depth}");
+        assert_eq!(
+            depth, 0,
+            "depth far outside the cube should be 0, got {depth}"
+        );
     }
 
     // ── Additional tests ─────────────────────────────────────────────────
@@ -263,49 +278,78 @@ mod tests {
         // Build a larger outer cube at half-extent 1.0
         let mut large_tris = Vec::with_capacity(12);
         let mut idx: usize = 100;
-        let push_quad = |a: Vec3, b: Vec3, c: Vec3, d: Vec3, tris: &mut Vec<Triangle>, idx: &mut usize| {
-            tris.push(Triangle { v0: a, v1: b, v2: c, index: *idx });
-            *idx += 1;
-            tris.push(Triangle { v0: a, v1: c, v2: d, index: *idx });
-            *idx += 1;
-        };
+        let push_quad =
+            |a: Vec3, b: Vec3, c: Vec3, d: Vec3, tris: &mut Vec<Triangle>, idx: &mut usize| {
+                tris.push(Triangle {
+                    v0: a,
+                    v1: b,
+                    v2: c,
+                    index: *idx,
+                });
+                *idx += 1;
+                tris.push(Triangle {
+                    v0: a,
+                    v1: c,
+                    v2: d,
+                    index: *idx,
+                });
+                *idx += 1;
+            };
 
         let h = 1.0;
         // +Z face
         push_quad(
-            Vec3::new(-h, -h, h), Vec3::new(h, -h, h),
-            Vec3::new(h, h, h), Vec3::new(-h, h, h),
-            &mut large_tris, &mut idx,
+            Vec3::new(-h, -h, h),
+            Vec3::new(h, -h, h),
+            Vec3::new(h, h, h),
+            Vec3::new(-h, h, h),
+            &mut large_tris,
+            &mut idx,
         );
         // -Z face
         push_quad(
-            Vec3::new(h, -h, -h), Vec3::new(-h, -h, -h),
-            Vec3::new(-h, h, -h), Vec3::new(h, h, -h),
-            &mut large_tris, &mut idx,
+            Vec3::new(h, -h, -h),
+            Vec3::new(-h, -h, -h),
+            Vec3::new(-h, h, -h),
+            Vec3::new(h, h, -h),
+            &mut large_tris,
+            &mut idx,
         );
         // +X face
         push_quad(
-            Vec3::new(h, -h, h), Vec3::new(h, -h, -h),
-            Vec3::new(h, h, -h), Vec3::new(h, h, h),
-            &mut large_tris, &mut idx,
+            Vec3::new(h, -h, h),
+            Vec3::new(h, -h, -h),
+            Vec3::new(h, h, -h),
+            Vec3::new(h, h, h),
+            &mut large_tris,
+            &mut idx,
         );
         // -X face
         push_quad(
-            Vec3::new(-h, -h, -h), Vec3::new(-h, -h, h),
-            Vec3::new(-h, h, h), Vec3::new(-h, h, -h),
-            &mut large_tris, &mut idx,
+            Vec3::new(-h, -h, -h),
+            Vec3::new(-h, -h, h),
+            Vec3::new(-h, h, h),
+            Vec3::new(-h, h, -h),
+            &mut large_tris,
+            &mut idx,
         );
         // +Y face
         push_quad(
-            Vec3::new(-h, h, h), Vec3::new(h, h, h),
-            Vec3::new(h, h, -h), Vec3::new(-h, h, -h),
-            &mut large_tris, &mut idx,
+            Vec3::new(-h, h, h),
+            Vec3::new(h, h, h),
+            Vec3::new(h, h, -h),
+            Vec3::new(-h, h, -h),
+            &mut large_tris,
+            &mut idx,
         );
         // -Y face
         push_quad(
-            Vec3::new(-h, -h, -h), Vec3::new(h, -h, -h),
-            Vec3::new(h, -h, h), Vec3::new(-h, -h, h),
-            &mut large_tris, &mut idx,
+            Vec3::new(-h, -h, -h),
+            Vec3::new(h, -h, -h),
+            Vec3::new(h, -h, h),
+            Vec3::new(-h, -h, h),
+            &mut large_tris,
+            &mut idx,
         );
 
         // Combine both cubes: inner (half-extent 0.5) + outer (half-extent 1.0)

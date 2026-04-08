@@ -122,7 +122,7 @@ impl Sop for PolyBevelSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use glam::Vec3;
@@ -130,9 +130,9 @@ mod tests {
     fn make_single_quad() -> Geometry {
         let mut geo = Geometry::new();
         let p0 = geo.add_point(Vec3::new(-0.5, 0.0, -0.5));
-        let p1 = geo.add_point(Vec3::new( 0.5, 0.0, -0.5));
-        let p2 = geo.add_point(Vec3::new( 0.5, 0.0,  0.5));
-        let p3 = geo.add_point(Vec3::new(-0.5, 0.0,  0.5));
+        let p1 = geo.add_point(Vec3::new(0.5, 0.0, -0.5));
+        let p2 = geo.add_point(Vec3::new(0.5, 0.0, 0.5));
+        let p3 = geo.add_point(Vec3::new(-0.5, 0.0, 0.5));
         geo.add_face(&[p0, p1, p2, p3]);
         geo
     }
@@ -149,7 +149,11 @@ mod tests {
         };
         let result = make_single_quad().apply(&PolyBevelSop, &params).unwrap();
 
-        assert_eq!(result.num_prims(), 5, "expected 1 inner face + 4 corner triangles = 5 prims");
+        assert_eq!(
+            result.num_prims(),
+            5,
+            "expected 1 inner face + 4 corner triangles = 5 prims"
+        );
     }
 
     #[test]
@@ -163,7 +167,11 @@ mod tests {
         let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
         let result = box_geo.apply(&PolyBevelSop, &params).unwrap();
 
-        assert_eq!(result.num_prims(), 30, "expected 6 * 5 = 30 prims for beveled box");
+        assert_eq!(
+            result.num_prims(),
+            30,
+            "expected 6 * 5 = 30 prims for beveled box"
+        );
     }
 
     #[test]
@@ -208,7 +216,11 @@ mod tests {
         let result = make_single_quad().apply(&PolyBevelSop, &params).unwrap();
 
         // Still 5 prims (1 inner + 4 degenerate corners)
-        assert_eq!(result.num_prims(), 5, "zero offset should still produce faces");
+        assert_eq!(
+            result.num_prims(),
+            5,
+            "zero offset should still produce faces"
+        );
 
         // All cut points collapse to the vertex position, so all points lie on
         // the original quad's plane at y=0.

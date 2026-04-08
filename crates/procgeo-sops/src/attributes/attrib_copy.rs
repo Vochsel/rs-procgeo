@@ -165,20 +165,23 @@ impl Sop for AttribCopySop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::attributes::create::{AttribCreateSop, AttribCreateParams};
-    use crate::creation::grid::{GridSop, GridParams, GridOrientation};
+    use crate::attributes::create::{AttribCreateParams, AttribCreateSop};
+    use crate::creation::grid::{GridOrientation, GridParams, GridSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use glam::Vec3;
 
     fn make_grid(rows: u32, cols: u32) -> Geometry {
-        generate(&GridSop, &GridParams {
-            size: [2.0, 2.0],
-            rows,
-            cols,
-            center: Vec3::ZERO,
-            orientation: GridOrientation::XZ,
-        })
+        generate(
+            &GridSop,
+            &GridParams {
+                size: [2.0, 2.0],
+                rows,
+                cols,
+                center: Vec3::ZERO,
+                orientation: GridOrientation::XZ,
+            },
+        )
         .unwrap()
     }
 
@@ -264,9 +267,11 @@ mod tests {
         let result = copy_sop.execute(&[&dst, &src], &params).unwrap();
 
         // "Cd" should NOT be on destination (was created from src which wasn't cloned onto dst)
-        assert!(result
-            .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
-            .is_err());
+        assert!(
+            result
+                .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
+                .is_err()
+        );
 
         // "color" SHOULD exist
         let handle = result

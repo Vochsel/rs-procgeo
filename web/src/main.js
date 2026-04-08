@@ -126,8 +126,10 @@ function buildTrueWireframe(geo, color = 0x88aaff) {
         const pts = geo.primPointIndices(p);
         const n = pts.length;
         if (n < 2) continue;
+        const isClosed = geo.primIsClosed(p);
+        const edgeCount = isClosed ? n : n - 1;
 
-        for (let i = 0; i < n; i++) {
+        for (let i = 0; i < edgeCount; i++) {
             const a = pts[i];
             const b = pts[(i + 1) % n];
             const lo = Math.min(a, b);

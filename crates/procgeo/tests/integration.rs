@@ -1,7 +1,7 @@
-use procgeo::prelude::*;
-use procgeo::io::{GeometryReader, GeometryWriter};
 use approx::assert_relative_eq;
 use glam::Vec3;
+use procgeo::io::{GeometryReader, GeometryWriter};
+use procgeo::prelude::*;
 
 // ---------------------------------------------------------------------------
 // Test 1: Box → OBJ write → read back, verify counts
@@ -79,27 +79,34 @@ fn test_sop_chaining() {
 fn test_merge_different_sops() {
     let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
     // Grid rows=3, cols=3 → 9 points, 4 prims
-    let grid_geo = generate(&GridSop, &GridParams {
-        rows: 3,
-        cols: 3,
-        ..Default::default()
-    }).unwrap();
+    let grid_geo = generate(
+        &GridSop,
+        &GridParams {
+            rows: 3,
+            cols: 3,
+            ..Default::default()
+        },
+    )
+    .unwrap();
     assert_eq!(grid_geo.num_points(), 9);
     assert_eq!(grid_geo.num_prims(), 4);
 
     // Sphere rows=4, cols=6: points = 2+(4-1)*6=20, prims = 6+(4-2)*6+6=24
-    let sphere_geo = generate(&SphereSop, &SphereParams {
-        rows: 4,
-        cols: 6,
-        ..Default::default()
-    }).unwrap();
+    let sphere_geo = generate(
+        &SphereSop,
+        &SphereParams {
+            rows: 4,
+            cols: 6,
+            ..Default::default()
+        },
+    )
+    .unwrap();
     assert_eq!(sphere_geo.num_points(), 20);
     assert_eq!(sphere_geo.num_prims(), 24);
 
-    let merged = MergeSop.execute(
-        &[&box_geo, &grid_geo, &sphere_geo],
-        &MergeParams,
-    ).unwrap();
+    let merged = MergeSop
+        .execute(&[&box_geo, &grid_geo, &sphere_geo], &MergeParams)
+        .unwrap();
 
     // 8 + 9 + 20 = 37 points, 6 + 4 + 24 = 34 prims
     assert_eq!(merged.num_points(), 37);
@@ -136,18 +143,36 @@ fn test_geometry_apply_chain() {
 #[test]
 fn test_all_creation_sops_produce_valid_geometry() {
     let geos: Vec<(&str, Geometry)> = vec![
-        ("BoxSop",    generate(&BoxSop,    &BoxParams::default()).unwrap()),
-        ("GridSop",   generate(&GridSop,   &GridParams::default()).unwrap()),
-        ("LineSop",   generate(&LineSop,   &LineParams::default()).unwrap()),
-        ("CircleSop", generate(&CircleSop, &CircleParams::default()).unwrap()),
-        ("SphereSop", generate(&SphereSop, &SphereParams::default()).unwrap()),
-        ("TubeSop",   generate(&TubeSop,   &TubeParams::default()).unwrap()),
-        ("TorusSop",  generate(&TorusSop,  &TorusParams::default()).unwrap()),
+        ("BoxSop", generate(&BoxSop, &BoxParams::default()).unwrap()),
+        (
+            "GridSop",
+            generate(&GridSop, &GridParams::default()).unwrap(),
+        ),
+        (
+            "LineSop",
+            generate(&LineSop, &LineParams::default()).unwrap(),
+        ),
+        (
+            "CircleSop",
+            generate(&CircleSop, &CircleParams::default()).unwrap(),
+        ),
+        (
+            "SphereSop",
+            generate(&SphereSop, &SphereParams::default()).unwrap(),
+        ),
+        (
+            "TubeSop",
+            generate(&TubeSop, &TubeParams::default()).unwrap(),
+        ),
+        (
+            "TorusSop",
+            generate(&TorusSop, &TorusParams::default()).unwrap(),
+        ),
     ];
 
     for (name, geo) in &geos {
-        assert!(geo.num_points() > 0,   "{name}: no points");
-        assert!(geo.num_prims() > 0,    "{name}: no prims");
+        assert!(geo.num_points() > 0, "{name}: no points");
+        assert!(geo.num_prims() > 0, "{name}: no prims");
         assert!(geo.num_vertices() > 0, "{name}: no vertices");
 
         let bb = geo.bounding_box();
@@ -176,7 +201,8 @@ fn test_attributes_survive_sop_chain() {
         "id",
         AttribDefault::Int(0),
         TypeQualifier::None,
-    ).unwrap();
+    )
+    .unwrap();
 
     let handle: AttribHandle<i32> = geo.find_attrib(AttribClass::Point, "id").unwrap();
     for i in 0..geo.num_points() {
@@ -185,16 +211,17 @@ fn test_attributes_survive_sop_chain() {
 
     // Apply transform (should clone geometry, preserving attributes)
     let transformed = geo
-        .apply(&TransformSop, &TransformParams {
-            translate: Vec3::new(10.0, 0.0, 0.0),
-            ..Default::default()
-        })
+        .apply(
+            &TransformSop,
+            &TransformParams {
+                translate: Vec3::new(10.0, 0.0, 0.0),
+                ..Default::default()
+            },
+        )
         .unwrap();
 
     // Find the "id" attribute in the transformed geometry
-    let t_handle: AttribHandle<i32> = transformed
-        .find_attrib(AttribClass::Point, "id")
-        .unwrap();
+    let t_handle: AttribHandle<i32> = transformed.find_attrib(AttribClass::Point, "id").unwrap();
 
     // All values should be intact (0..8)
     for i in 0..transformed.num_points() {
@@ -209,14 +236,42 @@ fn test_attributes_survive_sop_chain() {
 
 #[test]
 fn test_scatter_on_subdivided_grid() {
-    let grid = generate(&GridSop, &GridParams { rows: 3, cols: 3, size: [2.0, 2.0], ..Default::default() }).unwrap();
-    let subdiv = grid.apply(&SubdivideSop, &SubdivideParams { depth: 1, mode: SubdivideMode::Linear }).unwrap();
-    let scattered = subdiv.apply(&ScatterSop, &ScatterParams { count: 50, seed: 42 }).unwrap();
+    let grid = generate(
+        &GridSop,
+        &GridParams {
+            rows: 3,
+            cols: 3,
+            size: [2.0, 2.0],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let subdiv = grid
+        .apply(
+            &SubdivideSop,
+            &SubdivideParams {
+                depth: 1,
+                mode: SubdivideMode::Linear,
+            },
+        )
+        .unwrap();
+    let scattered = subdiv
+        .apply(
+            &ScatterSop,
+            &ScatterParams {
+                count: 50,
+                seed: 42,
+            },
+        )
+        .unwrap();
 
     assert_eq!(scattered.num_points(), 50);
     let bbox = scattered.bounding_box();
     // The grid goes from -1 to +1 on X and Z (size=2.0)
-    assert!(bbox.min.x >= -1.1 && bbox.max.x <= 1.1, "points outside grid x bounds");
+    assert!(
+        bbox.min.x >= -1.1 && bbox.max.x <= 1.1,
+        "points outside grid x bounds"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -226,12 +281,23 @@ fn test_scatter_on_subdivided_grid() {
 #[test]
 fn test_copy_to_scattered_points() {
     let grid = generate(&GridSop, &GridParams::default()).unwrap();
-    let targets = grid.apply(&ScatterSop, &ScatterParams { count: 5, seed: 0 }).unwrap();
-    let box_geo = generate(&BoxSop, &BoxParams { size: Vec3::splat(0.1), ..Default::default() }).unwrap();
-    let result = CopyToPointsSop.execute(&[&box_geo, &targets], &CopyToPointsParams::default()).unwrap();
+    let targets = grid
+        .apply(&ScatterSop, &ScatterParams { count: 5, seed: 0 })
+        .unwrap();
+    let box_geo = generate(
+        &BoxSop,
+        &BoxParams {
+            size: Vec3::splat(0.1),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let result = CopyToPointsSop
+        .execute(&[&box_geo, &targets], &CopyToPointsParams::default())
+        .unwrap();
 
     assert_eq!(result.num_points(), 40); // 8 * 5
-    assert_eq!(result.num_prims(), 30);  // 6 * 5
+    assert_eq!(result.num_prims(), 30); // 6 * 5
 }
 
 // ---------------------------------------------------------------------------
@@ -241,10 +307,22 @@ fn test_copy_to_scattered_points() {
 #[test]
 fn test_extrude_then_measure() {
     let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let extruded = box_geo.apply(&PolyExtrudeSop, &PolyExtrudeParams { distance: 1.0, ..Default::default() }).unwrap();
-    let measured = extruded.apply(&MeasureSop, &MeasureParams::default()).unwrap();
+    let extruded = box_geo
+        .apply(
+            &PolyExtrudeSop,
+            &PolyExtrudeParams {
+                distance: 1.0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let measured = extruded
+        .apply(&MeasureSop, &MeasureParams::default())
+        .unwrap();
 
-    let area_h = measured.find_attrib::<f32>(AttribClass::Primitive, "area").unwrap();
+    let area_h = measured
+        .find_attrib::<f32>(AttribClass::Primitive, "area")
+        .unwrap();
     for i in 0..measured.num_prims() {
         let area = measured.get_attrib(&area_h, i).unwrap();
         assert!(area > 0.0, "face {i} should have positive area, got {area}");
@@ -258,19 +336,29 @@ fn test_extrude_then_measure() {
 #[test]
 fn test_blast_by_group() {
     let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let grouped = box_geo.apply(&GroupCreateSop, &GroupCreateParams {
-        name: "to_delete".to_string(),
-        group_type: GroupType::Primitives,
-        mode: GroupCreateMode::Range,
-        range_start: 0,
-        range_end: 2,
-        ..Default::default()
-    }).unwrap();
-    let blasted = grouped.apply(&BlastSop, &BlastParams {
-        group_name: "to_delete".to_string(),
-        entity: BlastEntity::Primitives,
-        negate: false,
-    }).unwrap();
+    let grouped = box_geo
+        .apply(
+            &GroupCreateSop,
+            &GroupCreateParams {
+                name: "to_delete".to_string(),
+                group_type: GroupType::Primitives,
+                mode: GroupCreateMode::Range,
+                range_start: 0,
+                range_end: 2,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let blasted = grouped
+        .apply(
+            &BlastSop,
+            &BlastParams {
+                group_name: "to_delete".to_string(),
+                entity: BlastEntity::Primitives,
+                negate: false,
+            },
+        )
+        .unwrap();
     assert_eq!(blasted.num_prims(), 4);
 }
 
@@ -281,8 +369,12 @@ fn test_blast_by_group() {
 #[test]
 fn test_enumerate_points() {
     let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let enumerated = box_geo.apply(&EnumerateSop, &EnumerateParams::default()).unwrap();
-    let idx_h = enumerated.find_attrib::<i32>(AttribClass::Point, "index").unwrap();
+    let enumerated = box_geo
+        .apply(&EnumerateSop, &EnumerateParams::default())
+        .unwrap();
+    let idx_h = enumerated
+        .find_attrib::<i32>(AttribClass::Point, "index")
+        .unwrap();
     for i in 0..enumerated.num_points() {
         assert_eq!(enumerated.get_attrib(&idx_h, i).unwrap(), i as i32);
     }
@@ -295,15 +387,42 @@ fn test_enumerate_points() {
 #[test]
 fn test_full_workflow() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let geo = geo.apply(&SubdivideSop, &SubdivideParams { depth: 1, mode: SubdivideMode::Linear }).unwrap();
-    let geo = geo.apply(&SmoothSop, &SmoothParams { iterations: 3, strength: 0.5 }).unwrap();
+    let geo = geo
+        .apply(
+            &SubdivideSop,
+            &SubdivideParams {
+                depth: 1,
+                mode: SubdivideMode::Linear,
+            },
+        )
+        .unwrap();
+    let geo = geo
+        .apply(
+            &SmoothSop,
+            &SmoothParams {
+                iterations: 3,
+                strength: 0.5,
+            },
+        )
+        .unwrap();
     let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
-    let geo = geo.apply(&ColorSop, &ColorParams { color: [0.2, 0.6, 1.0] }).unwrap();
+    let geo = geo
+        .apply(
+            &ColorSop,
+            &ColorParams {
+                color: [0.2, 0.6, 1.0],
+            },
+        )
+        .unwrap();
 
     // Verify geometry is valid
     assert!(geo.num_points() > 8); // subdivided
-    let n_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
-    let cd_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").unwrap();
+    let n_handle = geo
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
+        .unwrap();
+    let cd_handle = geo
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
+        .unwrap();
     assert_eq!(geo.get_attrib(&cd_handle, 0).unwrap(), [0.2, 0.6, 1.0]);
 
     // Write to GLB buffer
@@ -320,18 +439,27 @@ fn test_full_workflow() {
 #[test]
 fn test_clip_and_measure() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let clipped = geo.apply(&ClipSop, &ClipParams {
-        origin: Vec3::ZERO,
-        normal: Vec3::Y,
-        keep_above: true,
-    }).unwrap();
+    let clipped = geo
+        .apply(
+            &ClipSop,
+            &ClipParams {
+                origin: Vec3::ZERO,
+                normal: Vec3::Y,
+                keep_above: true,
+            },
+        )
+        .unwrap();
 
     // Should have fewer prims than original 6
     assert!(clipped.num_prims() > 0);
     assert!(clipped.num_prims() <= 6);
 
-    let measured = clipped.apply(&MeasureSop, &MeasureParams::default()).unwrap();
-    let area_h = measured.find_attrib::<f32>(AttribClass::Primitive, "area").unwrap();
+    let measured = clipped
+        .apply(&MeasureSop, &MeasureParams::default())
+        .unwrap();
+    let area_h = measured
+        .find_attrib::<f32>(AttribClass::Primitive, "area")
+        .unwrap();
     for i in 0..measured.num_prims() {
         assert!(measured.get_attrib(&area_h, i).unwrap() > 0.0);
     }
@@ -343,18 +471,34 @@ fn test_clip_and_measure() {
 
 #[test]
 fn test_reverse_normals() {
-    let geo = generate(&GridSop, &GridParams { rows: 3, cols: 3, size: [2.0, 2.0], ..Default::default() }).unwrap();
+    let geo = generate(
+        &GridSop,
+        &GridParams {
+            rows: 3,
+            cols: 3,
+            size: [2.0, 2.0],
+            ..Default::default()
+        },
+    )
+    .unwrap();
     let with_normals = geo.apply(&NormalSop, &NormalParams).unwrap();
-    let n_handle = with_normals.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+    let n_handle = with_normals
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
+        .unwrap();
     let orig_n = with_normals.get_attrib(&n_handle, 0).unwrap();
 
     let reversed = with_normals.apply(&ReverseSop, &ReverseParams).unwrap();
     let recomputed = reversed.apply(&NormalSop, &NormalParams).unwrap();
-    let n_handle2 = recomputed.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+    let n_handle2 = recomputed
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
+        .unwrap();
     let new_n = recomputed.get_attrib(&n_handle2, 0).unwrap();
 
     // Y component should be flipped
-    assert!((orig_n[1] + new_n[1]).abs() < 0.1, "normals should be roughly opposite");
+    assert!(
+        (orig_n[1] + new_n[1]).abs() < 0.1,
+        "normals should be roughly opposite"
+    );
 }
 
 // ===========================================================================
@@ -368,18 +512,26 @@ fn test_reverse_normals() {
 #[test]
 fn test_p_readable_as_attribute() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let p_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "P").unwrap();
+    let p_handle = geo
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "P")
+        .unwrap();
     for i in 0..geo.num_points() {
         let pos = geo.point_pos(procgeo_core::PointHandle::from_index(i));
         let p_attr = geo.get_attrib(&p_handle, i).unwrap();
-        assert_eq!(p_attr, [pos.x, pos.y, pos.z], "P attribute must match point_pos at index {i}");
+        assert_eq!(
+            p_attr,
+            [pos.x, pos.y, pos.z],
+            "P attribute must match point_pos at index {i}"
+        );
     }
 }
 
 #[test]
 fn test_p_writable_moves_geometry() {
     let mut geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let p_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "P").unwrap();
+    let p_handle = geo
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "P")
+        .unwrap();
 
     // Move point 0 via attribute API
     geo.set_attrib(&p_handle, 0, [99.0, 99.0, 99.0]);
@@ -399,12 +551,19 @@ fn test_p_writable_moves_geometry() {
 fn test_p_survives_sop_chain() {
     // Box → Transform → read P attribute → must match moved positions
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let geo = geo.apply(&TransformSop, &TransformParams {
-        translate: Vec3::new(10.0, 20.0, 30.0),
-        ..Default::default()
-    }).unwrap();
+    let geo = geo
+        .apply(
+            &TransformSop,
+            &TransformParams {
+                translate: Vec3::new(10.0, 20.0, 30.0),
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
-    let p_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "P").unwrap();
+    let p_handle = geo
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "P")
+        .unwrap();
     for i in 0..geo.num_points() {
         let pos = geo.point_pos(procgeo_core::PointHandle::from_index(i));
         let p_attr = geo.get_attrib(&p_handle, i).unwrap();
@@ -416,9 +575,16 @@ fn test_p_survives_sop_chain() {
 
 #[test]
 fn test_noise_on_p_displaces_geometry() {
-    let geo = generate(&GridSop, &GridParams {
-        rows: 5, cols: 5, size: [2.0, 2.0], ..Default::default()
-    }).unwrap();
+    let geo = generate(
+        &GridSop,
+        &GridParams {
+            rows: 5,
+            cols: 5,
+            size: [2.0, 2.0],
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
     // Grid is flat on XZ plane — all Y positions are 0
     let bbox_before = geo.bounding_box();
@@ -426,13 +592,18 @@ fn test_noise_on_p_displaces_geometry() {
     assert_relative_eq!(bbox_before.max.y, 0.0, epsilon = 1e-6);
 
     // Apply noise to P — should displace points
-    let noisy = geo.apply(&AttribNoiseSop, &AttribNoiseParams {
-        attrib_name: "P".to_string(),
-        dimensions: 3,
-        amplitude: 0.5,
-        element_size: 1.0,
-        ..Default::default()
-    }).unwrap();
+    let noisy = geo
+        .apply(
+            &AttribNoiseSop,
+            &AttribNoiseParams {
+                attrib_name: "P".to_string(),
+                dimensions: 3,
+                amplitude: 0.5,
+                element_size: 1.0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
     // Positions should have changed — Y no longer all zero
     let bbox_after = noisy.bounding_box();
@@ -452,7 +623,9 @@ fn test_n_created_by_normal_sop() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
     let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
 
-    let n_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "N").unwrap();
+    let n_handle = geo
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
+        .unwrap();
     for i in 0..geo.num_points() {
         let n = geo.get_attrib(&n_handle, i).unwrap();
         let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
@@ -469,7 +642,10 @@ fn test_n_exported_in_obj() {
     procgeo::io::obj::ObjWriter.write(&geo, &mut buf).unwrap();
     let output = String::from_utf8(buf).unwrap();
 
-    assert!(output.contains("vn "), "OBJ should contain vertex normals when N attribute exists");
+    assert!(
+        output.contains("vn "),
+        "OBJ should contain vertex normals when N attribute exists"
+    );
 }
 
 #[test]
@@ -480,7 +656,10 @@ fn test_n_exported_in_glb() {
     let mut buf = Vec::new();
     procgeo::io::gltf::GlbWriter.write(&geo, &mut buf).unwrap();
     let json_str = String::from_utf8_lossy(&buf);
-    assert!(json_str.contains("NORMAL"), "GLB should contain NORMAL accessor when N attribute exists");
+    assert!(
+        json_str.contains("NORMAL"),
+        "GLB should contain NORMAL accessor when N attribute exists"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -490,9 +669,18 @@ fn test_n_exported_in_glb() {
 #[test]
 fn test_cd_created_by_color_sop() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let geo = geo.apply(&ColorSop, &ColorParams { color: [1.0, 0.0, 0.0] }).unwrap();
+    let geo = geo
+        .apply(
+            &ColorSop,
+            &ColorParams {
+                color: [1.0, 0.0, 0.0],
+            },
+        )
+        .unwrap();
 
-    let cd_handle = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").unwrap();
+    let cd_handle = geo
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
+        .unwrap();
     for i in 0..geo.num_points() {
         assert_eq!(geo.get_attrib(&cd_handle, i).unwrap(), [1.0, 0.0, 0.0]);
     }
@@ -501,12 +689,22 @@ fn test_cd_created_by_color_sop() {
 #[test]
 fn test_cd_exported_in_glb() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let geo = geo.apply(&ColorSop, &ColorParams { color: [0.5, 0.5, 0.5] }).unwrap();
+    let geo = geo
+        .apply(
+            &ColorSop,
+            &ColorParams {
+                color: [0.5, 0.5, 0.5],
+            },
+        )
+        .unwrap();
 
     let mut buf = Vec::new();
     procgeo::io::gltf::GlbWriter.write(&geo, &mut buf).unwrap();
     let json_str = String::from_utf8_lossy(&buf);
-    assert!(json_str.contains("COLOR_0"), "GLB should contain COLOR_0 accessor when Cd attribute exists");
+    assert!(
+        json_str.contains("COLOR_0"),
+        "GLB should contain COLOR_0 accessor when Cd attribute exists"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -517,18 +715,39 @@ fn test_cd_exported_in_glb() {
 fn test_intrinsic_attribs_survive_merge() {
     let mut box1 = generate(&BoxSop, &BoxParams::default()).unwrap();
     box1 = box1.apply(&NormalSop, &NormalParams).unwrap();
-    box1 = box1.apply(&ColorSop, &ColorParams { color: [1.0, 0.0, 0.0] }).unwrap();
+    box1 = box1
+        .apply(
+            &ColorSop,
+            &ColorParams {
+                color: [1.0, 0.0, 0.0],
+            },
+        )
+        .unwrap();
 
-    let mut box2 = generate(&BoxSop, &BoxParams {
-        center: Vec3::new(5.0, 0.0, 0.0), ..Default::default()
-    }).unwrap();
+    let mut box2 = generate(
+        &BoxSop,
+        &BoxParams {
+            center: Vec3::new(5.0, 0.0, 0.0),
+            ..Default::default()
+        },
+    )
+    .unwrap();
     box2 = box2.apply(&NormalSop, &NormalParams).unwrap();
-    box2 = box2.apply(&ColorSop, &ColorParams { color: [0.0, 0.0, 1.0] }).unwrap();
+    box2 = box2
+        .apply(
+            &ColorSop,
+            &ColorParams {
+                color: [0.0, 0.0, 1.0],
+            },
+        )
+        .unwrap();
 
     let merged = MergeSop.execute(&[&box1, &box2], &MergeParams).unwrap();
 
     // P should be correct for both halves
-    let p_handle = merged.find_attrib::<[f32; 3]>(AttribClass::Point, "P").unwrap();
+    let p_handle = merged
+        .find_attrib::<[f32; 3]>(AttribClass::Point, "P")
+        .unwrap();
     let p0 = merged.get_attrib(&p_handle, 0).unwrap();
     let p8 = merged.get_attrib(&p_handle, 8).unwrap();
     // First box near origin, second near x=5
@@ -540,10 +759,33 @@ fn test_intrinsic_attribs_survive_merge() {
 fn test_full_intrinsic_pipeline() {
     // Create → Subdivide → Smooth → Normal → Color → Noise on P → Export
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let geo = geo.apply(&SubdivideSop, &SubdivideParams { depth: 1, mode: SubdivideMode::CatmullClark }).unwrap();
-    let geo = geo.apply(&SmoothSop, &SmoothParams { iterations: 2, strength: 0.5 }).unwrap();
+    let geo = geo
+        .apply(
+            &SubdivideSop,
+            &SubdivideParams {
+                depth: 1,
+                mode: SubdivideMode::CatmullClark,
+            },
+        )
+        .unwrap();
+    let geo = geo
+        .apply(
+            &SmoothSop,
+            &SmoothParams {
+                iterations: 2,
+                strength: 0.5,
+            },
+        )
+        .unwrap();
     let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
-    let geo = geo.apply(&ColorSop, &ColorParams { color: [0.4, 0.7, 1.0] }).unwrap();
+    let geo = geo
+        .apply(
+            &ColorSop,
+            &ColorParams {
+                color: [0.4, 0.7, 1.0],
+            },
+        )
+        .unwrap();
 
     // All three intrinsic attribs should be accessible
     let p = geo.find_attrib::<[f32; 3]>(AttribClass::Point, "P");
@@ -555,13 +797,17 @@ fn test_full_intrinsic_pipeline() {
 
     // Export to both formats — should include all three
     let mut obj_buf = Vec::new();
-    procgeo::io::obj::ObjWriter.write(&geo, &mut obj_buf).unwrap();
+    procgeo::io::obj::ObjWriter
+        .write(&geo, &mut obj_buf)
+        .unwrap();
     let obj = String::from_utf8(obj_buf).unwrap();
     assert!(obj.contains("v "), "OBJ has positions");
     assert!(obj.contains("vn "), "OBJ has normals");
 
     let mut glb_buf = Vec::new();
-    procgeo::io::gltf::GlbWriter.write(&geo, &mut glb_buf).unwrap();
+    procgeo::io::gltf::GlbWriter
+        .write(&geo, &mut glb_buf)
+        .unwrap();
     let glb = String::from_utf8_lossy(&glb_buf);
     assert!(glb.contains("POSITION"), "GLB has POSITION");
     assert!(glb.contains("NORMAL"), "GLB has NORMAL");

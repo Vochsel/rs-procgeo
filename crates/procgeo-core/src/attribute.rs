@@ -128,11 +128,21 @@ impl AttribStorage {
             AttribStorage::Int64(v) => v.iter().map(|&x| x as f64).collect(),
             AttribStorage::Float(v) => v.iter().map(|&x| x as f64).collect(),
             AttribStorage::Float64(v) => v.clone(),
-            AttribStorage::Vector2(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
-            AttribStorage::Vector3(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
-            AttribStorage::Vector4(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
-            AttribStorage::Matrix3(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
-            AttribStorage::Matrix4(v) => v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect(),
+            AttribStorage::Vector2(v) => {
+                v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect()
+            }
+            AttribStorage::Vector3(v) => {
+                v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect()
+            }
+            AttribStorage::Vector4(v) => {
+                v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect()
+            }
+            AttribStorage::Matrix3(v) => {
+                v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect()
+            }
+            AttribStorage::Matrix4(v) => {
+                v.iter().flat_map(|a| a.iter().map(|&x| x as f64)).collect()
+            }
             AttribStorage::String(_) => Vec::new(),
         }
     }
@@ -166,17 +176,37 @@ impl AttribStorage {
     /// `self` must already be large enough. Panics on type mismatch or out of bounds.
     pub fn copy_from_at(&mut self, offset: usize, other: &AttribStorage) {
         match (self, other) {
-            (AttribStorage::Int(a), AttribStorage::Int(b)) => a[offset..offset + b.len()].copy_from_slice(b),
-            (AttribStorage::Int64(a), AttribStorage::Int64(b)) => a[offset..offset + b.len()].copy_from_slice(b),
-            (AttribStorage::Float(a), AttribStorage::Float(b)) => a[offset..offset + b.len()].copy_from_slice(b),
-            (AttribStorage::Float64(a), AttribStorage::Float64(b)) => a[offset..offset + b.len()].copy_from_slice(b),
-            (AttribStorage::Vector2(a), AttribStorage::Vector2(b)) => a[offset..offset + b.len()].copy_from_slice(b),
-            (AttribStorage::Vector3(a), AttribStorage::Vector3(b)) => a[offset..offset + b.len()].copy_from_slice(b),
-            (AttribStorage::Vector4(a), AttribStorage::Vector4(b)) => a[offset..offset + b.len()].copy_from_slice(b),
-            (AttribStorage::Matrix3(a), AttribStorage::Matrix3(b)) => a[offset..offset + b.len()].copy_from_slice(b),
-            (AttribStorage::Matrix4(a), AttribStorage::Matrix4(b)) => a[offset..offset + b.len()].copy_from_slice(b),
+            (AttribStorage::Int(a), AttribStorage::Int(b)) => {
+                a[offset..offset + b.len()].copy_from_slice(b)
+            }
+            (AttribStorage::Int64(a), AttribStorage::Int64(b)) => {
+                a[offset..offset + b.len()].copy_from_slice(b)
+            }
+            (AttribStorage::Float(a), AttribStorage::Float(b)) => {
+                a[offset..offset + b.len()].copy_from_slice(b)
+            }
+            (AttribStorage::Float64(a), AttribStorage::Float64(b)) => {
+                a[offset..offset + b.len()].copy_from_slice(b)
+            }
+            (AttribStorage::Vector2(a), AttribStorage::Vector2(b)) => {
+                a[offset..offset + b.len()].copy_from_slice(b)
+            }
+            (AttribStorage::Vector3(a), AttribStorage::Vector3(b)) => {
+                a[offset..offset + b.len()].copy_from_slice(b)
+            }
+            (AttribStorage::Vector4(a), AttribStorage::Vector4(b)) => {
+                a[offset..offset + b.len()].copy_from_slice(b)
+            }
+            (AttribStorage::Matrix3(a), AttribStorage::Matrix3(b)) => {
+                a[offset..offset + b.len()].copy_from_slice(b)
+            }
+            (AttribStorage::Matrix4(a), AttribStorage::Matrix4(b)) => {
+                a[offset..offset + b.len()].copy_from_slice(b)
+            }
             (AttribStorage::String(a), AttribStorage::String(b)) => {
-                for (i, v) in b.iter().enumerate() { a[offset + i] = v.clone(); }
+                for (i, v) in b.iter().enumerate() {
+                    a[offset + i] = v.clone();
+                }
             }
             _ => panic!("copy_from_at: type mismatch between storages"),
         }
@@ -357,10 +387,7 @@ macro_rules! impl_attrib_value {
                 $default_expr
             }
 
-            fn get_from_storage(
-                storage: &AttribStorage,
-                index: usize,
-            ) -> Result<Self, CoreError> {
+            fn get_from_storage(storage: &AttribStorage, index: usize) -> Result<Self, CoreError> {
                 if let AttribStorage::$variant(v) = storage {
                     Ok(v[index].clone())
                 } else {
@@ -607,11 +634,7 @@ impl AttributeMap {
     }
 
     /// Get a raw (untyped) reference to an attribute.
-    pub fn get_raw(
-        &self,
-        class: AttribClass,
-        name: impl AsRef<str>,
-    ) -> Option<&Attribute> {
+    pub fn get_raw(&self, class: AttribClass, name: impl AsRef<str>) -> Option<&Attribute> {
         self.map.get(&(class, name.as_ref().to_string()))
     }
 
@@ -738,14 +761,20 @@ mod tests {
         // Try to find it as Float — should fail
         let result: Result<AttribHandle<f32>, _> = map.find(AttribClass::Point, "my_int");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), CoreError::AttributeTypeMismatch(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            CoreError::AttributeTypeMismatch(_)
+        ));
     }
 
     #[test]
     fn attribute_not_found() {
         let map = AttributeMap::new();
         let result: Result<AttribHandle<f32>, _> = map.find(AttribClass::Point, "nonexistent");
-        assert!(matches!(result.unwrap_err(), CoreError::AttributeNotFound(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            CoreError::AttributeNotFound(_)
+        ));
     }
 
     #[test]

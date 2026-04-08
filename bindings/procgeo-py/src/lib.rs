@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
-use pyo3::prelude::*;
 use procgeo_sops::Sop;
+use pyo3::prelude::*;
 
 /// Geometry object wrapping the Rust Geometry struct.
 #[pyclass(from_py_object)]
@@ -31,12 +31,18 @@ impl Geometry {
     }
 
     fn add_face(&mut self, point_indices: Vec<usize>) -> usize {
-        let handles: Vec<procgeo_core::PointHandle> = point_indices.iter().map(|&i| procgeo_core::PointHandle::from_index(i)).collect();
+        let handles: Vec<procgeo_core::PointHandle> = point_indices
+            .iter()
+            .map(|&i| procgeo_core::PointHandle::from_index(i))
+            .collect();
         self.inner.add_face(&handles).index()
     }
 
     fn add_polyline(&mut self, point_indices: Vec<usize>) -> usize {
-        let handles: Vec<procgeo_core::PointHandle> = point_indices.iter().map(|&i| procgeo_core::PointHandle::from_index(i)).collect();
+        let handles: Vec<procgeo_core::PointHandle> = point_indices
+            .iter()
+            .map(|&i| procgeo_core::PointHandle::from_index(i))
+            .collect();
         self.inner.add_polyline(&handles).index()
     }
 
@@ -114,6 +120,15 @@ impl Geometry {
             .iter()
             .map(|p| p.index())
             .collect()
+    }
+
+    fn prim_is_closed(&self, prim_index: usize) -> bool {
+        let ph = procgeo_core::PrimHandle::from_index(prim_index);
+        match self.inner.prim(ph) {
+            procgeo_core::Primitive::Polygon(poly) => {
+                poly.poly_type == procgeo_core::PolyType::Closed
+            }
+        }
     }
 
     fn prim_vertex_count(&self, prim_index: usize) -> usize {
@@ -234,6 +249,56 @@ fn create_line(
 }
 
 #[pyfunction]
+#[pyo3(signature = (start_radius=0.0, end_radius=1.0, height=0.0, turns=3.0, points=96, center_x=0.0, center_y=0.0, center_z=0.0))]
+fn create_spiral(
+    start_radius: f32,
+    end_radius: f32,
+    height: f32,
+    turns: f32,
+    points: u32,
+    center_x: f32,
+    center_y: f32,
+    center_z: f32,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::creation::SpiralParams {
+        start_radius,
+        end_radius,
+        height,
+        turns,
+        points,
+        center: glam::Vec3::new(center_x, center_y, center_z),
+    };
+    let inner = procgeo_sops::creation::SpiralSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (radius=0.5, height=1.0, turns=3.0, points=96, center_x=0.0, center_y=0.0, center_z=0.0))]
+fn create_helix(
+    radius: f32,
+    height: f32,
+    turns: f32,
+    points: u32,
+    center_x: f32,
+    center_y: f32,
+    center_z: f32,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::creation::HelixParams {
+        radius,
+        height,
+        turns,
+        points,
+        center: glam::Vec3::new(center_x, center_y, center_z),
+    };
+    let inner = procgeo_sops::creation::HelixSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
 #[pyo3(signature = (radius=1.0, divisions=40, center_x=0.0, center_y=0.0, center_z=0.0))]
 fn create_circle(
     radius: f32,
@@ -300,6 +365,48 @@ fn create_torus(
         cols,
     };
     let inner = procgeo_sops::creation::TorusSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (radius=0.5, subdivisions=2, center_x=0.0, center_y=0.0, center_z=0.0))]
+fn create_icosphere(
+    radius: f32,
+    subdivisions: u32,
+    center_x: f32,
+    center_y: f32,
+    center_z: f32,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::creation::IcosphereParams {
+        radius,
+        center: glam::Vec3::new(center_x, center_y, center_z),
+        subdivisions,
+    };
+    let inner = procgeo_sops::creation::IcosphereSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
+#[pyo3(signature = (resolution=6, size_x=1.0, size_y=1.0, size_z=1.0, center_x=0.0, center_y=0.0, center_z=0.0))]
+fn create_teapot(
+    resolution: u32,
+    size_x: f32,
+    size_y: f32,
+    size_z: f32,
+    center_x: f32,
+    center_y: f32,
+    center_z: f32,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::creation::TeapotParams {
+        size: glam::Vec3::new(size_x, size_y, size_z),
+        center: glam::Vec3::new(center_x, center_y, center_z),
+        resolution,
+    };
+    let inner = procgeo_sops::creation::TeapotSop
         .execute(&[], &params)
         .map_err(sop_err)?;
     Ok(Geometry { inner })
@@ -634,7 +741,11 @@ fn poly_wire(geo: &Geometry, radius: f32, divisions: u32) -> PyResult<Geometry> 
 
 #[pyfunction]
 #[pyo3(signature = (geo, target_percent=0.5, preserve_boundaries=true))]
-fn poly_reduce(geo: &Geometry, target_percent: f32, preserve_boundaries: bool) -> PyResult<Geometry> {
+fn poly_reduce(
+    geo: &Geometry,
+    target_percent: f32,
+    preserve_boundaries: bool,
+) -> PyResult<Geometry> {
     let params = procgeo_sops::reshape::PolyReduceParams {
         target_percent,
         preserve_boundaries,
@@ -713,7 +824,12 @@ fn blast(geo: &Geometry, group_name: &str, entity: &str, negate: bool) -> PyResu
 
 #[pyfunction]
 #[pyo3(signature = (geo, entity="primitives", range_start=0, range_end=0))]
-fn delete_geo(geo: &Geometry, entity: &str, range_start: usize, range_end: usize) -> PyResult<Geometry> {
+fn delete_geo(
+    geo: &Geometry,
+    entity: &str,
+    range_start: usize,
+    range_end: usize,
+) -> PyResult<Geometry> {
     let entity = match entity {
         "points" => procgeo_sops::delete::DeleteEntity::Points,
         _ => procgeo_sops::delete::DeleteEntity::Primitives,
@@ -812,10 +928,13 @@ fn attrib_randomize(
 ) -> PyResult<Geometry> {
     let distribution = serde_json::from_str::<procgeo_sops::attributes::RandomDistribution>(
         &format!("\"{}\"", distribution),
-    ).unwrap_or(procgeo_sops::attributes::RandomDistribution::Uniform);
-    let operation = serde_json::from_str::<procgeo_sops::attributes::RandomOperation>(
-        &format!("\"{}\"", operation),
-    ).unwrap_or(procgeo_sops::attributes::RandomOperation::Set);
+    )
+    .unwrap_or(procgeo_sops::attributes::RandomDistribution::Uniform);
+    let operation = serde_json::from_str::<procgeo_sops::attributes::RandomOperation>(&format!(
+        "\"{}\"",
+        operation
+    ))
+    .unwrap_or(procgeo_sops::attributes::RandomOperation::Set);
     let params = procgeo_sops::attributes::AttribRandomizeParams {
         attrib_name: attrib_name.to_string(),
         class: parse_attrib_class(class),
@@ -849,9 +968,11 @@ fn attrib_sort(
     order: &str,
     component: usize,
 ) -> PyResult<Geometry> {
-    let order = serde_json::from_str::<procgeo_sops::attributes::AttribSortOrder>(
-        &format!("\"{}\"", order),
-    ).unwrap_or(procgeo_sops::attributes::AttribSortOrder::Ascending);
+    let order = serde_json::from_str::<procgeo_sops::attributes::AttribSortOrder>(&format!(
+        "\"{}\"",
+        order
+    ))
+    .unwrap_or(procgeo_sops::attributes::AttribSortOrder::Ascending);
     let params = procgeo_sops::attributes::AttribSortParams {
         attrib_name: attrib_name.to_string(),
         class: parse_attrib_class(class),
@@ -1011,7 +1132,12 @@ fn attrib_delete(geo: &Geometry, name: &str, class: &str) -> PyResult<Geometry> 
 
 #[pyfunction]
 #[pyo3(signature = (geo, from_name="attrib1", to_name="attrib2", class="Point"))]
-fn attrib_rename(geo: &Geometry, from_name: &str, to_name: &str, class: &str) -> PyResult<Geometry> {
+fn attrib_rename(
+    geo: &Geometry,
+    from_name: &str,
+    to_name: &str,
+    class: &str,
+) -> PyResult<Geometry> {
     let params = procgeo_sops::attributes::AttribRenameParams {
         from_name: from_name.to_string(),
         to_name: to_name.to_string(),
@@ -1158,9 +1284,7 @@ fn execute_sop(name: &str, geo: &Geometry, params_json: &str) -> PyResult<Geomet
 #[pyo3(signature = (name, params_json="{}"))]
 fn execute_sop_create(name: &str, params_json: &str) -> PyResult<Geometry> {
     let registry = get_registry();
-    let inner = registry
-        .execute(name, &[], params_json)
-        .map_err(sop_err)?;
+    let inner = registry.execute(name, &[], params_json).map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1217,8 +1341,8 @@ fn write_glb(geo: &Geometry, path: &str) -> PyResult<()> {
 // COP Registry
 // ---------------------------------------------------------------------------
 
-use procgeo_cops::registry::CopRegistry as PyCopRegistry;
 use procgeo_cops::context::GpuContext as PyCopGpuContext;
+use procgeo_cops::registry::CopRegistry as PyCopRegistry;
 
 static COP_REGISTRY: OnceLock<PyCopRegistry> = OnceLock::new();
 static PY_GPU_CONTEXT: OnceLock<std::sync::Arc<PyCopGpuContext>> = OnceLock::new();
@@ -1250,10 +1374,16 @@ struct CopImage {
 #[pymethods]
 impl CopImage {
     #[getter]
-    fn width(&self) -> u32 { self.inner.width() }
+    fn width(&self) -> u32 {
+        self.inner.width()
+    }
     #[getter]
-    fn height(&self) -> u32 { self.inner.height() }
-    fn to_list(&self) -> PyResult<Vec<f32>> { self.inner.to_cpu().map_err(cop_err) }
+    fn height(&self) -> u32 {
+        self.inner.height()
+    }
+    fn to_list(&self) -> PyResult<Vec<f32>> {
+        self.inner.to_cpu().map_err(cop_err)
+    }
 }
 
 #[pyfunction]
@@ -1261,7 +1391,9 @@ impl CopImage {
 fn execute_cop_create(name: &str, params_json: &str) -> PyResult<CopImage> {
     let ctx = get_py_gpu_context()?;
     let registry = get_cop_registry();
-    let inner = registry.execute(name, &ctx, &[], params_json).map_err(cop_err)?;
+    let inner = registry
+        .execute(name, &ctx, &[], params_json)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1270,22 +1402,35 @@ fn execute_cop_create(name: &str, params_json: &str) -> PyResult<CopImage> {
 fn execute_cop(name: &str, image: &CopImage, params_json: &str) -> PyResult<CopImage> {
     let ctx = get_py_gpu_context()?;
     let registry = get_cop_registry();
-    let inner = registry.execute(name, &ctx, &[&image.inner], params_json).map_err(cop_err)?;
+    let inner = registry
+        .execute(name, &ctx, &[&image.inner], params_json)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[pyfunction]
 #[pyo3(signature = (name, image_a, image_b, params_json="{}"))]
-fn execute_cop_composite(name: &str, image_a: &CopImage, image_b: &CopImage, params_json: &str) -> PyResult<CopImage> {
+fn execute_cop_composite(
+    name: &str,
+    image_a: &CopImage,
+    image_b: &CopImage,
+    params_json: &str,
+) -> PyResult<CopImage> {
     let ctx = get_py_gpu_context()?;
     let registry = get_cop_registry();
-    let inner = registry.execute(name, &ctx, &[&image_a.inner, &image_b.inner], params_json).map_err(cop_err)?;
+    let inner = registry
+        .execute(name, &ctx, &[&image_a.inner, &image_b.inner], params_json)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[pyfunction]
 fn list_cops() -> Vec<String> {
-    get_cop_registry().list().into_iter().map(|s| s.to_string()).collect()
+    get_cop_registry()
+        .list()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
 }
 
 #[pyfunction]
@@ -1403,7 +1548,11 @@ fn bend(
         up_vector: glam::Vec3::new(up_vector_x, up_vector_y, up_vector_z),
         up_vector_angle,
         capture_origin: glam::Vec3::new(capture_origin_x, capture_origin_y, capture_origin_z),
-        capture_direction: glam::Vec3::new(capture_direction_x, capture_direction_y, capture_direction_z),
+        capture_direction: glam::Vec3::new(
+            capture_direction_x,
+            capture_direction_y,
+            capture_direction_z,
+        ),
         capture_length,
         output_attrib,
         attribs_to_transform: String::from("*"),
@@ -1443,7 +1592,10 @@ fn point_deform(
         delete_capture_attribs: true,
     };
     let inner = procgeo_sops::deform::PointDeformSop
-        .execute(&[&geo.inner, &rest_lattice.inner, &deformed_lattice.inner], &params)
+        .execute(
+            &[&geo.inner, &rest_lattice.inner, &deformed_lattice.inner],
+            &params,
+        )
         .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
@@ -1498,9 +1650,13 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(create_grid, m)?)?;
     m.add_function(wrap_pyfunction!(create_sphere, m)?)?;
     m.add_function(wrap_pyfunction!(create_line, m)?)?;
+    m.add_function(wrap_pyfunction!(create_spiral, m)?)?;
+    m.add_function(wrap_pyfunction!(create_helix, m)?)?;
     m.add_function(wrap_pyfunction!(create_circle, m)?)?;
     m.add_function(wrap_pyfunction!(create_tube, m)?)?;
     m.add_function(wrap_pyfunction!(create_torus, m)?)?;
+    m.add_function(wrap_pyfunction!(create_icosphere, m)?)?;
+    m.add_function(wrap_pyfunction!(create_teapot, m)?)?;
     m.add_function(wrap_pyfunction!(revolve, m)?)?;
     m.add_function(wrap_pyfunction!(create_metaball, m)?)?;
     // Manipulation

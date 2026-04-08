@@ -68,8 +68,8 @@ impl Sop for DeleteSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
-    use crate::creation::grid::{GridSop, GridParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::creation::grid::{GridParams, GridSop};
     use crate::{GeometryExt, generate};
 
     fn make_box() -> Geometry {
@@ -94,7 +94,11 @@ mod tests {
         // Prims referencing deleted points are also removed.
         let grid = generate(
             &GridSop,
-            &GridParams { rows: 3, cols: 3, ..Default::default() },
+            &GridParams {
+                rows: 3,
+                cols: 3,
+                ..Default::default()
+            },
         )
         .unwrap();
         assert_eq!(grid.num_points(), 9);

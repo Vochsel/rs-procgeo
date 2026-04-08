@@ -1,9 +1,9 @@
 use glam::{Mat3, Vec3};
 use serde::{Deserialize, Serialize};
 
+use procgeo_core::Geometry;
 use procgeo_core::attribute::{AttribClass, AttribDefault, AttribHandle, TypeQualifier};
 use procgeo_core::handle::PointHandle;
-use procgeo_core::Geometry;
 
 use crate::{Sop, SopError};
 
@@ -278,7 +278,11 @@ fn apply_length_scale(local: Vec3, length_scale: f32, preserve_volume: bool) -> 
     } else {
         1.0
     };
-    Vec3::new(local.x * xy_scale, local.y * xy_scale, local.z * length_scale)
+    Vec3::new(
+        local.x * xy_scale,
+        local.y * xy_scale,
+        local.z * length_scale,
+    )
 }
 
 /// Hermite smooth interpolation: 3t^2 - 2t^3
@@ -289,7 +293,13 @@ fn hermite_smooth(t: f32) -> f32 {
 
 /// Evaluate taper scale at parametric position t using three-point interpolation:
 /// start=1.0, pivot=squish, end=taper_value.
-fn eval_taper_uniform(t: f32, taper_value: f32, squish: f32, squish_pivot: f32, mode: &TaperMode) -> f32 {
+fn eval_taper_uniform(
+    t: f32,
+    taper_value: f32,
+    squish: f32,
+    squish_pivot: f32,
+    mode: &TaperMode,
+) -> f32 {
     let t_clamped = t.clamp(0.0, 1.0);
 
     if t_clamped <= squish_pivot {
@@ -358,15 +368,17 @@ fn eval_taper_ramp(t: f32, ramp: &[(f32, f32)]) -> f32 {
 }
 
 /// Apply taper deformation in capture-local space.
-fn apply_taper(
-    local: Vec3,
-    t: f32,
-    params: &BendParams,
-) -> Vec3 {
+fn apply_taper(local: Vec3, t: f32, params: &BendParams) -> Vec3 {
     let scale = if params.taper_ramp_enable {
         eval_taper_ramp(t, &params.taper_ramp)
     } else {
-        eval_taper_uniform(t, params.taper_value, params.squish, params.squish_pivot, &params.taper_mode)
+        eval_taper_uniform(
+            t,
+            params.taper_value,
+            params.squish,
+            params.squish_pivot,
+            &params.taper_mode,
+        )
     };
 
     let sx = if params.taper_along[0] { scale } else { 1.0 };
@@ -406,7 +418,11 @@ impl Sop for BendSop {
         }
 
         // Check if any deformation is actually enabled
-        if !params.bend_enable && !params.twist_enable && !params.length_scale_enable && !params.taper_enable {
+        if !params.bend_enable
+            && !params.twist_enable
+            && !params.length_scale_enable
+            && !params.taper_enable
+        {
             return Ok(geo);
         }
 
@@ -454,9 +470,9 @@ impl Sop for BendSop {
             if name.is_empty() {
                 None
             } else {
-                geo.groups().point_group(name).map(|grp| {
-                    (0..num_pts).map(|i| grp.contains(i)).collect()
-                })
+                geo.groups()
+                    .point_group(name)
+                    .map(|grp| (0..num_pts).map(|i| grp.contains(i)).collect())
             }
         });
 
@@ -482,21 +498,22 @@ impl Sop for BendSop {
         };
 
         // Create output deformation attribute if requested
-        let deform_attrib_handle: Option<AttribHandle<f32>> = if let Some(ref attrib_name) = params.output_attrib {
-            if !attrib_name.is_empty() {
-                let _ = geo.add_attrib(
-                    AttribClass::Point,
-                    attrib_name.clone(),
-                    AttribDefault::Float(0.0),
-                    TypeQualifier::None,
-                );
-                geo.find_attrib::<f32>(AttribClass::Point, attrib_name).ok()
+        let deform_attrib_handle: Option<AttribHandle<f32>> =
+            if let Some(ref attrib_name) = params.output_attrib {
+                if !attrib_name.is_empty() {
+                    let _ = geo.add_attrib(
+                        AttribClass::Point,
+                        attrib_name.clone(),
+                        AttribDefault::Float(0.0),
+                        TypeQualifier::None,
+                    );
+                    geo.find_attrib::<f32>(AttribClass::Point, attrib_name).ok()
+                } else {
+                    None
+                }
             } else {
                 None
-            }
-        } else {
-            None
-        };
+            };
 
         // Process each point
         for i in 0..num_pts {
@@ -554,11 +571,7 @@ impl Sop for BendSop {
             }
 
             // For both_directions, mirror the backward half
-            let (deform_t, mirror) = if is_backward {
-                (-t, true)
-            } else {
-                (t, false)
-            };
+            let (deform_t, mirror) = if is_backward { (-t, true) } else { (t, false) };
 
             // Start with the point in capture-local space.
             // Separate the spine component (Z) from the offset (XY).
@@ -571,7 +584,11 @@ impl Sop for BendSop {
 
             // 1. Apply bend
             if params.bend_enable && bend_angle_rad.abs() > BEND_EPSILON {
-                let bend_angle_for_t = if mirror { -bend_angle_rad } else { bend_angle_rad };
+                let bend_angle_for_t = if mirror {
+                    -bend_angle_rad
+                } else {
+                    bend_angle_rad
+                };
                 deformed = apply_bend(deformed, bend_angle_for_t, deform_t, capture_len);
             }
 
@@ -588,7 +605,8 @@ impl Sop for BendSop {
 
             // 3. Apply length scale
             if params.length_scale_enable && (params.length_scale - 1.0).abs() > 1e-8 {
-                deformed = apply_length_scale(deformed, params.length_scale, params.preserve_volume);
+                deformed =
+                    apply_length_scale(deformed, params.length_scale, params.preserve_volume);
             }
 
             // 4. Apply taper
@@ -629,7 +647,7 @@ mod tests {
     use super::*;
     use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::creation::line::{LineParams, LineSop};
-    use crate::{generate, GeometryExt};
+    use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use procgeo_core::handle::PointHandle;
 
@@ -1105,13 +1123,19 @@ mod tests {
         // Backward side (negative Y) at t=-1 (mirrored to t=1) gets -180 twist
         // Due to continuous mode, both endpoints should twist in opposite directions.
         let tip_pos = result.point_pos(PointHandle::from_index(10)); // Y=+1
-        let tip_neg = result.point_pos(PointHandle::from_index(0));  // Y=-1
+        let tip_neg = result.point_pos(PointHandle::from_index(0)); // Y=-1
 
         // Both should have moved from original X=1 position
         let moved_pos = (tip_pos - Vec3::new(1.0, 1.0, 0.0)).length();
         let moved_neg = (tip_neg - Vec3::new(1.0, -1.0, 0.0)).length();
-        assert!(moved_pos > 0.5, "positive tip should twist significantly, moved {moved_pos}");
-        assert!(moved_neg > 0.5, "negative tip should twist significantly, moved {moved_neg}");
+        assert!(
+            moved_pos > 0.5,
+            "positive tip should twist significantly, moved {moved_pos}"
+        );
+        assert!(
+            moved_neg > 0.5,
+            "negative tip should twist significantly, moved {moved_neg}"
+        );
     }
 
     #[test]
@@ -1177,9 +1201,9 @@ mod tests {
         // At t=0.5: ramp value=0.0 -> scale = 0.0*2 = 0.0 (collapse)
         // At t=1.0: ramp value=1.0 -> scale = 1.0*2 = 2.0 (double)
         let mut geo = Geometry::new();
-        geo.add_point(Vec3::new(1.0, 0.0, 0.0));  // t=0
-        geo.add_point(Vec3::new(1.0, 0.5, 0.0));  // t=0.5
-        geo.add_point(Vec3::new(1.0, 1.0, 0.0));  // t=1.0
+        geo.add_point(Vec3::new(1.0, 0.0, 0.0)); // t=0
+        geo.add_point(Vec3::new(1.0, 0.5, 0.0)); // t=0.5
+        geo.add_point(Vec3::new(1.0, 1.0, 0.0)); // t=1.0
 
         let params = BendParams {
             taper_enable: true,
@@ -1301,10 +1325,7 @@ mod tests {
         let full_disp = (full_tip - orig_tip).length();
         let masked_disp = (masked_tip - orig_tip).length();
 
-        assert!(
-            full_disp > 0.01,
-            "full deformation should move the tip"
-        );
+        assert!(full_disp > 0.01, "full deformation should move the tip");
         assert!(
             masked_disp > 0.01,
             "masked deformation should also move the tip"

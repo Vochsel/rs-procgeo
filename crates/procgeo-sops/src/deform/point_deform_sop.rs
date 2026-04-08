@@ -12,9 +12,9 @@
 use glam::{Mat3, Vec3};
 use serde::{Deserialize, Serialize};
 
+use procgeo_core::Geometry;
 use procgeo_core::attribute::{AttribClass, AttribHandle};
 use procgeo_core::handle::{PointHandle, PrimHandle};
-use procgeo_core::Geometry;
 
 use crate::{Sop, SopError};
 
@@ -117,11 +117,7 @@ impl Sop for PointDeformSop {
         (3, 3)
     }
 
-    fn execute(
-        &self,
-        inputs: &[&Geometry],
-        params: &Self::Params,
-    ) -> Result<Geometry, SopError> {
+    fn execute(&self, inputs: &[&Geometry], params: &Self::Params) -> Result<Geometry, SopError> {
         self.validate_inputs(inputs)?;
 
         // Capture-only and Deform-only are stubs for now (need array attribs).
@@ -187,9 +183,9 @@ impl Sop for PointDeformSop {
             if name.is_empty() {
                 None
             } else {
-                mesh.groups().point_group(name).map(|grp| {
-                    (0..num_mesh_pts).map(|i| grp.contains(i)).collect()
-                })
+                mesh.groups()
+                    .point_group(name)
+                    .map(|grp| (0..num_mesh_pts).map(|i| grp.contains(i)).collect())
             }
         });
 
@@ -458,9 +454,7 @@ fn polar_decomposition_rotation(h: [[f32; 3]; 3]) -> Mat3 {
     // We have h[col][row], so h[c][r] is element at row r, col c.
     // For row-major input we need (r=0,c=0), (r=0,c=1), (r=0,c=2), (r=1,c=0), ...
     let na_h = NMat3::new(
-        h[0][0], h[1][0], h[2][0],
-        h[0][1], h[1][1], h[2][1],
-        h[0][2], h[1][2], h[2][2],
+        h[0][0], h[1][0], h[2][0], h[0][1], h[1][1], h[2][1], h[0][2], h[1][2], h[2][2],
     );
 
     let svd = na_h.svd(true, true);
@@ -766,7 +760,7 @@ mod tests {
         let deformed = make_lattice(&deformed_pts);
 
         let params = PointDeformParams {
-            radius: 0.1, // Very small radius -- lattice is 100+ units away
+            radius: 0.1,   // Very small radius -- lattice is 100+ units away
             min_points: 1, // Will force KNN to expand, but transforms should be translation
             max_points: 4,
             ..Default::default()

@@ -129,7 +129,7 @@ impl Sop for MeasureSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use glam::Vec3;
@@ -142,9 +142,9 @@ mod tests {
         // 1×1 quad in XZ plane
         let mut geo = Geometry::new();
         let p0 = geo.add_point(Vec3::new(-0.5, 0.0, -0.5));
-        let p1 = geo.add_point(Vec3::new( 0.5, 0.0, -0.5));
-        let p2 = geo.add_point(Vec3::new( 0.5, 0.0,  0.5));
-        let p3 = geo.add_point(Vec3::new(-0.5, 0.0,  0.5));
+        let p1 = geo.add_point(Vec3::new(0.5, 0.0, -0.5));
+        let p2 = geo.add_point(Vec3::new(0.5, 0.0, 0.5));
+        let p3 = geo.add_point(Vec3::new(-0.5, 0.0, 0.5));
         geo.add_face(&[p0, p1, p2, p3]);
         geo
     }
@@ -158,7 +158,9 @@ mod tests {
         };
         let result = quad.apply(&MeasureSop, &params).unwrap();
 
-        let handle = result.find_attrib::<f32>(AttribClass::Primitive, "area").unwrap();
+        let handle = result
+            .find_attrib::<f32>(AttribClass::Primitive, "area")
+            .unwrap();
         let area = result.get_attrib(&handle, 0).unwrap();
         assert_relative_eq!(area, 1.0, epsilon = 1e-5);
     }
@@ -170,7 +172,9 @@ mod tests {
         let params = MeasureParams::default(); // Area
         let result = box_geo.apply(&MeasureSop, &params).unwrap();
 
-        let handle = result.find_attrib::<f32>(AttribClass::Primitive, "area").unwrap();
+        let handle = result
+            .find_attrib::<f32>(AttribClass::Primitive, "area")
+            .unwrap();
         let mut total = 0.0;
         for i in 0..result.num_prims() {
             let area = result.get_attrib(&handle, i).unwrap();
@@ -180,7 +184,9 @@ mod tests {
         assert_relative_eq!(total, 6.0, epsilon = 1e-5);
 
         // Check detail total attribute
-        let total_handle = result.find_attrib::<f32>(AttribClass::Detail, "area_total").unwrap();
+        let total_handle = result
+            .find_attrib::<f32>(AttribClass::Detail, "area_total")
+            .unwrap();
         let detail_total = result.get_attrib(&total_handle, 0).unwrap();
         assert_relative_eq!(detail_total, 6.0, epsilon = 1e-5);
     }
@@ -195,7 +201,9 @@ mod tests {
         };
         let result = quad.apply(&MeasureSop, &params).unwrap();
 
-        let handle = result.find_attrib::<f32>(AttribClass::Primitive, "perimeter").unwrap();
+        let handle = result
+            .find_attrib::<f32>(AttribClass::Primitive, "perimeter")
+            .unwrap();
         let perimeter = result.get_attrib(&handle, 0).unwrap();
         assert_relative_eq!(perimeter, 4.0, epsilon = 1e-5);
     }

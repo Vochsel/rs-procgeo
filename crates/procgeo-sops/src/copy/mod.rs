@@ -2,4 +2,4 @@
 
 pub mod copy_to_points;
 
-pub use copy_to_points::{CopyToPointsSop, CopyToPointsParams};
+pub use copy_to_points::{CopyToPointsParams, CopyToPointsSop};

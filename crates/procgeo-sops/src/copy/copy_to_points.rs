@@ -284,8 +284,8 @@ impl Sop for CopyToPointsSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
-    use crate::creation::line::{LineSop, LineParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::creation::line::{LineParams, LineSop};
     use crate::generate;
     use approx::assert_relative_eq;
     use glam::Vec3;
@@ -314,7 +314,9 @@ mod tests {
         let sop = CopyToPointsSop;
         let bx = make_box();
         let ln = make_line(5);
-        let result = sop.execute(&[&bx, &ln], &CopyToPointsParams::default()).unwrap();
+        let result = sop
+            .execute(&[&bx, &ln], &CopyToPointsParams::default())
+            .unwrap();
 
         assert_eq!(result.num_points(), 40, "expected 40 points (8*5)");
         assert_eq!(result.num_prims(), 30, "expected 30 prims (6*5)");
@@ -325,12 +327,18 @@ mod tests {
         let sop = CopyToPointsSop;
         let bx = make_box();
         let ln = make_line(3);
-        let result = sop.execute(&[&bx, &ln], &CopyToPointsParams::default()).unwrap();
+        let result = sop
+            .execute(&[&bx, &ln], &CopyToPointsParams::default())
+            .unwrap();
 
         // Each face should have 4 vertices (box faces are quads)
         for prim_idx in 0..result.num_prims() {
             let ph = PrimHandle::from_index(prim_idx);
-            assert_eq!(result.prim_vertices(ph).len(), 4, "expected quad at prim {prim_idx}");
+            assert_eq!(
+                result.prim_vertices(ph).len(),
+                4,
+                "expected quad at prim {prim_idx}"
+            );
         }
     }
 
@@ -339,16 +347,23 @@ mod tests {
         let sop = CopyToPointsSop;
         let bx = make_box();
         let ln = make_line(3);
-        let result = sop.execute(&[&bx, &ln], &CopyToPointsParams::default()).unwrap();
+        let result = sop
+            .execute(&[&bx, &ln], &CopyToPointsParams::default())
+            .unwrap();
 
-        let handle = result.find_attrib::<i32>(AttribClass::Point, "copynum").unwrap();
+        let handle = result
+            .find_attrib::<i32>(AttribClass::Point, "copynum")
+            .unwrap();
 
         // First 8 points should have copynum=0, next 8 → 1, next 8 → 2
         for copy_idx in 0..3_usize {
             for local_pt in 0..8_usize {
                 let global_idx = copy_idx * 8 + local_pt;
                 let val = result.get_attrib(&handle, global_idx).unwrap();
-                assert_eq!(val, copy_idx as i32, "point {global_idx} should have copynum={copy_idx}");
+                assert_eq!(
+                    val, copy_idx as i32,
+                    "point {global_idx} should have copynum={copy_idx}"
+                );
             }
         }
     }
@@ -366,13 +381,17 @@ mod tests {
                 TypeQualifier::None,
             )
             .unwrap();
-        let h = target.find_attrib::<f32>(AttribClass::Point, "pscale").unwrap();
+        let h = target
+            .find_attrib::<f32>(AttribClass::Point, "pscale")
+            .unwrap();
         target.set_attrib(&h, 0, 2.0).unwrap();
 
         let bx = make_box(); // default box is 1x1x1, spans [-0.5, 0.5]
 
         let sop = CopyToPointsSop;
-        let result = sop.execute(&[&bx, &target], &CopyToPointsParams::default()).unwrap();
+        let result = sop
+            .execute(&[&bx, &target], &CopyToPointsParams::default())
+            .unwrap();
 
         let bb = result.bounding_box();
         // pscale=2 should double the box: [-1, 1] on all axes
@@ -401,7 +420,9 @@ mod tests {
 
         let bx = make_box();
         let sop = CopyToPointsSop;
-        let result = sop.execute(&[&bx, &target], &CopyToPointsParams::default()).unwrap();
+        let result = sop
+            .execute(&[&bx, &target], &CopyToPointsParams::default())
+            .unwrap();
 
         let bb = result.bounding_box();
         // X scaled by 2: [-1, 1], Y unchanged: [-0.5, 0.5], Z scaled by 3: [-1.5, 1.5]
@@ -435,7 +456,9 @@ mod tests {
 
         let bx = make_box();
         let sop = CopyToPointsSop;
-        let result = sop.execute(&[&bx, &target], &CopyToPointsParams::default()).unwrap();
+        let result = sop
+            .execute(&[&bx, &target], &CopyToPointsParams::default())
+            .unwrap();
 
         let bb = result.bounding_box();
         // After 90° Y rotation, X and Z extents should swap
@@ -466,7 +489,9 @@ mod tests {
 
         let bx = make_box();
         let sop = CopyToPointsSop;
-        let result = sop.execute(&[&bx, &target], &CopyToPointsParams::default()).unwrap();
+        let result = sop
+            .execute(&[&bx, &target], &CopyToPointsParams::default())
+            .unwrap();
 
         // Should still produce valid geometry
         assert_eq!(result.num_points(), 8);
@@ -500,7 +525,9 @@ mod tests {
                 TypeQualifier::Quaternion,
             )
             .unwrap();
-        let ps = target.find_attrib::<f32>(AttribClass::Point, "pscale").unwrap();
+        let ps = target
+            .find_attrib::<f32>(AttribClass::Point, "pscale")
+            .unwrap();
         target.set_attrib(&ps, 0, 3.0).unwrap();
         let oh = target
             .find_attrib::<[f32; 4]>(AttribClass::Point, "orient")
@@ -510,7 +537,9 @@ mod tests {
 
         let bx = make_box();
         let sop = CopyToPointsSop;
-        let result = sop.execute(&[&bx, &target], &CopyToPointsParams::default()).unwrap();
+        let result = sop
+            .execute(&[&bx, &target], &CopyToPointsParams::default())
+            .unwrap();
 
         let bb = result.bounding_box();
         // Box scaled by 3 → 3x3x3 centered at (10, 0, 0)
@@ -941,14 +970,22 @@ mod tests {
     #[test]
     fn copy_piece_attrib() {
         // Source: two boxes at different positions, with "piece" prim attrib
-        let box_a = generate(&BoxSop, &BoxParams {
-            center: Vec3::ZERO,
-            ..Default::default()
-        }).unwrap();
-        let box_b = generate(&BoxSop, &BoxParams {
-            center: Vec3::new(100.0, 0.0, 0.0),
-            ..Default::default()
-        }).unwrap();
+        let box_a = generate(
+            &BoxSop,
+            &BoxParams {
+                center: Vec3::ZERO,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let box_b = generate(
+            &BoxSop,
+            &BoxParams {
+                center: Vec3::new(100.0, 0.0, 0.0),
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
         // Merge them and add "piece" attribute
         let merged = crate::merge::MergeSop

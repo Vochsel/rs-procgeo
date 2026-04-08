@@ -100,12 +100,7 @@ impl Sop for TubeSop {
             let next = &ring_handles[row_idx + 1];
             for col_idx in 0..cols {
                 let next_col = (col_idx + 1) % cols;
-                geo.add_face(&[
-                    cur[col_idx],
-                    next[col_idx],
-                    next[next_col],
-                    cur[next_col],
-                ]);
+                geo.add_face(&[cur[col_idx], next[col_idx], next[next_col], cur[next_col]]);
             }
         }
 
@@ -140,8 +135,8 @@ impl Sop for TubeSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     use crate::generate;
+    use approx::assert_relative_eq;
 
     #[test]
     fn tube_default() {

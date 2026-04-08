@@ -106,8 +106,8 @@ impl Sop for TorusSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     use crate::generate;
+    use approx::assert_relative_eq;
 
     #[test]
     fn torus_default() {

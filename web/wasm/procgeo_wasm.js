@@ -274,6 +274,15 @@ export class Geometry {
         return v1;
     }
     /**
+     * Return whether a primitive is closed.
+     * @param {number} prim_index
+     * @returns {boolean}
+     */
+    primIsClosed(prim_index) {
+        const ret = wasm.geometry_primIsClosed(this.__wbg_ptr, prim_index);
+        return ret !== 0;
+    }
+    /**
      * Get the point indices for a specific primitive.
      * @param {number} prim_index
      * @returns {Uint32Array}
@@ -864,6 +873,30 @@ export function createGrid(params) {
  * @param {any | null} [params]
  * @returns {Geometry}
  */
+export function createHelix(params) {
+    const ret = wasm.createHelix(isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function createIcosphere(params) {
+    const ret = wasm.createIcosphere(isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
 export function createLine(params) {
     const ret = wasm.createLine(isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
@@ -890,6 +923,30 @@ export function createMetaball(params) {
  */
 export function createSphere(params) {
     const ret = wasm.createSphere(isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function createSpiral(params) {
+    const ret = wasm.createSpiral(isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function createTeapot(params) {
+    const ret = wasm.createTeapot(isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use procgeo_core::{AttribClass, AttribDefault, Geometry, PointHandle, PrimHandle, TypeQualifier};
 
-use crate::reshape::{ClipSop, ClipParams};
+use crate::reshape::{ClipParams, ClipSop};
 use crate::{Sop, SopError};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -69,8 +69,12 @@ fn merge_pieces_with_attrib(pieces: Vec<Geometry>) -> Result<Geometry, SopError>
                 procgeo_core::Primitive::Polygon(poly) => {
                     use procgeo_core::PolyType;
                     match poly.poly_type {
-                        PolyType::Closed => { out.add_face(&remapped); }
-                        PolyType::Open => { out.add_polyline(&remapped); }
+                        PolyType::Closed => {
+                            out.add_face(&remapped);
+                        }
+                        PolyType::Open => {
+                            out.add_polyline(&remapped);
+                        }
                     }
                 }
             }
@@ -170,7 +174,7 @@ impl Sop for VoronoiFractureSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::generate;
     use glam::Vec3;
 
@@ -198,7 +202,9 @@ mod tests {
 
         let params = VoronoiFractureParams::default();
 
-        let result = VoronoiFractureSop.execute(&[&box_geo, &seeds], &params).unwrap();
+        let result = VoronoiFractureSop
+            .execute(&[&box_geo, &seeds], &params)
+            .unwrap();
 
         // Should have more faces than the original 6 (each piece is a clipped sub-box)
         assert!(
@@ -219,7 +225,9 @@ mod tests {
         ]);
 
         let params = VoronoiFractureParams::default();
-        let result = VoronoiFractureSop.execute(&[&box_geo, &seeds], &params).unwrap();
+        let result = VoronoiFractureSop
+            .execute(&[&box_geo, &seeds], &params)
+            .unwrap();
 
         // Verify "piece" attribute exists
         let piece_handle = result
@@ -261,7 +269,9 @@ mod tests {
         ]);
 
         let params = VoronoiFractureParams::default();
-        let result = VoronoiFractureSop.execute(&[&box_geo, &seeds], &params).unwrap();
+        let result = VoronoiFractureSop
+            .execute(&[&box_geo, &seeds], &params)
+            .unwrap();
 
         // The combined bounding box of all pieces should approximately match the original
         let result_bbox = result.bounding_box();
@@ -289,23 +299,21 @@ mod tests {
     fn voronoi_cut_plane_offset() {
         // Positive offset should shrink pieces (creating gaps), resulting in fewer total prims
         let box_geo = make_box();
-        let seeds = make_seed_points(&[
-            Vec3::new(-0.3, 0.0, 0.0),
-            Vec3::new(0.3, 0.0, 0.0),
-        ]);
+        let seeds = make_seed_points(&[Vec3::new(-0.3, 0.0, 0.0), Vec3::new(0.3, 0.0, 0.0)]);
 
-        let no_offset = VoronoiFractureSop.execute(
-            &[&box_geo, &seeds],
-            &VoronoiFractureParams::default(),
-        ).unwrap();
+        let no_offset = VoronoiFractureSop
+            .execute(&[&box_geo, &seeds], &VoronoiFractureParams::default())
+            .unwrap();
 
-        let with_offset = VoronoiFractureSop.execute(
-            &[&box_geo, &seeds],
-            &VoronoiFractureParams {
-                cut_plane_offset: 0.1,
-                ..Default::default()
-            },
-        ).unwrap();
+        let with_offset = VoronoiFractureSop
+            .execute(
+                &[&box_geo, &seeds],
+                &VoronoiFractureParams {
+                    cut_plane_offset: 0.1,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
 
         // With offset, pieces are clipped more aggressively so should have fewer or equal points
         assert!(

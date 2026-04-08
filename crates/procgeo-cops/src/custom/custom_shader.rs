@@ -75,7 +75,12 @@ impl Cop for CustomShaderCop {
         (0, 8)
     }
 
-    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &CustomShaderParams) -> Result<Image, CopError> {
+    fn execute(
+        &self,
+        ctx: &Arc<GpuContext>,
+        inputs: &[&Image],
+        params: &CustomShaderParams,
+    ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
 
         if params.source.trim().is_empty() {
@@ -118,7 +123,10 @@ impl Cop for CustomShaderCop {
 
         let input_views: Vec<wgpu::TextureView> = inputs
             .iter()
-            .map(|img| img.texture().create_view(&wgpu::TextureViewDescriptor::default()))
+            .map(|img| {
+                img.texture()
+                    .create_view(&wgpu::TextureViewDescriptor::default())
+            })
             .collect();
 
         for (i, view) in input_views.iter().enumerate() {
@@ -135,11 +143,11 @@ impl Cop for CustomShaderCop {
             entries: &entries,
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("custom_shader_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("custom_shader_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -252,7 +260,10 @@ mod tests {
 
     #[test]
     fn custom_wgsl_green_fill() {
-        let ctx = match make_ctx() { Some(c) => c, None => return };
+        let ctx = match make_ctx() {
+            Some(c) => c,
+            None => return,
+        };
 
         let params = CustomShaderParams {
             source: GREEN_FILL_WGSL.to_string(),
@@ -262,8 +273,7 @@ mod tests {
             uniforms: HashMap::new(),
         };
 
-        let img = generate_cop(&ctx, &CustomShaderCop, &params)
-            .expect("execute failed");
+        let img = generate_cop(&ctx, &CustomShaderCop, &params).expect("execute failed");
         let pixels = img.to_cpu().expect("readback failed");
 
         for (i, chunk) in pixels.chunks_exact(4).enumerate() {
@@ -277,7 +287,10 @@ mod tests {
 
     #[test]
     fn empty_source_errors() {
-        let ctx = match make_ctx() { Some(c) => c, None => return };
+        let ctx = match make_ctx() {
+            Some(c) => c,
+            None => return,
+        };
 
         let params = CustomShaderParams {
             source: "".to_string(),

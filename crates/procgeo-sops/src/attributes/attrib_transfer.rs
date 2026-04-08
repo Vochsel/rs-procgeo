@@ -263,20 +263,23 @@ fn transfer_vec3(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::attributes::create::{AttribCreateSop, AttribCreateParams};
-    use crate::creation::grid::{GridSop, GridParams, GridOrientation};
+    use crate::attributes::create::{AttribCreateParams, AttribCreateSop};
+    use crate::creation::grid::{GridOrientation, GridParams, GridSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use glam::Vec3;
 
     fn make_grid(rows: u32, cols: u32) -> Geometry {
-        generate(&GridSop, &GridParams {
-            size: [2.0, 2.0],
-            rows,
-            cols,
-            center: Vec3::ZERO,
-            orientation: GridOrientation::XZ,
-        })
+        generate(
+            &GridSop,
+            &GridParams {
+                size: [2.0, 2.0],
+                rows,
+                cols,
+                center: Vec3::ZERO,
+                orientation: GridOrientation::XZ,
+            },
+        )
         .unwrap()
     }
 
@@ -340,7 +343,9 @@ mod tests {
             AttribDefault::Float(0.0),
             TypeQualifier::None,
         );
-        let src_h = src.find_attrib::<f32>(AttribClass::Point, "temperature").unwrap();
+        let src_h = src
+            .find_attrib::<f32>(AttribClass::Point, "temperature")
+            .unwrap();
         src.set_attrib(&src_h, 0, 100.0).unwrap();
 
         // Destination: two points, one close (dist=0.5) and one far (dist=10.0)

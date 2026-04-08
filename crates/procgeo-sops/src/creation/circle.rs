@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use procgeo_core::Geometry;
 
-use crate::{Sop, SopError};
 use super::grid::GridOrientation;
+use crate::{Sop, SopError};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CircleParams {
@@ -59,15 +59,21 @@ impl Sop for CircleSop {
             let (s, c_) = angle.sin_cos();
 
             let pos = match params.orientation {
-                GridOrientation::XZ => params.center + Vec3::new(c_ * params.radius, 0.0, s * params.radius),
-                GridOrientation::XY => params.center + Vec3::new(c_ * params.radius, s * params.radius, 0.0),
-                GridOrientation::YZ => params.center + Vec3::new(0.0, c_ * params.radius, s * params.radius),
+                GridOrientation::XZ => {
+                    params.center + Vec3::new(c_ * params.radius, 0.0, s * params.radius)
+                }
+                GridOrientation::XY => {
+                    params.center + Vec3::new(c_ * params.radius, s * params.radius, 0.0)
+                }
+                GridOrientation::YZ => {
+                    params.center + Vec3::new(0.0, c_ * params.radius, s * params.radius)
+                }
             };
             handles.push(geo.add_point(pos));
         }
 
-        handles.reverse();
-        geo.add_face(&handles);
+        handles.push(handles[0]);
+        geo.add_polyline(&handles);
 
         Ok(geo)
     }
@@ -76,8 +82,9 @@ impl Sop for CircleSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     use crate::generate;
+    use approx::assert_relative_eq;
+    use procgeo_core::{PolyType, PrimHandle, Primitive};
 
     #[test]
     fn circle_default() {
@@ -87,6 +94,19 @@ mod tests {
 
         assert_eq!(geo.num_points(), 40);
         assert_eq!(geo.num_prims(), 1);
+        assert_eq!(geo.num_vertices(), 41);
+    }
+
+    #[test]
+    fn circle_is_open_loop() {
+        let geo = generate(&CircleSop, &CircleParams::default()).unwrap();
+
+        match geo.prim(PrimHandle::from_index(0)) {
+            Primitive::Polygon(poly) => assert_eq!(poly.poly_type, PolyType::Open),
+        }
+
+        let pts = geo.prim_points(PrimHandle::from_index(0));
+        assert_eq!(pts.first(), pts.last());
     }
 
     #[test]

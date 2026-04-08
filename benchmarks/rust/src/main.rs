@@ -145,8 +145,15 @@ fn bench_procgeo(results: &mut Vec<BenchResult>) {
         });
 
         // -- Transform --
-        let grid =
-            generate(&GridSop, &GridParams { rows: rc, cols: rc, ..Default::default() }).unwrap();
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                rows: rc,
+                cols: rc,
+                ..Default::default()
+            },
+        )
+        .unwrap();
         let (mean, std, iters) = bench(|| {
             let _ = grid.clone().apply(
                 &TransformSop,
@@ -224,7 +231,9 @@ fn bench_procgeo(results: &mut Vec<BenchResult>) {
 
         // -- Fuse --
         let (mean, std, iters) = bench(|| {
-            let _ = grid.clone().apply(&FuseSop, &FuseParams { distance: 0.001 });
+            let _ = grid
+                .clone()
+                .apply(&FuseSop, &FuseParams { distance: 0.001 });
         });
         results.push(BenchResult {
             framework: "procgeo",
@@ -513,10 +522,7 @@ fn bench_deform(results: &mut Vec<BenchResult>) {
         let mut rest_geo = Geometry::new();
         let rest_handles: Vec<_> = lattice_pts.iter().map(|&p| rest_geo.add_point(p)).collect();
         if rest_handles.len() >= 3 {
-            rest_geo.add_polygon(
-                &rest_handles[..3],
-                PolyType::Closed,
-            );
+            rest_geo.add_polygon(&rest_handles[..3], PolyType::Closed);
         }
 
         // Translate the deformed lattice
@@ -525,10 +531,7 @@ fn bench_deform(results: &mut Vec<BenchResult>) {
         let mut def_geo = Geometry::new();
         let def_handles: Vec<_> = deformed_pts.iter().map(|&p| def_geo.add_point(p)).collect();
         if def_handles.len() >= 3 {
-            def_geo.add_polygon(
-                &def_handles[..3],
-                PolyType::Closed,
-            );
+            def_geo.add_polygon(&def_handles[..3], PolyType::Closed);
         }
 
         let params = PointDeformParams {
@@ -569,8 +572,14 @@ fn bench_boolean(results: &mut Vec<BenchResult>) {
     // ── Helper: subdivided box (more triangles) ─────────────────────────
     let make_subdivided_box = |center: Vec3, size: Vec3, depth: u32| -> Geometry {
         let b = make_box(center, size);
-        b.apply(&SubdivideSop, &SubdivideParams { depth, ..Default::default() })
-            .unwrap()
+        b.apply(
+            &SubdivideSop,
+            &SubdivideParams {
+                depth,
+                ..Default::default()
+            },
+        )
+        .unwrap()
     };
 
     // ── Union/small ──────────────────────────────────────────────────────
@@ -744,17 +753,57 @@ fn bench_boolean(results: &mut Vec<BenchResult>) {
         let mut cube_tris: Vec<Triangle> = Vec::with_capacity(12);
         let mut idx = 0usize;
         let mut push_quad = |a: Vec3, b: Vec3, c: Vec3, d: Vec3| {
-            cube_tris.push(Triangle { v0: a, v1: b, v2: c, index: idx });
+            cube_tris.push(Triangle {
+                v0: a,
+                v1: b,
+                v2: c,
+                index: idx,
+            });
             idx += 1;
-            cube_tris.push(Triangle { v0: a, v1: c, v2: d, index: idx });
+            cube_tris.push(Triangle {
+                v0: a,
+                v1: c,
+                v2: d,
+                index: idx,
+            });
             idx += 1;
         };
-        push_quad(Vec3::new(-h,-h,h), Vec3::new(h,-h,h), Vec3::new(h,h,h), Vec3::new(-h,h,h));
-        push_quad(Vec3::new(h,-h,-h), Vec3::new(-h,-h,-h), Vec3::new(-h,h,-h), Vec3::new(h,h,-h));
-        push_quad(Vec3::new(h,-h,h), Vec3::new(h,-h,-h), Vec3::new(h,h,-h), Vec3::new(h,h,h));
-        push_quad(Vec3::new(-h,-h,-h), Vec3::new(-h,-h,h), Vec3::new(-h,h,h), Vec3::new(-h,h,-h));
-        push_quad(Vec3::new(-h,h,h), Vec3::new(h,h,h), Vec3::new(h,h,-h), Vec3::new(-h,h,-h));
-        push_quad(Vec3::new(-h,-h,-h), Vec3::new(h,-h,-h), Vec3::new(h,-h,h), Vec3::new(-h,-h,h));
+        push_quad(
+            Vec3::new(-h, -h, h),
+            Vec3::new(h, -h, h),
+            Vec3::new(h, h, h),
+            Vec3::new(-h, h, h),
+        );
+        push_quad(
+            Vec3::new(h, -h, -h),
+            Vec3::new(-h, -h, -h),
+            Vec3::new(-h, h, -h),
+            Vec3::new(h, h, -h),
+        );
+        push_quad(
+            Vec3::new(h, -h, h),
+            Vec3::new(h, -h, -h),
+            Vec3::new(h, h, -h),
+            Vec3::new(h, h, h),
+        );
+        push_quad(
+            Vec3::new(-h, -h, -h),
+            Vec3::new(-h, -h, h),
+            Vec3::new(-h, h, h),
+            Vec3::new(-h, h, -h),
+        );
+        push_quad(
+            Vec3::new(-h, h, h),
+            Vec3::new(h, h, h),
+            Vec3::new(h, h, -h),
+            Vec3::new(-h, h, -h),
+        );
+        push_quad(
+            Vec3::new(-h, -h, -h),
+            Vec3::new(h, -h, -h),
+            Vec3::new(h, -h, h),
+            Vec3::new(-h, -h, h),
+        );
 
         // Generate 1000 random-ish test points in [-2, 2]^3
         let test_points: Vec<Vec3> = (0..1000)

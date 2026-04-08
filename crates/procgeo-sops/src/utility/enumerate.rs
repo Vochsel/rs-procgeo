@@ -68,7 +68,7 @@ impl Sop for EnumerateSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
 
     fn make_box() -> Geometry {
@@ -84,7 +84,9 @@ mod tests {
         let params = EnumerateParams::default(); // Point, "index", start=0
         let result = box_geo.apply(&EnumerateSop, &params).unwrap();
 
-        let handle = result.find_attrib::<i32>(AttribClass::Point, "index").unwrap();
+        let handle = result
+            .find_attrib::<i32>(AttribClass::Point, "index")
+            .unwrap();
         for i in 0..result.num_points() {
             assert_eq!(result.get_attrib(&handle, i).unwrap(), i as i32);
         }
@@ -103,7 +105,9 @@ mod tests {
         };
         let result = box_geo.apply(&EnumerateSop, &params).unwrap();
 
-        let handle = result.find_attrib::<i32>(AttribClass::Primitive, "prim_idx").unwrap();
+        let handle = result
+            .find_attrib::<i32>(AttribClass::Primitive, "prim_idx")
+            .unwrap();
         for i in 0..result.num_prims() {
             assert_eq!(result.get_attrib(&handle, i).unwrap(), i as i32);
         }
@@ -120,7 +124,9 @@ mod tests {
         };
         let result = box_geo.apply(&EnumerateSop, &params).unwrap();
 
-        let handle = result.find_attrib::<i32>(AttribClass::Point, "index").unwrap();
+        let handle = result
+            .find_attrib::<i32>(AttribClass::Point, "index")
+            .unwrap();
         for i in 0..result.num_points() {
             assert_eq!(result.get_attrib(&handle, i).unwrap(), 10 + i as i32);
         }

@@ -98,9 +98,9 @@ impl Sop for ConnectivitySop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
-    use crate::merge::{MergeSop, MergeParams};
-    use crate::transform::{TransformSop, TransformParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::merge::{MergeParams, MergeSop};
+    use crate::transform::{TransformParams, TransformSop};
     use crate::{GeometryExt, generate};
     use glam::Vec3;
 
@@ -116,9 +116,15 @@ mod tests {
         let result = box_geo.apply(&ConnectivitySop, &params).unwrap();
 
         assert_eq!(result.num_prims(), 6);
-        let h = result.find_attrib::<i32>(AttribClass::Primitive, "class").unwrap();
+        let h = result
+            .find_attrib::<i32>(AttribClass::Primitive, "class")
+            .unwrap();
         for i in 0..result.num_prims() {
-            assert_eq!(result.get_attrib(&h, i).unwrap(), 0, "all prims should be class 0");
+            assert_eq!(
+                result.get_attrib(&h, i).unwrap(),
+                0,
+                "all prims should be class 0"
+            );
         }
     }
 
@@ -127,10 +133,13 @@ mod tests {
         // Two non-overlapping boxes → one gets class 0, the other class 1
         let box1 = make_box();
         let box2 = make_box()
-            .apply(&TransformSop, &TransformParams {
-                translate: Vec3::new(10.0, 0.0, 0.0),
-                ..Default::default()
-            })
+            .apply(
+                &TransformSop,
+                &TransformParams {
+                    translate: Vec3::new(10.0, 0.0, 0.0),
+                    ..Default::default()
+                },
+            )
             .unwrap();
 
         let merged = MergeSop.execute(&[&box1, &box2], &MergeParams).unwrap();
@@ -138,14 +147,24 @@ mod tests {
         let result = merged.apply(&ConnectivitySop, &params).unwrap();
 
         assert_eq!(result.num_prims(), 12);
-        let h = result.find_attrib::<i32>(AttribClass::Primitive, "class").unwrap();
+        let h = result
+            .find_attrib::<i32>(AttribClass::Primitive, "class")
+            .unwrap();
 
         // First 6 prims should be class 0, next 6 should be class 1
         for i in 0..6 {
-            assert_eq!(result.get_attrib(&h, i).unwrap(), 0, "prim {i} should be class 0");
+            assert_eq!(
+                result.get_attrib(&h, i).unwrap(),
+                0,
+                "prim {i} should be class 0"
+            );
         }
         for i in 6..12 {
-            assert_eq!(result.get_attrib(&h, i).unwrap(), 1, "prim {i} should be class 1");
+            assert_eq!(
+                result.get_attrib(&h, i).unwrap(),
+                1,
+                "prim {i} should be class 1"
+            );
         }
     }
 }

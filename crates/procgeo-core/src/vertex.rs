@@ -1,4 +1,4 @@
-use crate::handle::{PrimHandle, PointHandle, VertexHandle};
+use crate::handle::{PointHandle, PrimHandle, VertexHandle};
 
 /// Stores vertex topology: each vertex references one point and one primitive.
 #[derive(Clone)]

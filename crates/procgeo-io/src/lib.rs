@@ -1,7 +1,7 @@
 use procgeo_core::Geometry;
-use thiserror::Error;
 use std::io::{Read, Write};
 use std::path::Path;
+use thiserror::Error;
 
 #[cfg(feature = "obj")]
 pub mod obj;
@@ -30,23 +30,36 @@ pub trait GeometryReader {
 }
 
 pub fn write_file(geo: &Geometry, path: &Path) -> Result<(), IoError> {
-    let ext = path.extension().and_then(|e| e.to_str())
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
         .ok_or_else(|| IoError::UnsupportedFormat("no extension".to_string()))?;
     match ext {
         #[cfg(feature = "obj")]
-        "obj" => { let mut f = std::fs::File::create(path)?; obj::ObjWriter.write(geo, &mut f) }
+        "obj" => {
+            let mut f = std::fs::File::create(path)?;
+            obj::ObjWriter.write(geo, &mut f)
+        }
         #[cfg(feature = "gltf")]
-        "glb" => { let mut f = std::fs::File::create(path)?; gltf::GlbWriter.write(geo, &mut f) }
+        "glb" => {
+            let mut f = std::fs::File::create(path)?;
+            gltf::GlbWriter.write(geo, &mut f)
+        }
         _ => Err(IoError::UnsupportedFormat(ext.to_string())),
     }
 }
 
 pub fn read_file(path: &Path) -> Result<Geometry, IoError> {
-    let ext = path.extension().and_then(|e| e.to_str())
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
         .ok_or_else(|| IoError::UnsupportedFormat("no extension".to_string()))?;
     match ext {
         #[cfg(feature = "obj")]
-        "obj" => { let mut f = std::fs::File::open(path)?; obj::ObjReader.read(&mut f) }
+        "obj" => {
+            let mut f = std::fs::File::open(path)?;
+            obj::ObjReader.read(&mut f)
+        }
         _ => Err(IoError::UnsupportedFormat(ext.to_string())),
     }
 }

@@ -53,7 +53,12 @@ impl Cop for ResizeCop {
         (1, 1)
     }
 
-    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &ResizeParams) -> Result<Image, CopError> {
+    fn execute(
+        &self,
+        ctx: &Arc<GpuContext>,
+        inputs: &[&Image],
+        params: &ResizeParams,
+    ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
 
         if params.width == 0 || params.height == 0 {
@@ -115,11 +120,11 @@ impl Cop for ResizeCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("resize_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("resize_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -165,7 +170,9 @@ mod tests {
             filter: FilterMode::Nearest,
         };
 
-        let output = ResizeCop.execute(&ctx, &[&input], &params).expect("execute failed");
+        let output = ResizeCop
+            .execute(&ctx, &[&input], &params)
+            .expect("execute failed");
         assert_eq!(output.width(), 2);
         assert_eq!(output.height(), 2);
 
@@ -199,7 +206,9 @@ mod tests {
             filter: FilterMode::Bilinear,
         };
 
-        let output = ResizeCop.execute(&ctx, &[&input], &params).expect("execute failed");
+        let output = ResizeCop
+            .execute(&ctx, &[&input], &params)
+            .expect("execute failed");
         assert_eq!(output.width(), 8);
         assert_eq!(output.height(), 8);
 

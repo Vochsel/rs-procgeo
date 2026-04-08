@@ -137,11 +137,11 @@ impl Cop for ChannelSwapCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("channel_swap_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("channel_swap_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -191,16 +191,8 @@ mod tests {
         let pixels = output.to_cpu().expect("readback failed");
 
         // Red pixel with R<->B swap should become blue: [0, 0, 1, 1]
-        assert!(
-            pixels[0].abs() < 1e-5,
-            "R should be 0.0, got {}",
-            pixels[0]
-        );
-        assert!(
-            pixels[1].abs() < 1e-5,
-            "G should be 0.0, got {}",
-            pixels[1]
-        );
+        assert!(pixels[0].abs() < 1e-5, "R should be 0.0, got {}", pixels[0]);
+        assert!(pixels[1].abs() < 1e-5, "G should be 0.0, got {}", pixels[1]);
         assert!(
             (pixels[2] - 1.0).abs() < 1e-5,
             "B should be 1.0, got {}",

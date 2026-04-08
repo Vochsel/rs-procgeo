@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
-use procgeo_core::{Geometry, PointHandle, PolyType, Primitive, PrimHandle};
+use procgeo_core::{Geometry, PointHandle, PolyType, PrimHandle, Primitive};
 
 use crate::{Sop, SopError};
 
@@ -161,14 +161,8 @@ impl Sop for ClipSop {
             match prim {
                 Primitive::Polygon(poly) => {
                     let orig_pts = geo.prim_points(ph);
-                    let positions: Vec<Vec3> = orig_pts
-                        .iter()
-                        .map(|&h| geo.point_pos(h))
-                        .collect();
-                    let point_indices: Vec<usize> = orig_pts
-                        .iter()
-                        .map(|h| h.index())
-                        .collect();
+                    let positions: Vec<Vec3> = orig_pts.iter().map(|&h| geo.point_pos(h)).collect();
+                    let point_indices: Vec<usize> = orig_pts.iter().map(|h| h.index()).collect();
 
                     if let Some(clipped) = clip_polygon(
                         &positions,
@@ -185,11 +179,9 @@ impl Sop for ClipSop {
                                         out.add_point(geo.point_pos(PointHandle::from_index(*idx)))
                                     })
                                 }
-                                ClipVertex::Intersection { edge, pos } => {
-                                    *edge_point_cache.entry(*edge).or_insert_with(|| {
-                                        out.add_point(*pos)
-                                    })
-                                }
+                                ClipVertex::Intersection { edge, pos } => *edge_point_cache
+                                    .entry(*edge)
+                                    .or_insert_with(|| out.add_point(*pos)),
                             })
                             .collect();
 
@@ -213,7 +205,7 @@ impl Sop for ClipSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
     use glam::Vec3;
 
@@ -236,7 +228,11 @@ mod tests {
         };
         let result = box_geo.apply(&ClipSop, &params).unwrap();
 
-        assert_eq!(result.num_prims(), 5, "should have 5 faces after clipping at y=0");
+        assert_eq!(
+            result.num_prims(),
+            5,
+            "should have 5 faces after clipping at y=0"
+        );
     }
 
     #[test]

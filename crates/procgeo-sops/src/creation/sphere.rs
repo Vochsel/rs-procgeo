@@ -132,8 +132,8 @@ impl Sop for SphereSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     use crate::generate;
+    use approx::assert_relative_eq;
 
     #[test]
     fn sphere_default() {
@@ -155,12 +155,12 @@ mod tests {
 
         let bb = geo.bounding_box();
         assert_relative_eq!(bb.min.y, -0.5, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.y,  0.5, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.y, 0.5, epsilon = 1e-5);
         // X and Z should be within [-0.5, 0.5] (may be slightly less due to discrete sampling)
         assert!(bb.min.x >= -0.5 - 1e-5);
-        assert!(bb.max.x <=  0.5 + 1e-5);
+        assert!(bb.max.x <= 0.5 + 1e-5);
         assert!(bb.min.z >= -0.5 - 1e-5);
-        assert!(bb.max.z <=  0.5 + 1e-5);
+        assert!(bb.max.z <= 0.5 + 1e-5);
     }
 
     #[test]

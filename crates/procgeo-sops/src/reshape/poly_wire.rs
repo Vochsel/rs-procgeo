@@ -73,9 +73,7 @@ impl Sop for PolyWireSop {
 
             // Only process open polylines
             let is_open = match prim {
-                procgeo_core::Primitive::Polygon(p) => {
-                    p.poly_type == procgeo_core::PolyType::Open
-                }
+                procgeo_core::Primitive::Polygon(p) => p.poly_type == procgeo_core::PolyType::Open,
             };
 
             if !is_open {
@@ -95,8 +93,7 @@ impl Sop for PolyWireSop {
                 continue;
             }
 
-            let positions: Vec<Vec3> =
-                pt_handles.iter().map(|&h| geo.point_pos(h)).collect();
+            let positions: Vec<Vec3> = pt_handles.iter().map(|&h| geo.point_pos(h)).collect();
 
             // Generate a ring of points at each curve point
             let mut rings: Vec<Vec<PointHandle>> = Vec::with_capacity(num_curve_pts);
@@ -118,8 +115,8 @@ impl Sop for PolyWireSop {
                 for j in 0..divs {
                     let angle = TAU * j as f32 / divs as f32;
                     let (sin_a, cos_a) = angle.sin_cos();
-                    let pos = center + normal * cos_a * params.radius
-                        + bitangent * sin_a * params.radius;
+                    let pos =
+                        center + normal * cos_a * params.radius + bitangent * sin_a * params.radius;
                     ring.push(out.add_point(pos));
                 }
                 rings.push(ring);
@@ -131,12 +128,7 @@ impl Sop for PolyWireSop {
                 let next = &rings[i + 1];
                 for j in 0..divs {
                     let next_j = (j + 1) % divs;
-                    out.add_face(&[
-                        cur[j],
-                        cur[next_j],
-                        next[next_j],
-                        next[j],
-                    ]);
+                    out.add_face(&[cur[j], cur[next_j], next[next_j], next[j]]);
                 }
             }
         }
@@ -148,7 +140,7 @@ impl Sop for PolyWireSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::line::{LineSop, LineParams};
+    use crate::creation::line::{LineParams, LineSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use glam::Vec3;
@@ -176,8 +168,16 @@ mod tests {
         };
         let result = make_line(2).apply(&PolyWireSop, &params).unwrap();
 
-        assert_eq!(result.num_points(), 16, "expected 2 rings * 8 divisions = 16 points");
-        assert_eq!(result.num_prims(), 8, "expected 1 segment * 8 divisions = 8 quads");
+        assert_eq!(
+            result.num_points(),
+            16,
+            "expected 2 rings * 8 divisions = 16 points"
+        );
+        assert_eq!(
+            result.num_prims(),
+            8,
+            "expected 1 segment * 8 divisions = 8 quads"
+        );
     }
 
     #[test]
@@ -239,7 +239,11 @@ mod tests {
             .unwrap();
 
         assert_eq!(r4.num_points(), 2 * 4, "4 divisions * 2 rings = 8 points");
-        assert_eq!(r16.num_points(), 2 * 16, "16 divisions * 2 rings = 32 points");
+        assert_eq!(
+            r16.num_points(),
+            2 * 16,
+            "16 divisions * 2 rings = 32 points"
+        );
         assert!(
             r16.num_points() > r4.num_points(),
             "more divisions should produce more points"

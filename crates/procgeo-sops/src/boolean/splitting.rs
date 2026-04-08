@@ -215,9 +215,21 @@ fn triangulate_2d(pts: &[Pt2]) -> Vec<Tri2> {
             PointLocation::Interior => {
                 // Split the triangle into 3 sub-triangles.
                 let old = tris[ti];
-                tris[ti] = Tri2 { a: old.a, b: old.b, c: pi };
-                tris.push(Tri2 { a: old.b, b: old.c, c: pi });
-                tris.push(Tri2 { a: old.c, b: old.a, c: pi });
+                tris[ti] = Tri2 {
+                    a: old.a,
+                    b: old.b,
+                    c: pi,
+                };
+                tris.push(Tri2 {
+                    a: old.b,
+                    b: old.c,
+                    c: pi,
+                });
+                tris.push(Tri2 {
+                    a: old.c,
+                    b: old.a,
+                    c: pi,
+                });
             }
             PointLocation::Edge(ei) => {
                 // The point lies on an edge. Split the current triangle into 2.
@@ -236,8 +248,16 @@ fn triangulate_2d(pts: &[Pt2]) -> Vec<Tri2> {
                 };
 
                 // Replace old triangle with two sub-triangles.
-                tris[ti] = Tri2 { a: ea, b: pi, c: opp };
-                tris.push(Tri2 { a: pi, b: eb, c: opp });
+                tris[ti] = Tri2 {
+                    a: ea,
+                    b: pi,
+                    c: opp,
+                };
+                tris.push(Tri2 {
+                    a: pi,
+                    b: eb,
+                    c: opp,
+                });
 
                 // Find adjacent triangle sharing edge ea→eb (reversed: eb→ea).
                 let mut adj_idx = None;
@@ -265,8 +285,16 @@ fn triangulate_2d(pts: &[Pt2]) -> Vec<Tri2> {
                         adj.c
                     };
                     // Split the adjacent triangle into 2.
-                    tris[aj] = Tri2 { a: ea, b: pi, c: adj_opp };
-                    tris.push(Tri2 { a: pi, b: eb, c: adj_opp });
+                    tris[aj] = Tri2 {
+                        a: ea,
+                        b: pi,
+                        c: adj_opp,
+                    };
+                    tris.push(Tri2 {
+                        a: pi,
+                        b: eb,
+                        c: adj_opp,
+                    });
                 }
             }
         }
@@ -294,7 +322,13 @@ pub fn split_triangle(
 ) -> Vec<TriFragment> {
     // 1. No cuts → return original.
     if cuts.is_empty() {
-        return vec![TriFragment { v0, v1, v2, source_prim, mesh_id }];
+        return vec![TriFragment {
+            v0,
+            v1,
+            v2,
+            source_prim,
+            mesh_id,
+        }];
     }
 
     // 2. Collect unique points: start with the 3 triangle vertices.
@@ -315,7 +349,13 @@ pub fn split_triangle(
 
     // 4. If only the original 3 vertices, return original.
     if pts.len() <= 3 {
-        return vec![TriFragment { v0, v1, v2, source_prim, mesh_id }];
+        return vec![TriFragment {
+            v0,
+            v1,
+            v2,
+            source_prim,
+            mesh_id,
+        }];
     }
 
     // 5. Project to 2D using the triangle's local coordinate system.
@@ -323,7 +363,13 @@ pub fn split_triangle(
     let normal_len = normal.length();
     if normal_len < EPS {
         // Degenerate triangle.
-        return vec![TriFragment { v0, v1, v2, source_prim, mesh_id }];
+        return vec![TriFragment {
+            v0,
+            v1,
+            v2,
+            source_prim,
+            mesh_id,
+        }];
     }
     let n_hat = normal / normal_len;
     let u_axis = (v1 - v0).normalize();
@@ -331,7 +377,10 @@ pub fn split_triangle(
 
     let project = |p: Vec3| -> Pt2 {
         let d = p - v0;
-        Pt2 { x: d.dot(u_axis), y: d.dot(v_axis) }
+        Pt2 {
+            x: d.dot(u_axis),
+            y: d.dot(v_axis),
+        }
     };
 
     let pts_2d: Vec<Pt2> = pts.iter().map(|&p| project(p)).collect();
@@ -365,7 +414,13 @@ pub fn split_triangle(
 
     // If all fragments were degenerate, return the original triangle.
     if fragments.is_empty() {
-        return vec![TriFragment { v0, v1, v2, source_prim, mesh_id }];
+        return vec![TriFragment {
+            v0,
+            v1,
+            v2,
+            source_prim,
+            mesh_id,
+        }];
     }
 
     fragments
@@ -396,7 +451,11 @@ mod tests {
 
         let frags = split_triangle(v0, v1, v2, &[], 42, 0);
 
-        assert_eq!(frags.len(), 1, "no cuts should produce exactly one fragment");
+        assert_eq!(
+            frags.len(),
+            1,
+            "no cuts should produce exactly one fragment"
+        );
         assert!(v3_approx_eq(frags[0].v0, v0));
         assert!(v3_approx_eq(frags[0].v1, v1));
         assert!(v3_approx_eq(frags[0].v2, v2));
@@ -591,7 +650,10 @@ mod tests {
 
         let n = frag.normal();
         // For a CCW triangle in XY plane, normal should point in +Z.
-        assert!(n.z > 0.0, "normal should point in +Z for XY plane triangle, got {n:?}");
+        assert!(
+            n.z > 0.0,
+            "normal should point in +Z for XY plane triangle, got {n:?}"
+        );
 
         let area = frag.area();
         assert!(
@@ -617,6 +679,10 @@ mod tests {
         };
 
         let frags = split_triangle(v0, v1, v2, &[cut], 0, 0);
-        assert_eq!(frags.len(), 1, "cuts outside the triangle should be ignored");
+        assert_eq!(
+            frags.len(),
+            1,
+            "cuts outside the triangle should be ignored"
+        );
     }
 }

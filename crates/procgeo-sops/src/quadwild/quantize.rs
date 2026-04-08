@@ -47,11 +47,7 @@ pub fn quantize_patches(
 }
 
 /// Quantize a single patch's sides.
-fn quantize_single_patch(
-    geo: &Geometry,
-    patch: &Patch,
-    target_edge: f32,
-) -> Vec<u32> {
+fn quantize_single_patch(geo: &Geometry, patch: &Patch, target_edge: f32) -> Vec<u32> {
     if patch.sides.is_empty() {
         return vec![1];
     }
@@ -98,10 +94,7 @@ fn compute_side_length(geo: &Geometry, side: &[usize]) -> f32 {
 
 /// Enforce parity constraints: shared edges between patches should have
 /// the same subdivision count on both sides.
-fn enforce_parity_constraints(
-    patches: &[Patch],
-    subdivisions: &mut [Vec<u32>],
-) {
+fn enforce_parity_constraints(patches: &[Patch], subdivisions: &mut [Vec<u32>]) {
     // Build a map of shared boundaries between patches
     // Two patches share a boundary if they have common boundary vertices
     for pi in 0..patches.len() {

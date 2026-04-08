@@ -2,4 +2,4 @@
 
 pub mod fracture;
 
-pub use fracture::{VoronoiFractureSop, VoronoiFractureParams};
+pub use fracture::{VoronoiFractureParams, VoronoiFractureSop};

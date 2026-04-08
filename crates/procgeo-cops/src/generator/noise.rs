@@ -84,16 +84,16 @@ impl Default for NoiseParams {
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct NoiseUniform {
-    frequency: f32,        // offset 0
-    amplitude: f32,        // offset 4
-    lacunarity: f32,       // offset 8
-    gain: f32,             // offset 12
-    offset: [f32; 2],     // offset 16
-    seed: u32,             // offset 24
-    octaves: u32,          // offset 28
-    noise_type: u32,       // offset 32
-    _pad0: [u32; 3],      // offset 36 — padding to reach 48
-    _pad1: [u32; 4],      // offset 48 — _pad vec3u slot (12 bytes) + 4 tail = 16 bytes
+    frequency: f32,   // offset 0
+    amplitude: f32,   // offset 4
+    lacunarity: f32,  // offset 8
+    gain: f32,        // offset 12
+    offset: [f32; 2], // offset 16
+    seed: u32,        // offset 24
+    octaves: u32,     // offset 28
+    noise_type: u32,  // offset 32
+    _pad0: [u32; 3],  // offset 36 — padding to reach 48
+    _pad1: [u32; 4],  // offset 48 — _pad vec3u slot (12 bytes) + 4 tail = 16 bytes
 }
 
 /// Generator COP that produces procedural noise images (Perlin, Simplex, Worley + fBm).
@@ -167,11 +167,11 @@ impl Cop for NoiseCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("noise_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("noise_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -211,7 +211,9 @@ mod tests {
 
     #[test]
     fn perlin_non_flat() {
-        let Some(ctx) = try_ctx() else { return; };
+        let Some(ctx) = try_ctx() else {
+            return;
+        };
 
         let params = NoiseParams {
             noise_type: NoiseType::Perlin,
@@ -227,7 +229,9 @@ mod tests {
 
     #[test]
     fn simplex_non_flat() {
-        let Some(ctx) = try_ctx() else { return; };
+        let Some(ctx) = try_ctx() else {
+            return;
+        };
 
         let params = NoiseParams {
             noise_type: NoiseType::Simplex,
@@ -243,7 +247,9 @@ mod tests {
 
     #[test]
     fn worley_non_flat() {
-        let Some(ctx) = try_ctx() else { return; };
+        let Some(ctx) = try_ctx() else {
+            return;
+        };
 
         let params = NoiseParams {
             noise_type: NoiseType::Worley,
@@ -259,7 +265,9 @@ mod tests {
 
     #[test]
     fn different_seeds_produce_different_results() {
-        let Some(ctx) = try_ctx() else { return; };
+        let Some(ctx) = try_ctx() else {
+            return;
+        };
 
         let params_a = NoiseParams {
             noise_type: NoiseType::Perlin,

@@ -1,8 +1,8 @@
 use std::sync::OnceLock;
 
-use wasm_bindgen::prelude::*;
-use procgeo_core::{AttribClass, PrimHandle, PointHandle};
+use procgeo_core::{AttribClass, PointHandle, PolyType, PrimHandle, Primitive};
 use procgeo_sops::Sop;
+use wasm_bindgen::prelude::*;
 
 /// Geometry wrapper exposed to JS via WASM.
 #[wasm_bindgen]
@@ -14,7 +14,9 @@ pub struct Geometry {
 impl Geometry {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        Self { inner: procgeo_core::Geometry::new() }
+        Self {
+            inner: procgeo_core::Geometry::new(),
+        }
     }
 
     /// Add a point at position [x, y, z]. Returns the point index.
@@ -35,14 +37,20 @@ impl Geometry {
     /// Create a closed face (polygon) from an array of point indices. Returns the primitive index.
     #[wasm_bindgen(js_name = "addFace")]
     pub fn add_face(&mut self, point_indices: &[u32]) -> u32 {
-        let handles: Vec<PointHandle> = point_indices.iter().map(|&i| PointHandle::from_index(i as usize)).collect();
+        let handles: Vec<PointHandle> = point_indices
+            .iter()
+            .map(|&i| PointHandle::from_index(i as usize))
+            .collect();
         self.inner.add_face(&handles).index() as u32
     }
 
     /// Create an open polyline from an array of point indices. Returns the primitive index.
     #[wasm_bindgen(js_name = "addPolyline")]
     pub fn add_polyline(&mut self, point_indices: &[u32]) -> u32 {
-        let handles: Vec<PointHandle> = point_indices.iter().map(|&i| PointHandle::from_index(i as usize)).collect();
+        let handles: Vec<PointHandle> = point_indices
+            .iter()
+            .map(|&i| PointHandle::from_index(i as usize))
+            .collect();
         self.inner.add_polyline(&handles).index() as u32
     }
 
@@ -63,7 +71,9 @@ impl Geometry {
 
     #[wasm_bindgen(js_name = "pointPos")]
     pub fn point_pos(&self, index: u32) -> Vec<f32> {
-        let pos = self.inner.point_pos(PointHandle::from_index(index as usize));
+        let pos = self
+            .inner
+            .point_pos(PointHandle::from_index(index as usize));
         vec![pos.x, pos.y, pos.z]
     }
 
@@ -100,6 +110,12 @@ impl Geometry {
         let mut indices = Vec::new();
         for (i, _prim) in self.inner.prims().enumerate() {
             let ph = PrimHandle::from_index(i);
+            let is_closed = match self.inner.prim(ph) {
+                Primitive::Polygon(poly) => poly.poly_type == PolyType::Closed,
+            };
+            if !is_closed {
+                continue;
+            }
             let pts = self.inner.prim_points(ph);
             if pts.len() >= 3 {
                 // Fan triangulate from first vertex
@@ -116,7 +132,10 @@ impl Geometry {
     /// Get normals as a flat Float32Array (if "N" attribute exists).
     #[wasm_bindgen(js_name = "getNormals")]
     pub fn get_normals(&self) -> Option<Vec<f32>> {
-        let handle = self.inner.find_attrib::<[f32; 3]>(AttribClass::Point, "N").ok()?;
+        let handle = self
+            .inner
+            .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
+            .ok()?;
         let n = self.inner.num_points();
         let mut buf = Vec::with_capacity(n * 3);
         for i in 0..n {
@@ -131,7 +150,10 @@ impl Geometry {
     /// Get colors as a flat Float32Array (if "Cd" attribute exists).
     #[wasm_bindgen(js_name = "getColors")]
     pub fn get_colors(&self) -> Option<Vec<f32>> {
-        let handle = self.inner.find_attrib::<[f32; 3]>(AttribClass::Point, "Cd").ok()?;
+        let handle = self
+            .inner
+            .find_attrib::<[f32; 3]>(AttribClass::Point, "Cd")
+            .ok()?;
         let n = self.inner.num_points();
         let mut buf = Vec::with_capacity(n * 3);
         for i in 0..n {
@@ -207,6 +229,15 @@ impl Geometry {
             .collect()
     }
 
+    /// Return whether a primitive is closed.
+    #[wasm_bindgen(js_name = "primIsClosed")]
+    pub fn prim_is_closed(&self, prim_index: u32) -> bool {
+        let ph = PrimHandle::from_index(prim_index as usize);
+        match self.inner.prim(ph) {
+            Primitive::Polygon(poly) => poly.poly_type == PolyType::Closed,
+        }
+    }
+
     /// Get the number of vertices in a specific primitive.
     #[wasm_bindgen(js_name = "primVertexCount")]
     pub fn prim_vertex_count(&self, prim_index: u32) -> u32 {
@@ -218,7 +249,9 @@ impl Geometry {
     #[wasm_bindgen(js_name = "vertexPoint")]
     pub fn vertex_point(&self, vertex_index: u32) -> u32 {
         self.inner
-            .vertex_point(procgeo_core::VertexHandle::from_index(vertex_index as usize))
+            .vertex_point(procgeo_core::VertexHandle::from_index(
+                vertex_index as usize,
+            ))
             .index() as u32
     }
 
@@ -227,7 +260,8 @@ impl Geometry {
     pub fn to_obj(&self) -> Result<String, JsError> {
         let mut buf = Vec::new();
         use procgeo_io::GeometryWriter;
-        procgeo_io::obj::ObjWriter.write(&self.inner, &mut buf)
+        procgeo_io::obj::ObjWriter
+            .write(&self.inner, &mut buf)
             .map_err(|e| JsError::new(&e.to_string()))?;
         String::from_utf8(buf).map_err(|e| JsError::new(&e.to_string()))
     }
@@ -237,7 +271,8 @@ impl Geometry {
     pub fn to_glb(&self) -> Result<Vec<u8>, JsError> {
         let mut buf = Vec::new();
         use procgeo_io::GeometryWriter;
-        procgeo_io::gltf::GlbWriter.write(&self.inner, &mut buf)
+        procgeo_io::gltf::GlbWriter
+            .write(&self.inner, &mut buf)
             .map_err(|e| JsError::new(&e.to_string()))?;
         Ok(buf)
     }
@@ -311,7 +346,9 @@ pub fn create_box(params: Option<JsValue>) -> Result<Geometry, JsError> {
         size: get_vec3(&p, "size", [1.0, 1.0, 1.0]),
         center: get_vec3(&p, "center", [0.0, 0.0, 0.0]),
     };
-    let inner = procgeo_sops::creation::BoxSop.execute(&[], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::creation::BoxSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -325,7 +362,9 @@ pub fn create_grid(params: Option<JsValue>) -> Result<Geometry, JsError> {
         center: get_vec3(&p, "center", [0.0, 0.0, 0.0]),
         ..Default::default()
     };
-    let inner = procgeo_sops::creation::GridSop.execute(&[], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::creation::GridSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -339,7 +378,9 @@ pub fn create_sphere(params: Option<JsValue>) -> Result<Geometry, JsError> {
         rows: get_u32(&p, "rows", 12),
         cols: get_u32(&p, "cols", 24),
     };
-    let inner = procgeo_sops::creation::SphereSop.execute(&[], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::creation::SphereSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -352,7 +393,42 @@ pub fn create_line(params: Option<JsValue>) -> Result<Geometry, JsError> {
         length: get_f32(&p, "length", 1.0),
         points: get_u32(&p, "points", 2),
     };
-    let inner = procgeo_sops::creation::LineSop.execute(&[], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::creation::LineSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "createSpiral")]
+pub fn create_spiral(params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::creation::SpiralParams {
+        start_radius: get_f32(&p, "startRadius", 0.0),
+        end_radius: get_f32(&p, "endRadius", 1.0),
+        height: get_f32(&p, "height", 0.0),
+        turns: get_f32(&p, "turns", 3.0),
+        points: get_u32(&p, "points", 96),
+        center: get_vec3(&p, "center", [0.0, 0.0, 0.0]),
+    };
+    let inner = procgeo_sops::creation::SpiralSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "createHelix")]
+pub fn create_helix(params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::creation::HelixParams {
+        radius: get_f32(&p, "radius", 0.5),
+        height: get_f32(&p, "height", 1.0),
+        turns: get_f32(&p, "turns", 3.0),
+        points: get_u32(&p, "points", 96),
+        center: get_vec3(&p, "center", [0.0, 0.0, 0.0]),
+    };
+    let inner = procgeo_sops::creation::HelixSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -365,7 +441,9 @@ pub fn create_circle(params: Option<JsValue>) -> Result<Geometry, JsError> {
         divisions: get_u32(&p, "divisions", 40),
         ..Default::default()
     };
-    let inner = procgeo_sops::creation::CircleSop.execute(&[], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::creation::CircleSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -381,7 +459,9 @@ pub fn create_tube(params: Option<JsValue>) -> Result<Geometry, JsError> {
         rows: get_u32(&p, "rows", 2),
         ..Default::default()
     };
-    let inner = procgeo_sops::creation::TubeSop.execute(&[], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::creation::TubeSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -395,7 +475,37 @@ pub fn create_torus(params: Option<JsValue>) -> Result<Geometry, JsError> {
         rows: get_u32(&p, "rows", 12),
         cols: get_u32(&p, "cols", 24),
     };
-    let inner = procgeo_sops::creation::TorusSop.execute(&[], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::creation::TorusSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "createIcosphere")]
+pub fn create_icosphere(params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::creation::IcosphereParams {
+        radius: get_f32(&p, "radius", 0.5),
+        center: get_vec3(&p, "center", [0.0, 0.0, 0.0]),
+        subdivisions: get_u32(&p, "subdivisions", 2),
+    };
+    let inner = procgeo_sops::creation::IcosphereSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "createTeapot")]
+pub fn create_teapot(params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::creation::TeapotParams {
+        size: get_vec3(&p, "size", [1.0, 1.0, 1.0]),
+        center: get_vec3(&p, "center", [0.0, 0.0, 0.0]),
+        resolution: get_u32(&p, "resolution", 6),
+    };
+    let inner = procgeo_sops::creation::TeapotSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -412,13 +522,17 @@ pub fn transform(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, Js
         scale: get_vec3(&p, "scale", [1.0, 1.0, 1.0]),
         pivot: get_vec3(&p, "pivot", [0.0, 0.0, 0.0]),
     };
-    let inner = procgeo_sops::transform::TransformSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::transform::TransformSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
 #[wasm_bindgen(js_name = "computeNormals")]
 pub fn compute_normals(geo: &Geometry) -> Result<Geometry, JsError> {
-    let inner = procgeo_sops::normals::NormalSop.execute(&[&geo.inner], &Default::default()).map_err(sop_err)?;
+    let inner = procgeo_sops::normals::NormalSop
+        .execute(&[&geo.inner], &Default::default())
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -430,14 +544,18 @@ pub fn subdivide(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, Js
         .and_then(|v| v.as_string())
         .unwrap_or_default();
     let mode = match mode_str.as_str() {
-        "catmullClark" | "catmull-clark" | "cc" => procgeo_sops::reshape::SubdivideMode::CatmullClark,
+        "catmullClark" | "catmull-clark" | "cc" => {
+            procgeo_sops::reshape::SubdivideMode::CatmullClark
+        }
         _ => procgeo_sops::reshape::SubdivideMode::Linear,
     };
     let params = procgeo_sops::reshape::SubdivideParams {
         depth: get_u32(&p, "depth", 1),
         mode,
     };
-    let inner = procgeo_sops::reshape::SubdivideSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::reshape::SubdivideSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -448,13 +566,17 @@ pub fn scatter(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsEr
         count: get_u32(&p, "count", 100),
         seed: get_u64(&p, "seed", 0),
     };
-    let inner = procgeo_sops::scatter::ScatterSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::scatter::ScatterSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
 #[wasm_bindgen(js_name = "copyToPoints")]
 pub fn copy_to_points(source: &Geometry, target: &Geometry) -> Result<Geometry, JsError> {
-    let inner = procgeo_sops::copy::CopyToPointsSop.execute(&[&source.inner, &target.inner], &Default::default()).map_err(sop_err)?;
+    let inner = procgeo_sops::copy::CopyToPointsSop
+        .execute(&[&source.inner, &target.inner], &Default::default())
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -467,7 +589,9 @@ pub fn poly_extrude(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry,
         output_front: get_bool(&p, "outputFront", true),
         output_side: get_bool(&p, "outputSide", true),
     };
-    let inner = procgeo_sops::reshape::PolyExtrudeSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::reshape::PolyExtrudeSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -478,7 +602,9 @@ pub fn smooth(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsErr
         iterations: get_u32(&p, "iterations", 1),
         strength: get_f32(&p, "strength", 0.5),
     };
-    let inner = procgeo_sops::reshape::SmoothSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::reshape::SmoothSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -490,13 +616,17 @@ pub fn clip(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError
         normal: get_vec3(&p, "normal", [0.0, 1.0, 0.0]),
         keep_above: get_bool(&p, "keepAbove", true),
     };
-    let inner = procgeo_sops::reshape::ClipSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::reshape::ClipSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
 #[wasm_bindgen]
 pub fn reverse(geo: &Geometry) -> Result<Geometry, JsError> {
-    let inner = procgeo_sops::topology::ReverseSop.execute(&[&geo.inner], &Default::default()).map_err(sop_err)?;
+    let inner = procgeo_sops::topology::ReverseSop
+        .execute(&[&geo.inner], &Default::default())
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -504,8 +634,12 @@ pub fn reverse(geo: &Geometry) -> Result<Geometry, JsError> {
 pub fn color(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
     let color_arr = get_vec3(&p, "color", [1.0, 1.0, 1.0]);
-    let params = procgeo_sops::color::ColorParams { color: [color_arr.x, color_arr.y, color_arr.z] };
-    let inner = procgeo_sops::color::ColorSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let params = procgeo_sops::color::ColorParams {
+        color: [color_arr.x, color_arr.y, color_arr.z],
+    };
+    let inner = procgeo_sops::color::ColorSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -515,18 +649,26 @@ pub fn fuse(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError
     let params = procgeo_sops::topology::FuseParams {
         distance: get_f32(&p, "distance", 0.001),
     };
-    let inner = procgeo_sops::topology::FuseSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::topology::FuseSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
 #[wasm_bindgen(js_name = "voronoiFracture")]
-pub fn voronoi_fracture(geo: &Geometry, points: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+pub fn voronoi_fracture(
+    geo: &Geometry,
+    points: &Geometry,
+    params: Option<JsValue>,
+) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
     let params = procgeo_sops::voronoi::VoronoiFractureParams {
         cut_plane_offset: get_f32(&p, "cutPlaneOffset", 0.0),
         create_inside_faces: get_bool(&p, "createInsideFaces", true),
     };
-    let inner = procgeo_sops::voronoi::VoronoiFractureSop.execute(&[&geo.inner, &points.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::voronoi::VoronoiFractureSop
+        .execute(&[&geo.inner, &points.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -538,8 +680,12 @@ pub fn voronoi_fracture(geo: &Geometry, points: &Geometry, params: Option<JsValu
 pub fn bend(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
     let params = procgeo_sops::deform::BendParams {
-        group: js_sys::Reflect::get(&p, &"group".into()).ok().and_then(|v| v.as_string()),
-        mask_attrib: js_sys::Reflect::get(&p, &"maskAttrib".into()).ok().and_then(|v| v.as_string()),
+        group: js_sys::Reflect::get(&p, &"group".into())
+            .ok()
+            .and_then(|v| v.as_string()),
+        mask_attrib: js_sys::Reflect::get(&p, &"maskAttrib".into())
+            .ok()
+            .and_then(|v| v.as_string()),
         enable_deformation: get_bool(&p, "enableDeformation", true),
         limit_to_capture_region: get_bool(&p, "limitToCaptureRegion", true),
         deform_both_directions: get_bool(&p, "deformBothDirections", false),
@@ -558,7 +704,10 @@ pub fn bend(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError
         length_scale: get_f32(&p, "lengthScale", 1.0),
         preserve_volume: get_bool(&p, "preserveVolume", false),
         taper_enable: get_bool(&p, "taperEnable", false),
-        taper_along: [get_bool(&p, "taperAlongX", true), get_bool(&p, "taperAlongY", true)],
+        taper_along: [
+            get_bool(&p, "taperAlongX", true),
+            get_bool(&p, "taperAlongY", true),
+        ],
         taper_mode: if get_str(&p, "taperMode", "linear") == "smooth" {
             procgeo_sops::deform::TaperMode::Smooth
         } else {
@@ -574,7 +723,9 @@ pub fn bend(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError
         capture_origin: get_vec3(&p, "captureOrigin", [0.0, 0.0, 0.0]),
         capture_direction: get_vec3(&p, "captureDirection", [0.0, 1.0, 0.0]),
         capture_length: get_f32(&p, "captureLength", 1.0),
-        output_attrib: js_sys::Reflect::get(&p, &"outputAttrib".into()).ok().and_then(|v| v.as_string()),
+        output_attrib: js_sys::Reflect::get(&p, &"outputAttrib".into())
+            .ok()
+            .and_then(|v| v.as_string()),
         attribs_to_transform: get_str(&p, "attribsToTransform", "*"),
         recompute_normals: get_bool(&p, "recomputeNormals", true),
         preserve_normal_length: get_bool(&p, "preserveNormalLength", false),
@@ -594,7 +745,9 @@ pub fn point_deform(
 ) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
     let params = procgeo_sops::deform::PointDeformParams {
-        group: js_sys::Reflect::get(&p, &"group".into()).ok().and_then(|v| v.as_string()),
+        group: js_sys::Reflect::get(&p, &"group".into())
+            .ok()
+            .and_then(|v| v.as_string()),
         mode: match get_str(&p, "mode", "captureAndDeform").as_str() {
             "capture" => procgeo_sops::deform::PointDeformMode::Capture,
             "deform" => procgeo_sops::deform::PointDeformMode::Deform,
@@ -603,16 +756,23 @@ pub fn point_deform(
         radius: get_f32(&p, "radius", 1.0),
         min_points: get_u32(&p, "minPoints", 1),
         max_points: get_u32(&p, "maxPoints", 10),
-        piece_attrib: js_sys::Reflect::get(&p, &"pieceAttrib".into()).ok().and_then(|v| v.as_string()),
+        piece_attrib: js_sys::Reflect::get(&p, &"pieceAttrib".into())
+            .ok()
+            .and_then(|v| v.as_string()),
         rigid_projection: get_bool(&p, "rigidProjection", true),
         mask: get_f32(&p, "mask", 1.0),
-        mask_attrib: js_sys::Reflect::get(&p, &"maskAttrib".into()).ok().and_then(|v| v.as_string()),
+        mask_attrib: js_sys::Reflect::get(&p, &"maskAttrib".into())
+            .ok()
+            .and_then(|v| v.as_string()),
         recompute_normals: get_bool(&p, "recomputeNormals", true),
         attribs_to_transform: get_str(&p, "attribsToTransform", "*"),
         delete_capture_attribs: get_bool(&p, "deleteCaptureAttribs", true),
     };
     let inner = procgeo_sops::deform::PointDeformSop
-        .execute(&[&geo.inner, &rest_lattice.inner, &deformed_lattice.inner], &params)
+        .execute(
+            &[&geo.inner, &rest_lattice.inner, &deformed_lattice.inner],
+            &params,
+        )
         .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
@@ -622,11 +782,19 @@ pub fn point_deform(
 // ---------------------------------------------------------------------------
 
 #[wasm_bindgen(js_name = "booleanOp")]
-pub fn boolean_op(a: &Geometry, b: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+pub fn boolean_op(
+    a: &Geometry,
+    b: &Geometry,
+    params: Option<JsValue>,
+) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
     let params = procgeo_sops::boolean::BooleanParams {
-        group_a: js_sys::Reflect::get(&p, &"groupA".into()).ok().and_then(|v| v.as_string()),
-        group_b: js_sys::Reflect::get(&p, &"groupB".into()).ok().and_then(|v| v.as_string()),
+        group_a: js_sys::Reflect::get(&p, &"groupA".into())
+            .ok()
+            .and_then(|v| v.as_string()),
+        group_b: js_sys::Reflect::get(&p, &"groupB".into())
+            .ok()
+            .and_then(|v| v.as_string()),
         treat_a_as: if get_str(&p, "treatAAs", "solid") == "surface" {
             procgeo_sops::boolean::BooleanTreatAs::Surface
         } else {
@@ -658,8 +826,14 @@ pub fn boolean_op(a: &Geometry, b: &Geometry, params: Option<JsValue>) -> Result
         unique_seam_points: get_bool(&p, "uniqueSeamPoints", false),
         collapse_tiny_edges: get_bool(&p, "collapseTinyEdges", true),
         edge_length_threshold: get_f32(&p, "edgeLengthThreshold", 1e-5),
-        a_depth_range: [get_u32(&p, "aDepthMin", 1) as i32, get_u32(&p, "aDepthMax", 9999) as i32],
-        b_depth_range: [get_u32(&p, "bDepthMin", 1) as i32, get_u32(&p, "bDepthMax", 9999) as i32],
+        a_depth_range: [
+            get_u32(&p, "aDepthMin", 1) as i32,
+            get_u32(&p, "aDepthMax", 9999) as i32,
+        ],
+        b_depth_range: [
+            get_u32(&p, "bDepthMin", 1) as i32,
+            get_u32(&p, "bDepthMax", 9999) as i32,
+        ],
         custom_match: match get_str(&p, "customMatch", "both").as_str() {
             "a" => procgeo_sops::boolean::CustomMatch::A,
             "b" => procgeo_sops::boolean::CustomMatch::B,
@@ -670,13 +844,27 @@ pub fn boolean_op(a: &Geometry, b: &Geometry, params: Option<JsValue>) -> Result
         generate_aa_seams: get_bool(&p, "generateAASeams", false),
         generate_bb_seams: get_bool(&p, "generateBBSeams", false),
         generate_ab_seams: get_bool(&p, "generateABSeams", true),
-        a_inside_b_group: js_sys::Reflect::get(&p, &"aInsideBGroup".into()).ok().and_then(|v| v.as_string()),
-        a_outside_b_group: js_sys::Reflect::get(&p, &"aOutsideBGroup".into()).ok().and_then(|v| v.as_string()),
-        b_inside_a_group: js_sys::Reflect::get(&p, &"bInsideAGroup".into()).ok().and_then(|v| v.as_string()),
-        b_outside_a_group: js_sys::Reflect::get(&p, &"bOutsideAGroup".into()).ok().and_then(|v| v.as_string()),
-        aa_seam_edge_group: js_sys::Reflect::get(&p, &"aaSeamEdgeGroup".into()).ok().and_then(|v| v.as_string()),
-        bb_seam_edge_group: js_sys::Reflect::get(&p, &"bbSeamEdgeGroup".into()).ok().and_then(|v| v.as_string()),
-        ab_seam_edge_group: js_sys::Reflect::get(&p, &"abSeamEdgeGroup".into()).ok().and_then(|v| v.as_string()),
+        a_inside_b_group: js_sys::Reflect::get(&p, &"aInsideBGroup".into())
+            .ok()
+            .and_then(|v| v.as_string()),
+        a_outside_b_group: js_sys::Reflect::get(&p, &"aOutsideBGroup".into())
+            .ok()
+            .and_then(|v| v.as_string()),
+        b_inside_a_group: js_sys::Reflect::get(&p, &"bInsideAGroup".into())
+            .ok()
+            .and_then(|v| v.as_string()),
+        b_outside_a_group: js_sys::Reflect::get(&p, &"bOutsideAGroup".into())
+            .ok()
+            .and_then(|v| v.as_string()),
+        aa_seam_edge_group: js_sys::Reflect::get(&p, &"aaSeamEdgeGroup".into())
+            .ok()
+            .and_then(|v| v.as_string()),
+        bb_seam_edge_group: js_sys::Reflect::get(&p, &"bbSeamEdgeGroup".into())
+            .ok()
+            .and_then(|v| v.as_string()),
+        ab_seam_edge_group: js_sys::Reflect::get(&p, &"abSeamEdgeGroup".into())
+            .ok()
+            .and_then(|v| v.as_string()),
     };
     let inner = procgeo_sops::boolean::BooleanSop
         .execute(&[&a.inner, &b.inner], &params)
@@ -704,7 +892,11 @@ fn parse_attrib_type(s: &str) -> procgeo_core::AttribType {
 }
 
 #[wasm_bindgen(js_name = "attribTransfer")]
-pub fn attrib_transfer(dest: &Geometry, source: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+pub fn attrib_transfer(
+    dest: &Geometry,
+    source: &Geometry,
+    params: Option<JsValue>,
+) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
     let params = procgeo_sops::attributes::AttribTransferParams {
         attrib_name: get_str(&p, "attribName", "attrib"),
@@ -720,7 +912,11 @@ pub fn attrib_transfer(dest: &Geometry, source: &Geometry, params: Option<JsValu
 }
 
 #[wasm_bindgen(js_name = "attribCopy")]
-pub fn attrib_copy(dest: &Geometry, source: Option<Geometry>, params: Option<JsValue>) -> Result<Geometry, JsError> {
+pub fn attrib_copy(
+    dest: &Geometry,
+    source: Option<Geometry>,
+    params: Option<JsValue>,
+) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
     let params = procgeo_sops::attributes::AttribCopyParams {
         attrib_name: get_str(&p, "attribName", "attrib"),
@@ -744,10 +940,13 @@ pub fn attrib_randomize(geo: &Geometry, params: Option<JsValue>) -> Result<Geome
     let p = params.unwrap_or_else(empty_obj);
     let distribution = serde_json::from_str::<procgeo_sops::attributes::RandomDistribution>(
         &format!("\"{}\"", get_str(&p, "distribution", "Uniform")),
-    ).unwrap_or(procgeo_sops::attributes::RandomDistribution::Uniform);
-    let operation = serde_json::from_str::<procgeo_sops::attributes::RandomOperation>(
-        &format!("\"{}\"", get_str(&p, "operation", "Set")),
-    ).unwrap_or(procgeo_sops::attributes::RandomOperation::Set);
+    )
+    .unwrap_or(procgeo_sops::attributes::RandomDistribution::Uniform);
+    let operation = serde_json::from_str::<procgeo_sops::attributes::RandomOperation>(&format!(
+        "\"{}\"",
+        get_str(&p, "operation", "Set")
+    ))
+    .unwrap_or(procgeo_sops::attributes::RandomOperation::Set);
     let params = procgeo_sops::attributes::AttribRandomizeParams {
         attrib_name: get_str(&p, "attribName", "randomize"),
         class: parse_attrib_class(&get_str(&p, "class", "Point")),
@@ -774,9 +973,11 @@ pub fn attrib_randomize(geo: &Geometry, params: Option<JsValue>) -> Result<Geome
 #[wasm_bindgen(js_name = "attribSort")]
 pub fn attrib_sort(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
-    let order = serde_json::from_str::<procgeo_sops::attributes::AttribSortOrder>(
-        &format!("\"{}\"", get_str(&p, "order", "Ascending")),
-    ).unwrap_or(procgeo_sops::attributes::AttribSortOrder::Ascending);
+    let order = serde_json::from_str::<procgeo_sops::attributes::AttribSortOrder>(&format!(
+        "\"{}\"",
+        get_str(&p, "order", "Ascending")
+    ))
+    .unwrap_or(procgeo_sops::attributes::AttribSortOrder::Ascending);
     let params = procgeo_sops::attributes::AttribSortParams {
         attrib_name: get_str(&p, "attribName", "attrib"),
         class: parse_attrib_class(&get_str(&p, "class", "Point")),
@@ -896,7 +1097,9 @@ pub fn revolve(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsEr
         end_angle: get_f32(&p, "endAngle", 360.0),
         end_caps: get_bool(&p, "endCaps", false),
     };
-    let inner = procgeo_sops::creation::RevolveSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::creation::RevolveSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -905,13 +1108,17 @@ pub fn create_metaball(params: Option<JsValue>) -> Result<Geometry, JsError> {
     let p = params.unwrap_or_else(empty_obj);
     let balls = js_sys::Reflect::get(&p, &"balls".into())
         .ok()
-        .and_then(|v| v.dyn_ref::<js_sys::Array>().map(|arr| {
-            arr.iter().map(|b| procgeo_sops::creation::MetaballDef {
-                center: get_vec3(&b, "center", [0.0, 0.0, 0.0]),
-                radius: get_f32(&b, "radius", 1.0),
-                weight: get_f32(&b, "weight", 1.0),
-            }).collect()
-        }))
+        .and_then(|v| {
+            v.dyn_ref::<js_sys::Array>().map(|arr| {
+                arr.iter()
+                    .map(|b| procgeo_sops::creation::MetaballDef {
+                        center: get_vec3(&b, "center", [0.0, 0.0, 0.0]),
+                        radius: get_f32(&b, "radius", 1.0),
+                        weight: get_f32(&b, "weight", 1.0),
+                    })
+                    .collect()
+            })
+        })
         .unwrap_or_else(|| vec![procgeo_sops::creation::MetaballDef::default()]);
     let kernel_str = get_str(&p, "kernel", "wyvill");
     let kernel = match kernel_str.as_str() {
@@ -926,7 +1133,9 @@ pub fn create_metaball(params: Option<JsValue>) -> Result<Geometry, JsError> {
         resolution: get_u32(&p, "resolution", 32),
         padding: get_f32(&p, "padding", 0.2),
     };
-    let inner = procgeo_sops::creation::MetaballSop.execute(&[], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::creation::MetaballSop
+        .execute(&[], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -955,7 +1164,9 @@ pub fn poly_bevel(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, J
         offset: get_f32(&p, "offset", 0.1),
         divisions: get_u32(&p, "divisions", 1),
     };
-    let inner = procgeo_sops::reshape::PolyBevelSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::reshape::PolyBevelSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -966,7 +1177,9 @@ pub fn poly_wire(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, Js
         radius: get_f32(&p, "radius", 0.1),
         divisions: get_u32(&p, "divisions", 8),
     };
-    let inner = procgeo_sops::reshape::PolyWireSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::reshape::PolyWireSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -977,7 +1190,9 @@ pub fn poly_reduce(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, 
         target_percent: get_f32(&p, "targetPercent", 0.5),
         preserve_boundaries: get_bool(&p, "preserveBoundaries", true),
     };
-    let inner = procgeo_sops::reshape::PolyReduceSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::reshape::PolyReduceSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -992,7 +1207,9 @@ pub fn poly_fill(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, Js
         mode,
         smooth: get_f32(&p, "smooth", 0.0),
     };
-    let inner = procgeo_sops::reshape::PolyFillSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::reshape::PolyFillSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1022,7 +1239,9 @@ pub fn quad_remesh(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, 
         seed: seed_val,
         mode,
     };
-    let inner = procgeo_sops::reshape::QuadRemeshSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::reshape::QuadRemeshSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1054,7 +1273,9 @@ pub fn sort(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError
         seed: get_u64(&p, "seed", 0),
         ..Default::default()
     };
-    let inner = procgeo_sops::topology::SortSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::topology::SortSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1065,7 +1286,9 @@ pub fn resample(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsE
         length: get_f32(&p, "length", 0.1),
         max_segments: get_u32(&p, "maxSegments", 1000),
     };
-    let inner = procgeo_sops::topology::ResampleSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::topology::ResampleSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1075,7 +1298,9 @@ pub fn connectivity(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry,
     let params = procgeo_sops::topology::ConnectivityParams {
         attrib_name: get_str(&p, "attribName", "class"),
     };
-    let inner = procgeo_sops::topology::ConnectivitySop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::topology::ConnectivitySop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1091,7 +1316,9 @@ pub fn enumerate_attrib(geo: &Geometry, params: Option<JsValue>) -> Result<Geome
         start: get_f32(&p, "start", 0.0) as i32,
         ..Default::default()
     };
-    let inner = procgeo_sops::utility::EnumerateSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::utility::EnumerateSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1102,7 +1329,9 @@ pub fn measure(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsEr
         attrib_name: get_str(&p, "attribName", ""),
         ..Default::default()
     };
-    let inner = procgeo_sops::measure::MeasureSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::measure::MeasureSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1122,7 +1351,9 @@ pub fn blast(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsErro
         entity,
         negate: get_bool(&p, "negate", false),
     };
-    let inner = procgeo_sops::delete::BlastSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::delete::BlastSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1138,7 +1369,9 @@ pub fn delete_sop(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, J
         range_start: get_u32(&p, "rangeStart", 0) as usize,
         range_end: get_u32(&p, "rangeEnd", 0) as usize,
     };
-    let inner = procgeo_sops::delete::DeleteSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::delete::DeleteSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1156,11 +1389,17 @@ pub fn attrib_create(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry
         attrib_type: parse_attrib_type(&get_str(&p, "attribType", "Float")),
         value_int: get_f32(&p, "valueInt", 0.0) as i32,
         value_float: get_f32(&p, "valueFloat", 0.0),
-        value_vector3: [value_vector3_arr.x, value_vector3_arr.y, value_vector3_arr.z],
+        value_vector3: [
+            value_vector3_arr.x,
+            value_vector3_arr.y,
+            value_vector3_arr.z,
+        ],
         value_string: get_str(&p, "valueString", ""),
         qualifier: Default::default(),
     };
-    let inner = procgeo_sops::attributes::AttribCreateSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::attributes::AttribCreateSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1171,7 +1410,9 @@ pub fn attrib_delete(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry
         name: get_str(&p, "name", "attrib1"),
         class: parse_attrib_class(&get_str(&p, "class", "Point")),
     };
-    let inner = procgeo_sops::attributes::AttribDeleteSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::attributes::AttribDeleteSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1183,7 +1424,9 @@ pub fn attrib_rename(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry
         to_name: get_str(&p, "toName", "attrib2"),
         class: parse_attrib_class(&get_str(&p, "class", "Point")),
     };
-    let inner = procgeo_sops::attributes::AttribRenameSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::attributes::AttribRenameSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1204,7 +1447,9 @@ pub fn attrib_promote(geo: &Geometry, params: Option<JsValue>) -> Result<Geometr
         method,
         delete_original: get_bool(&p, "deleteOriginal", true),
     };
-    let inner = procgeo_sops::attributes::AttribPromoteSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::attributes::AttribPromoteSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1230,12 +1475,18 @@ pub fn group_create(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry,
         mode,
         range_start: get_u32(&p, "rangeStart", 0) as usize,
         range_end: get_u32(&p, "rangeEnd", u32::MAX) as usize,
-        bbox_min: get_vec3(&p, "bboxMin", [f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY]),
+        bbox_min: get_vec3(
+            &p,
+            "bboxMin",
+            [f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY],
+        ),
         bbox_max: get_vec3(&p, "bboxMax", [f32::INFINITY, f32::INFINITY, f32::INFINITY]),
         normal_direction: get_vec3(&p, "normalDirection", [0.0, 1.0, 0.0]),
         normal_angle: get_f32(&p, "normalAngle", 45.0),
     };
-    let inner = procgeo_sops::groups::GroupCreateSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::groups::GroupCreateSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1258,7 +1509,9 @@ pub fn group_combine(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry
         operation,
         group_type,
     };
-    let inner = procgeo_sops::groups::GroupCombineSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    let inner = procgeo_sops::groups::GroupCombineSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1283,12 +1536,10 @@ pub fn execute_sop(
     let registry = get_registry();
 
     let params_json = match params {
-        Some(p) if !p.is_undefined() && !p.is_null() => {
-            js_sys::JSON::stringify(&p)
-                .map_err(|_| JsError::new("Failed to serialize params"))?
-                .as_string()
-                .unwrap_or_default()
-        }
+        Some(p) if !p.is_undefined() && !p.is_null() => js_sys::JSON::stringify(&p)
+            .map_err(|_| JsError::new("Failed to serialize params"))?
+            .as_string()
+            .unwrap_or_default(),
         _ => "{}".to_string(),
     };
 
@@ -1301,25 +1552,18 @@ pub fn execute_sop(
 
 /// Execute a creation SOP (no input geometry required).
 #[wasm_bindgen(js_name = "executeSopCreate")]
-pub fn execute_sop_create(
-    name: &str,
-    params: Option<JsValue>,
-) -> Result<Geometry, JsError> {
+pub fn execute_sop_create(name: &str, params: Option<JsValue>) -> Result<Geometry, JsError> {
     let registry = get_registry();
 
     let params_json = match params {
-        Some(p) if !p.is_undefined() && !p.is_null() => {
-            js_sys::JSON::stringify(&p)
-                .map_err(|_| JsError::new("Failed to serialize params"))?
-                .as_string()
-                .unwrap_or_default()
-        }
+        Some(p) if !p.is_undefined() && !p.is_null() => js_sys::JSON::stringify(&p)
+            .map_err(|_| JsError::new("Failed to serialize params"))?
+            .as_string()
+            .unwrap_or_default(),
         _ => "{}".to_string(),
     };
 
-    let inner = registry
-        .execute(name, &[], &params_json)
-        .map_err(sop_err)?;
+    let inner = registry.execute(name, &[], &params_json).map_err(sop_err)?;
     Ok(Geometry { inner })
 }
 
@@ -1337,8 +1581,8 @@ pub fn list_sops() -> Vec<String> {
 // COP Registry
 // ---------------------------------------------------------------------------
 
-use procgeo_cops::registry::CopRegistry as WasmCopRegistry;
 use procgeo_cops::context::GpuContext as WasmCopGpuContext;
+use procgeo_cops::registry::CopRegistry as WasmCopRegistry;
 
 static WASM_COP_REGISTRY: OnceLock<WasmCopRegistry> = OnceLock::new();
 static WASM_GPU_CONTEXT: OnceLock<std::sync::Arc<WasmCopGpuContext>> = OnceLock::new();
@@ -1377,14 +1621,21 @@ pub struct CopImage {
 #[wasm_bindgen]
 impl CopImage {
     #[wasm_bindgen(getter)]
-    pub fn width(&self) -> u32 { self.inner.width() }
+    pub fn width(&self) -> u32 {
+        self.inner.width()
+    }
 
     #[wasm_bindgen(getter)]
-    pub fn height(&self) -> u32 { self.inner.height() }
+    pub fn height(&self) -> u32 {
+        self.inner.height()
+    }
 
     #[wasm_bindgen(js_name = "getPixels")]
     pub async fn get_pixels(&self) -> Result<Vec<f32>, JsError> {
-        self.inner.to_cpu_async().await.map_err(|e| JsError::new(&format!("{e}")))
+        self.inner
+            .to_cpu_async()
+            .await
+            .map_err(|e| JsError::new(&format!("{e}")))
     }
 }
 
@@ -1394,48 +1645,70 @@ pub fn execute_cop_create(name: &str, params: Option<JsValue>) -> Result<CopImag
     let registry = get_wasm_cop_registry();
     let params_json = match params {
         Some(v) => {
-            let obj: serde_json::Value = serde_wasm_bindgen::from_value(v).unwrap_or(serde_json::Value::Object(Default::default()));
+            let obj: serde_json::Value = serde_wasm_bindgen::from_value(v)
+                .unwrap_or(serde_json::Value::Object(Default::default()));
             serde_json::to_string(&obj).unwrap_or_default()
         }
         None => "{}".to_string(),
     };
-    let inner = registry.execute(name, &ctx, &[], &params_json).map_err(|e| JsError::new(&format!("{e}")))?;
+    let inner = registry
+        .execute(name, &ctx, &[], &params_json)
+        .map_err(|e| JsError::new(&format!("{e}")))?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "executeCop")]
-pub fn wasm_execute_cop(name: &str, image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+pub fn wasm_execute_cop(
+    name: &str,
+    image: &CopImage,
+    params: Option<JsValue>,
+) -> Result<CopImage, JsError> {
     let ctx = get_wasm_gpu_context()?;
     let registry = get_wasm_cop_registry();
     let params_json = match params {
         Some(v) => {
-            let obj: serde_json::Value = serde_wasm_bindgen::from_value(v).unwrap_or(serde_json::Value::Object(Default::default()));
+            let obj: serde_json::Value = serde_wasm_bindgen::from_value(v)
+                .unwrap_or(serde_json::Value::Object(Default::default()));
             serde_json::to_string(&obj).unwrap_or_default()
         }
         None => "{}".to_string(),
     };
-    let inner = registry.execute(name, &ctx, &[&image.inner], &params_json).map_err(|e| JsError::new(&format!("{e}")))?;
+    let inner = registry
+        .execute(name, &ctx, &[&image.inner], &params_json)
+        .map_err(|e| JsError::new(&format!("{e}")))?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "executeCopComposite")]
-pub fn wasm_execute_cop_composite(name: &str, image_a: &CopImage, image_b: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+pub fn wasm_execute_cop_composite(
+    name: &str,
+    image_a: &CopImage,
+    image_b: &CopImage,
+    params: Option<JsValue>,
+) -> Result<CopImage, JsError> {
     let ctx = get_wasm_gpu_context()?;
     let registry = get_wasm_cop_registry();
     let params_json = match params {
         Some(v) => {
-            let obj: serde_json::Value = serde_wasm_bindgen::from_value(v).unwrap_or(serde_json::Value::Object(Default::default()));
+            let obj: serde_json::Value = serde_wasm_bindgen::from_value(v)
+                .unwrap_or(serde_json::Value::Object(Default::default()));
             serde_json::to_string(&obj).unwrap_or_default()
         }
         None => "{}".to_string(),
     };
-    let inner = registry.execute(name, &ctx, &[&image_a.inner, &image_b.inner], &params_json).map_err(|e| JsError::new(&format!("{e}")))?;
+    let inner = registry
+        .execute(name, &ctx, &[&image_a.inner, &image_b.inner], &params_json)
+        .map_err(|e| JsError::new(&format!("{e}")))?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "listCops")]
 pub fn list_cops_wasm() -> Vec<String> {
-    get_wasm_cop_registry().list().into_iter().map(|s| s.to_string()).collect()
+    get_wasm_cop_registry()
+        .list()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
 }
 
 fn cop_err(e: procgeo_cops::CopError) -> JsError {
@@ -1478,8 +1751,8 @@ fn get_vec4_wasm(val: &JsValue, key: &str, default: [f32; 4]) -> [f32; 4] {
 
 #[wasm_bindgen(js_name = "copConstant")]
 pub fn cop_constant_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::generator::{ConstantCop, ConstantParams};
+    use procgeo_cops::Cop;
 
     let p = params.unwrap_or_else(empty_obj);
     let cop_params = ConstantParams {
@@ -1489,14 +1762,16 @@ pub fn cop_constant_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
     };
 
     let ctx = get_wasm_gpu_context()?;
-    let inner = ConstantCop.execute(&ctx, &[], &cop_params).map_err(cop_err)?;
+    let inner = ConstantCop
+        .execute(&ctx, &[], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "copCheckerboard")]
 pub fn cop_checkerboard_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::generator::{CheckerboardCop, CheckerboardParams};
+    use procgeo_cops::Cop;
 
     let p = params.unwrap_or_else(empty_obj);
     let cop_params = CheckerboardParams {
@@ -1508,14 +1783,16 @@ pub fn cop_checkerboard_wasm(params: Option<JsValue>) -> Result<CopImage, JsErro
     };
 
     let ctx = get_wasm_gpu_context()?;
-    let inner = CheckerboardCop.execute(&ctx, &[], &cop_params).map_err(cop_err)?;
+    let inner = CheckerboardCop
+        .execute(&ctx, &[], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "copNoise")]
 pub fn cop_noise_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::generator::{NoiseCop, NoiseParams, NoiseType};
+    use procgeo_cops::Cop;
 
     let p = params.unwrap_or_else(empty_obj);
     let noise_type_str = get_str(&p, "noiseType", "perlin");
@@ -1545,8 +1822,8 @@ pub fn cop_noise_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
 
 #[wasm_bindgen(js_name = "copRamp")]
 pub fn cop_ramp_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::generator::{RampCop, RampParams, RampStop, RampType};
     use procgeo_cops::Cop;
-    use procgeo_cops::generator::{RampCop, RampParams, RampType, RampStop};
 
     let p = params.unwrap_or_else(empty_obj);
     let ramp_type_str = get_str(&p, "rampType", "linear");
@@ -1560,23 +1837,22 @@ pub fn cop_ramp_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
     // Parse stops array: each element is { position: f32, color: [f32; 4] }
     let stops: Vec<RampStop> = js_sys::Reflect::get(&p, &"stops".into())
         .ok()
-        .and_then(|v| v.dyn_ref::<js_sys::Array>().map(|arr| {
-            arr.iter()
-                .filter_map(|item| {
-                    let pos = js_sys::Reflect::get(&item, &"position".into())
-                        .ok()
-                        .and_then(|v| v.as_f64())
-                        .map(|v| v as f32)
-                        .unwrap_or(0.0);
-                    let color = get_vec4_wasm(&item, "color", [0.0, 0.0, 0.0, 1.0]);
-                    Some((pos, color))
-                })
-                .collect()
-        }))
-        .unwrap_or_else(|| vec![
-            (0.0, [0.0, 0.0, 0.0, 1.0]),
-            (1.0, [1.0, 1.0, 1.0, 1.0]),
-        ]);
+        .and_then(|v| {
+            v.dyn_ref::<js_sys::Array>().map(|arr| {
+                arr.iter()
+                    .filter_map(|item| {
+                        let pos = js_sys::Reflect::get(&item, &"position".into())
+                            .ok()
+                            .and_then(|v| v.as_f64())
+                            .map(|v| v as f32)
+                            .unwrap_or(0.0);
+                        let color = get_vec4_wasm(&item, "color", [0.0, 0.0, 0.0, 1.0]);
+                        Some((pos, color))
+                    })
+                    .collect()
+            })
+        })
+        .unwrap_or_else(|| vec![(0.0, [0.0, 0.0, 0.0, 1.0]), (1.0, [1.0, 1.0, 1.0, 1.0])]);
 
     let cop_params = RampParams {
         ramp_type,
@@ -1592,8 +1868,8 @@ pub fn cop_ramp_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
 
 #[wasm_bindgen(js_name = "copLoadImage")]
 pub fn cop_load_image_wasm(params: Option<JsValue>) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::generator::{LoadImageCop, LoadImageParams};
+    use procgeo_cops::Cop;
 
     let p = params.unwrap_or_else(empty_obj);
     let cop_params = LoadImageParams {
@@ -1601,7 +1877,9 @@ pub fn cop_load_image_wasm(params: Option<JsValue>) -> Result<CopImage, JsError>
     };
 
     let ctx = get_wasm_gpu_context()?;
-    let inner = LoadImageCop.execute(&ctx, &[], &cop_params).map_err(cop_err)?;
+    let inner = LoadImageCop
+        .execute(&ctx, &[], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1609,8 +1887,8 @@ pub fn cop_load_image_wasm(params: Option<JsValue>) -> Result<CopImage, JsError>
 
 #[wasm_bindgen(js_name = "copBlur")]
 pub fn cop_blur_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::filter::blur::{BlurCop, BlurParams, BlurType};
+    use procgeo_cops::Cop;
 
     let p = params.unwrap_or_else(empty_obj);
     let blur_type_str = get_str(&p, "blurType", "gaussian");
@@ -1625,14 +1903,16 @@ pub fn cop_blur_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopIma
         radius_y: get_f32(&p, "radiusY", 4.0),
     };
 
-    let inner = BlurCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = BlurCop
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "copFlip")]
 pub fn cop_flip_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::filter::flip::{FlipCop, FlipParams};
+    use procgeo_cops::Cop;
 
     let p = params.unwrap_or_else(empty_obj);
     let cop_params = FlipParams {
@@ -1640,14 +1920,16 @@ pub fn cop_flip_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopIma
         vertical: get_bool(&p, "vertical", true),
     };
 
-    let inner = FlipCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = FlipCop
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "copMirror")]
 pub fn cop_mirror_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+    use procgeo_cops::filter::mirror::{MirrorAxis, MirrorCop, MirrorParams};
     use procgeo_cops::Cop;
-    use procgeo_cops::filter::mirror::{MirrorCop, MirrorParams, MirrorAxis};
 
     let p = params.unwrap_or_else(empty_obj);
     let axis_str = get_str(&p, "axis", "x");
@@ -1661,14 +1943,19 @@ pub fn cop_mirror_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopI
         offset: get_f32(&p, "offset", 0.5),
     };
 
-    let inner = MirrorCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = MirrorCop
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "copChannelSwap")]
-pub fn cop_channel_swap_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+pub fn cop_channel_swap_wasm(
+    image: &CopImage,
+    params: Option<JsValue>,
+) -> Result<CopImage, JsError> {
+    use procgeo_cops::filter::channel_swap::{Channel, ChannelSwapCop, ChannelSwapParams};
     use procgeo_cops::Cop;
-    use procgeo_cops::filter::channel_swap::{ChannelSwapCop, ChannelSwapParams, Channel};
 
     fn parse_channel(s: &str) -> Channel {
         match s.to_lowercase().as_str() {
@@ -1690,14 +1977,16 @@ pub fn cop_channel_swap_wasm(image: &CopImage, params: Option<JsValue>) -> Resul
         a: parse_channel(&get_str(&p, "a", "a")),
     };
 
-    let inner = ChannelSwapCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = ChannelSwapCop
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "copResize")]
 pub fn cop_resize_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::filter::resize::{ResizeCop, ResizeParams};
+    use procgeo_cops::Cop;
     use procgeo_cops::FilterMode;
 
     let p = params.unwrap_or_else(empty_obj);
@@ -1713,14 +2002,16 @@ pub fn cop_resize_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopI
         filter,
     };
 
-    let inner = ResizeCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = ResizeCop
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "copRotate")]
 pub fn cop_rotate_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::filter::rotate::{RotateCop, RotateParams};
+    use procgeo_cops::Cop;
     use procgeo_cops::FilterMode;
 
     let p = params.unwrap_or_else(empty_obj);
@@ -1736,14 +2027,16 @@ pub fn cop_rotate_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopI
         filter,
     };
 
-    let inner = RotateCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = RotateCop
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 #[wasm_bindgen(js_name = "copSwirl")]
 pub fn cop_swirl_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::filter::swirl::{SwirlCop, SwirlParams};
+    use procgeo_cops::Cop;
 
     let p = params.unwrap_or_else(empty_obj);
     let cop_params = SwirlParams {
@@ -1752,16 +2045,22 @@ pub fn cop_swirl_wasm(image: &CopImage, params: Option<JsValue>) -> Result<CopIm
         radius: get_f32(&p, "radius", 0.5),
     };
 
-    let inner = SwirlCop.execute(image.inner.ctx(), &[&image.inner], &cop_params).map_err(cop_err)?;
+    let inner = SwirlCop
+        .execute(image.inner.ctx(), &[&image.inner], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
 // --- Composite (2 inputs) ---
 
 #[wasm_bindgen(js_name = "copComposite")]
-pub fn cop_composite_wasm(a: &CopImage, b: &CopImage, params: Option<JsValue>) -> Result<CopImage, JsError> {
+pub fn cop_composite_wasm(
+    a: &CopImage,
+    b: &CopImage,
+    params: Option<JsValue>,
+) -> Result<CopImage, JsError> {
+    use procgeo_cops::composite::{CompOp, CompositeCop, CompositeParams};
     use procgeo_cops::Cop;
-    use procgeo_cops::composite::{CompositeCop, CompositeParams, CompOp};
 
     let p = params.unwrap_or_else(empty_obj);
     let op_str = get_str(&p, "operation", "over");
@@ -1781,7 +2080,9 @@ pub fn cop_composite_wasm(a: &CopImage, b: &CopImage, params: Option<JsValue>) -
         mix: get_f32(&p, "mix", 1.0),
     };
 
-    let inner = CompositeCop.execute(a.inner.ctx(), &[&a.inner, &b.inner], &cop_params).map_err(cop_err)?;
+    let inner = CompositeCop
+        .execute(a.inner.ctx(), &[&a.inner, &b.inner], &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }
 
@@ -1793,8 +2094,8 @@ pub fn cop_custom_shader_wasm(
     input_b: Option<CopImage>,
     params: Option<JsValue>,
 ) -> Result<CopImage, JsError> {
-    use procgeo_cops::Cop;
     use procgeo_cops::custom::{CustomShaderCop, CustomShaderParams, ShaderLang};
+    use procgeo_cops::Cop;
 
     let p = params.unwrap_or_else(empty_obj);
     let lang_str = get_str(&p, "language", "wgsl");
@@ -1821,6 +2122,8 @@ pub fn cop_custom_shader_wasm(
         input_refs.push(&b.inner);
     }
 
-    let inner = CustomShaderCop.execute(&ctx, &input_refs, &cop_params).map_err(cop_err)?;
+    let inner = CustomShaderCop
+        .execute(&ctx, &input_refs, &cop_params)
+        .map_err(cop_err)?;
     Ok(CopImage { inner })
 }

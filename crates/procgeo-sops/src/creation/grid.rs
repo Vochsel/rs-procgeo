@@ -96,10 +96,10 @@ impl Sop for GridSop {
         for row in 0..(rows - 1) {
             for col in 0..(cols - 1) {
                 let idx = |r: u32, c_: u32| (r * cols + c_) as usize;
-                let p0 = handles[idx(row,     col    )];
-                let p1 = handles[idx(row,     col + 1)];
+                let p0 = handles[idx(row, col)];
+                let p1 = handles[idx(row, col + 1)];
                 let p2 = handles[idx(row + 1, col + 1)];
-                let p3 = handles[idx(row + 1, col    )];
+                let p3 = handles[idx(row + 1, col)];
                 geo.add_face(&[p0, p3, p2, p1]);
             }
         }
@@ -111,8 +111,8 @@ impl Sop for GridSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
     use crate::generate;
+    use approx::assert_relative_eq;
 
     #[test]
     fn grid_default() {
@@ -120,15 +120,19 @@ mod tests {
         let params = GridParams::default(); // 10x10 rows/cols
         let geo = generate(&sop, &params).unwrap();
 
-        assert_eq!(geo.num_points(), 100);  // 10*10
-        assert_eq!(geo.num_prims(), 81);    // 9*9
+        assert_eq!(geo.num_points(), 100); // 10*10
+        assert_eq!(geo.num_prims(), 81); // 9*9
         assert_eq!(geo.num_vertices(), 81 * 4);
     }
 
     #[test]
     fn grid_2x2() {
         let sop = GridSop;
-        let params = GridParams { rows: 2, cols: 2, ..Default::default() };
+        let params = GridParams {
+            rows: 2,
+            cols: 2,
+            ..Default::default()
+        };
         let geo = generate(&sop, &params).unwrap();
 
         assert_eq!(geo.num_points(), 4);
@@ -138,7 +142,11 @@ mod tests {
     #[test]
     fn grid_3x3() {
         let sop = GridSop;
-        let params = GridParams { rows: 3, cols: 3, ..Default::default() };
+        let params = GridParams {
+            rows: 3,
+            cols: 3,
+            ..Default::default()
+        };
         let geo = generate(&sop, &params).unwrap();
 
         assert_eq!(geo.num_points(), 9);
@@ -159,9 +167,9 @@ mod tests {
 
         let bb = geo.bounding_box();
         assert_relative_eq!(bb.min.x, -2.0, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.x,  2.0, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.x, 2.0, epsilon = 1e-5);
         assert_relative_eq!(bb.min.z, -3.0, epsilon = 1e-5);
-        assert_relative_eq!(bb.max.z,  3.0, epsilon = 1e-5);
+        assert_relative_eq!(bb.max.z, 3.0, epsilon = 1e-5);
         // Y should be 0 for XZ orientation
         assert_relative_eq!(bb.min.y, 0.0, epsilon = 1e-5);
         assert_relative_eq!(bb.max.y, 0.0, epsilon = 1e-5);
@@ -188,7 +196,11 @@ mod tests {
     #[test]
     fn grid_rejects_small() {
         let sop = GridSop;
-        let params = GridParams { rows: 1, cols: 5, ..Default::default() };
+        let params = GridParams {
+            rows: 1,
+            cols: 5,
+            ..Default::default()
+        };
         let result = generate(&sop, &params);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), SopError::InvalidParam(_)));

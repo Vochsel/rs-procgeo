@@ -156,19 +156,22 @@ impl Sop for AttribBlurSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::attributes::create::{AttribCreateSop, AttribCreateParams};
-    use crate::creation::grid::{GridSop, GridParams, GridOrientation};
+    use crate::attributes::create::{AttribCreateParams, AttribCreateSop};
+    use crate::creation::grid::{GridOrientation, GridParams, GridSop};
     use crate::{GeometryExt, generate};
     use glam::Vec3;
 
     fn make_grid_with_hot_point() -> (Geometry, usize) {
-        let geo = generate(&GridSop, &GridParams {
-            size: [4.0, 4.0],
-            rows: 5,
-            cols: 5,
-            center: Vec3::ZERO,
-            orientation: GridOrientation::XZ,
-        })
+        let geo = generate(
+            &GridSop,
+            &GridParams {
+                size: [4.0, 4.0],
+                rows: 5,
+                cols: 5,
+                center: Vec3::ZERO,
+                orientation: GridOrientation::XZ,
+            },
+        )
         .unwrap();
 
         let sop = AttribCreateSop;
@@ -210,10 +213,7 @@ mod tests {
 
         // After one blur, the hot point should have decreased
         let hot_val = result.get_attrib(&handle, hot_idx).unwrap();
-        assert!(
-            hot_val < 1.0,
-            "hot point should spread: got {hot_val}"
-        );
+        assert!(hot_val < 1.0, "hot point should spread: got {hot_val}");
 
         // At least some neighboring points should be > 0
         let nonzero_count = (0..result.num_points())
@@ -228,21 +228,36 @@ mod tests {
 
         let sop = AttribBlurSop;
 
-        let result1 = geo.clone().apply(&sop, &AttribBlurParams {
-            attrib_name: "heat".to_string(),
-            attrib_type: AttribType::Float,
-            iterations: 1,
-            step_size: 1.0,
-        }).unwrap();
-        let result5 = geo.apply(&sop, &AttribBlurParams {
-            attrib_name: "heat".to_string(),
-            attrib_type: AttribType::Float,
-            iterations: 5,
-            step_size: 1.0,
-        }).unwrap();
+        let result1 = geo
+            .clone()
+            .apply(
+                &sop,
+                &AttribBlurParams {
+                    attrib_name: "heat".to_string(),
+                    attrib_type: AttribType::Float,
+                    iterations: 1,
+                    step_size: 1.0,
+                },
+            )
+            .unwrap();
+        let result5 = geo
+            .apply(
+                &sop,
+                &AttribBlurParams {
+                    attrib_name: "heat".to_string(),
+                    attrib_type: AttribType::Float,
+                    iterations: 5,
+                    step_size: 1.0,
+                },
+            )
+            .unwrap();
 
-        let h1 = result1.find_attrib::<f32>(AttribClass::Point, "heat").unwrap();
-        let h5 = result5.find_attrib::<f32>(AttribClass::Point, "heat").unwrap();
+        let h1 = result1
+            .find_attrib::<f32>(AttribClass::Point, "heat")
+            .unwrap();
+        let h5 = result5
+            .find_attrib::<f32>(AttribClass::Point, "heat")
+            .unwrap();
 
         // After more iterations the hot point decreases more (spreads more)
         let val1 = result1.get_attrib(&h1, hot_idx).unwrap();
@@ -277,14 +292,21 @@ mod tests {
             .sum();
 
         let sop = AttribBlurSop;
-        let result = geo.apply(&sop, &AttribBlurParams {
-            attrib_name: "heat".to_string(),
-            attrib_type: AttribType::Float,
-            iterations: 3,
-            step_size: 1.0,
-        }).unwrap();
+        let result = geo
+            .apply(
+                &sop,
+                &AttribBlurParams {
+                    attrib_name: "heat".to_string(),
+                    attrib_type: AttribType::Float,
+                    iterations: 3,
+                    step_size: 1.0,
+                },
+            )
+            .unwrap();
 
-        let handle_after = result.find_attrib::<f32>(AttribClass::Point, "heat").unwrap();
+        let handle_after = result
+            .find_attrib::<f32>(AttribClass::Point, "heat")
+            .unwrap();
         let sum_after: f32 = (0..result.num_points())
             .map(|i| result.get_attrib(&handle_after, i).unwrap())
             .sum();

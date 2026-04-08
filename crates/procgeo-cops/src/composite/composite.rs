@@ -31,14 +31,14 @@ pub enum CompOp {
 impl CompOp {
     fn as_u32(&self) -> u32 {
         match self {
-            CompOp::Over       => 0,
-            CompOp::Add        => 1,
-            CompOp::Multiply   => 2,
-            CompOp::Screen     => 3,
-            CompOp::Subtract   => 4,
+            CompOp::Over => 0,
+            CompOp::Add => 1,
+            CompOp::Multiply => 2,
+            CompOp::Screen => 3,
+            CompOp::Subtract => 4,
             CompOp::Difference => 5,
-            CompOp::Min        => 6,
-            CompOp::Max        => 7,
+            CompOp::Min => 6,
+            CompOp::Max => 7,
         }
     }
 }
@@ -86,7 +86,12 @@ impl Cop for CompositeCop {
         (2, 2)
     }
 
-    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &CompositeParams) -> Result<Image, CopError> {
+    fn execute(
+        &self,
+        ctx: &Arc<GpuContext>,
+        inputs: &[&Image],
+        params: &CompositeParams,
+    ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
         let input_a = inputs[0];
         let input_b = inputs[1];
@@ -146,11 +151,11 @@ impl Cop for CompositeCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("composite_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("composite_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -194,7 +199,10 @@ mod tests {
 
     #[test]
     fn multiply_half_half() {
-        let ctx = match make_ctx() { Some(c) => c, None => return };
+        let ctx = match make_ctx() {
+            Some(c) => c,
+            None => return,
+        };
 
         // 0.5 * 0.5 = 0.25
         let a = solid(Arc::clone(&ctx), 0.5, 0.5, 0.5, 1.0);
@@ -204,7 +212,9 @@ mod tests {
             operation: CompOp::Multiply,
             mix: 1.0,
         };
-        let out = CompositeCop.execute(&ctx, &[&a, &b], &params).expect("execute failed");
+        let out = CompositeCop
+            .execute(&ctx, &[&a, &b], &params)
+            .expect("execute failed");
         let pixels = out.to_cpu().expect("readback failed");
 
         for chunk in pixels.chunks_exact(4) {
@@ -218,7 +228,10 @@ mod tests {
 
     #[test]
     fn add_colors() {
-        let ctx = match make_ctx() { Some(c) => c, None => return };
+        let ctx = match make_ctx() {
+            Some(c) => c,
+            None => return,
+        };
 
         // 0.3 + 0.2 = 0.5
         let a = solid(Arc::clone(&ctx), 0.3, 0.0, 0.0, 1.0);
@@ -228,7 +241,9 @@ mod tests {
             operation: CompOp::Add,
             mix: 1.0,
         };
-        let out = CompositeCop.execute(&ctx, &[&a, &b], &params).expect("execute failed");
+        let out = CompositeCop
+            .execute(&ctx, &[&a, &b], &params)
+            .expect("execute failed");
         let pixels = out.to_cpu().expect("readback failed");
 
         for chunk in pixels.chunks_exact(4) {
@@ -242,7 +257,10 @@ mod tests {
 
     #[test]
     fn wrong_input_count_errors() {
-        let ctx = match make_ctx() { Some(c) => c, None => return };
+        let ctx = match make_ctx() {
+            Some(c) => c,
+            None => return,
+        };
 
         let a = solid(Arc::clone(&ctx), 1.0, 0.0, 0.0, 1.0);
         let params = CompositeParams::default();

@@ -15,9 +15,9 @@ use crate::{Sop, SopError};
 
 use super::bvh::{Triangle, TriangleBvh};
 use super::classification::is_inside_mesh;
-use super::detriangulate::{detriangulate, DetriMode, Polygon};
-use super::intersection::{tri_tri_intersection, TriTriResult};
-use super::splitting::{split_triangle, CutEdge, TriFragment};
+use super::detriangulate::{DetriMode, Polygon, detriangulate};
+use super::intersection::{TriTriResult, tri_tri_intersection};
+use super::splitting::{CutEdge, TriFragment, split_triangle};
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -148,11 +148,7 @@ impl Sop for BooleanSop {
         (1, 2)
     }
 
-    fn execute(
-        &self,
-        inputs: &[&Geometry],
-        params: &Self::Params,
-    ) -> Result<Geometry, SopError> {
+    fn execute(&self, inputs: &[&Geometry], params: &Self::Params) -> Result<Geometry, SopError> {
         self.validate_inputs(inputs)?;
 
         let geo_a = inputs[0];
@@ -166,7 +162,9 @@ impl Sop for BooleanSop {
         // 1. Triangulate both input meshes
         // -----------------------------------------------------------------
         let tris_a = triangulate_geometry(geo_a, 0);
-        let tris_b = geo_b.map(|g| triangulate_geometry(g, 1)).unwrap_or_default();
+        let tris_b = geo_b
+            .map(|g| triangulate_geometry(g, 1))
+            .unwrap_or_default();
 
         // -----------------------------------------------------------------
         // 2. Early exit for trivial cases
@@ -238,15 +236,10 @@ impl Sop for BooleanSop {
             if let (Some(subs_a), Some(subs_b)) = (sub_a, sub_b) {
                 for ta in subs_a {
                     for tb in subs_b {
-                        let result = tri_tri_intersection(
-                            ta.v0, ta.v1, ta.v2, tb.v0, tb.v1, tb.v2,
-                        );
+                        let result = tri_tri_intersection(ta.v0, ta.v1, ta.v2, tb.v0, tb.v1, tb.v2);
                         match result {
                             TriTriResult::Segment { start, end } => {
-                                let cut = CutEdge {
-                                    start,
-                                    end,
-                                };
+                                let cut = CutEdge { start, end };
                                 cuts_a.entry(prim_idx_a).or_default().push(cut.clone());
                                 cuts_b.entry(prim_idx_b).or_default().push(cut);
                             }
@@ -260,10 +253,7 @@ impl Sop for BooleanSop {
                                             start: points[i],
                                             end: points[j],
                                         };
-                                        cuts_a
-                                            .entry(prim_idx_a)
-                                            .or_default()
-                                            .push(cut.clone());
+                                        cuts_a.entry(prim_idx_a).or_default().push(cut.clone());
                                         cuts_b.entry(prim_idx_b).or_default().push(cut);
                                     }
                                 }
@@ -295,12 +285,7 @@ impl Sop for BooleanSop {
         // -----------------------------------------------------------------
         // 8. Classify and select fragments
         // -----------------------------------------------------------------
-        let selected = self.classify_and_select(
-            &all_fragments,
-            &tris_a,
-            &tris_b,
-            params,
-        );
+        let selected = self.classify_and_select(&all_fragments, &tris_a, &tris_b, params);
 
         // -----------------------------------------------------------------
         // 9. De-triangulate
@@ -333,11 +318,7 @@ impl Sop for BooleanSop {
 
 impl BooleanSop {
     /// Seam mode: compute intersection segments and output them as polylines.
-    fn execute_seam(
-        &self,
-        tris_a: &[Triangle],
-        tris_b: &[Triangle],
-    ) -> Result<Geometry, SopError> {
+    fn execute_seam(&self, tris_a: &[Triangle], tris_b: &[Triangle]) -> Result<Geometry, SopError> {
         let bvh_a = TriangleBvh::build(tris_a);
         let bvh_b = TriangleBvh::build(tris_b);
         let pairs = bvh_a.find_overlapping_pairs(&bvh_b);
@@ -354,9 +335,7 @@ impl BooleanSop {
             if let (Some(subs_a), Some(subs_b)) = (sub_a, sub_b) {
                 for ta in subs_a {
                     for tb in subs_b {
-                        let result = tri_tri_intersection(
-                            ta.v0, ta.v1, ta.v2, tb.v0, tb.v1, tb.v2,
-                        );
+                        let result = tri_tri_intersection(ta.v0, ta.v1, ta.v2, tb.v0, tb.v1, tb.v2);
                         if let TriTriResult::Segment { start, end } = result {
                             if (start - end).length() > 1e-8 {
                                 let p0 = output.add_point(start);
@@ -399,9 +378,7 @@ impl BooleanSop {
             if let (Some(subs_a), Some(subs_b)) = (sub_a, sub_b) {
                 'outer: for ta in subs_a {
                     for tb in subs_b {
-                        let result = tri_tri_intersection(
-                            ta.v0, ta.v1, ta.v2, tb.v0, tb.v1, tb.v2,
-                        );
+                        let result = tri_tri_intersection(ta.v0, ta.v1, ta.v2, tb.v0, tb.v1, tb.v2);
                         if !matches!(result, TriTriResult::None) {
                             intersecting_prims.insert(prim_idx_a);
                             break 'outer;
@@ -453,8 +430,7 @@ impl BooleanSop {
                         BooleanOp::Subtract => !inside_b,
                         BooleanOp::Shatter | BooleanOp::Resolve => true,
                         BooleanOp::Custom => {
-                            let depth =
-                                super::classification::classify_depth(centroid, tris_b);
+                            let depth = super::classification::classify_depth(centroid, tris_b);
                             let in_range = depth >= params.b_depth_range[0]
                                 && depth <= params.b_depth_range[1];
                             match params.custom_match {
@@ -476,8 +452,7 @@ impl BooleanSop {
                         BooleanOp::Subtract => inside_a,
                         BooleanOp::Shatter | BooleanOp::Resolve => true,
                         BooleanOp::Custom => {
-                            let depth =
-                                super::classification::classify_depth(centroid, tris_a);
+                            let depth = super::classification::classify_depth(centroid, tris_a);
                             let in_range = depth >= params.a_depth_range[0]
                                 && depth <= params.a_depth_range[1];
                             match params.custom_match {
@@ -567,23 +542,19 @@ fn clone_geometry(geo: &Geometry) -> Geometry {
     for prim_idx in 0..geo.num_prims() {
         let prim_handle = PrimHandle::from_index(prim_idx);
         let old_pts = geo.prim_points(prim_handle);
-        let new_pts: Vec<PointHandle> = old_pts
-            .iter()
-            .map(|ph| point_handles[ph.index()])
-            .collect();
+        let new_pts: Vec<PointHandle> =
+            old_pts.iter().map(|ph| point_handles[ph.index()]).collect();
 
         let prim = geo.prim(prim_handle);
         match prim {
-            procgeo_core::primitive::Primitive::Polygon(poly) => {
-                match poly.poly_type {
-                    procgeo_core::primitive::PolyType::Closed => {
-                        out.add_face(&new_pts);
-                    }
-                    procgeo_core::primitive::PolyType::Open => {
-                        out.add_polyline(&new_pts);
-                    }
+            procgeo_core::primitive::Primitive::Polygon(poly) => match poly.poly_type {
+                procgeo_core::primitive::PolyType::Closed => {
+                    out.add_face(&new_pts);
                 }
-            }
+                procgeo_core::primitive::PolyType::Open => {
+                    out.add_polyline(&new_pts);
+                }
+            },
         }
     }
 
@@ -612,20 +583,19 @@ fn build_output_geometry(
         )
     };
 
-    let get_or_create_point =
-        |output: &mut Geometry,
-         point_map: &mut HashMap<(i64, i64, i64), PointHandle>,
-         pos: Vec3|
-         -> PointHandle {
-            let key = quantize(pos);
-            if let Some(&existing) = point_map.get(&key) {
-                existing
-            } else {
-                let handle = output.add_point(pos);
-                point_map.insert(key, handle);
-                handle
-            }
-        };
+    let get_or_create_point = |output: &mut Geometry,
+                               point_map: &mut HashMap<(i64, i64, i64), PointHandle>,
+                               pos: Vec3|
+     -> PointHandle {
+        let key = quantize(pos);
+        if let Some(&existing) = point_map.get(&key) {
+            existing
+        } else {
+            let handle = output.add_point(pos);
+            point_map.insert(key, handle);
+            handle
+        }
+    };
 
     for poly in polygons {
         let handles: Vec<PointHandle> = poly
@@ -887,10 +857,7 @@ mod tests {
         let params = BooleanParams::default();
 
         let result = sop.execute(&[], &params);
-        assert!(
-            result.is_err(),
-            "BooleanSop should error with zero inputs"
-        );
+        assert!(result.is_err(), "BooleanSop should error with zero inputs");
     }
 
     // ── Additional tests ─────────────────────────────────────────────────
@@ -919,10 +886,7 @@ mod tests {
             input_prims,
             result.num_prims()
         );
-        assert!(
-            result.num_points() > 0,
-            "Shatter should produce points"
-        );
+        assert!(result.num_points() > 0, "Shatter should produce points");
 
         println!(
             "Shatter: {} points, {} prims (inputs had {})",
@@ -1033,9 +997,7 @@ mod tests {
 
         // At least some prims should be in the group (the boxes overlap)
         let grp = group.unwrap();
-        let intersecting_count = (0..result.num_prims())
-            .filter(|&i| grp.contains(i))
-            .count();
+        let intersecting_count = (0..result.num_prims()).filter(|&i| grp.contains(i)).count();
         assert!(
             intersecting_count > 0,
             "overlapping boxes should have intersecting prims, got 0"

@@ -108,16 +108,22 @@ impl Sop for SmoothSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
-    use crate::reshape::subdivide::{SubdivideSop, SubdivideParams, SubdivideMode};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::reshape::subdivide::{SubdivideMode, SubdivideParams, SubdivideSop};
     use crate::{GeometryExt, generate};
+    use approx::assert_relative_eq;
     use glam::Vec3;
 
     fn make_subdivided_box() -> Geometry {
         let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
         box_geo
-            .apply(&SubdivideSop, &SubdivideParams { depth: 1, mode: SubdivideMode::Linear })
+            .apply(
+                &SubdivideSop,
+                &SubdivideParams {
+                    depth: 1,
+                    mode: SubdivideMode::Linear,
+                },
+            )
             .unwrap()
     }
 

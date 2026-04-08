@@ -81,14 +81,15 @@ mod tests {
 
     #[test]
     fn empty_path_errors() {
-        let Some(ctx) = try_ctx() else { return; };
+        let Some(ctx) = try_ctx() else {
+            return;
+        };
 
-        let params = LoadImageParams { path: String::new() };
+        let params = LoadImageParams {
+            path: String::new(),
+        };
         let result = generate_cop(&ctx, &LoadImageCop, &params);
-        assert!(
-            result.is_err(),
-            "expected error for empty path, got Ok"
-        );
+        assert!(result.is_err(), "expected error for empty path, got Ok");
         if let Err(e) = result {
             assert!(
                 matches!(e, CopError::ImageLoad(_)),
@@ -99,16 +100,15 @@ mod tests {
 
     #[test]
     fn missing_file_errors() {
-        let Some(ctx) = try_ctx() else { return; };
+        let Some(ctx) = try_ctx() else {
+            return;
+        };
 
         let params = LoadImageParams {
             path: "/nonexistent/path/to/image.png".into(),
         };
         let result = generate_cop(&ctx, &LoadImageCop, &params);
-        assert!(
-            result.is_err(),
-            "expected error for missing file, got Ok"
-        );
+        assert!(result.is_err(), "expected error for missing file, got Ok");
         if let Err(e) = result {
             assert!(
                 matches!(e, CopError::ImageLoad(_)),

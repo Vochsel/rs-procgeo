@@ -24,11 +24,7 @@ pub struct SharpEdges {
 /// An edge is sharp if:
 /// - It's a boundary edge, OR
 /// - The dihedral angle between its two adjacent faces exceeds `threshold_deg`.
-pub fn detect_sharp_edges(
-    geo: &Geometry,
-    adj: &MeshAdjacency,
-    threshold_deg: f32,
-) -> SharpEdges {
+pub fn detect_sharp_edges(geo: &Geometry, adj: &MeshAdjacency, threshold_deg: f32) -> SharpEdges {
     let threshold_rad = threshold_deg.to_radians();
     let mut sharp_set = HashSet::new();
     let mut is_sharp_point = vec![false; adj.num_points];

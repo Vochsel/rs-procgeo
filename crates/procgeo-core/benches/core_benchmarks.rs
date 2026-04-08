@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use glam::Vec3;
 use procgeo_core::attribute::{AttribClass, AttribDefault, AttribHandle, TypeQualifier};
 use procgeo_core::geometry::Geometry;
@@ -19,7 +19,12 @@ fn make_grid(n: usize) -> Geometry {
     for z in 0..(n - 1) {
         for x in 0..(n - 1) {
             let i = z * n + x;
-            geo.add_face(&[handles[i], handles[i + 1], handles[i + n + 1], handles[i + n]]);
+            geo.add_face(&[
+                handles[i],
+                handles[i + 1],
+                handles[i + n + 1],
+                handles[i + n],
+            ]);
         }
     }
     geo
@@ -47,9 +52,7 @@ fn bench_add_points(c: &mut Criterion) {
 
 fn bench_point_read(c: &mut Criterion) {
     let geo = make_grid(100); // 10k points
-    let handles: Vec<PointHandle> = (0..geo.num_points())
-        .map(PointHandle::from_index)
-        .collect();
+    let handles: Vec<PointHandle> = (0..geo.num_points()).map(PointHandle::from_index).collect();
 
     c.bench_function("points/read_all_10k", |b| {
         b.iter(|| {
@@ -389,7 +392,12 @@ fn bench_full_pipeline(c: &mut Criterion) {
             for z in 0..(n - 1) {
                 for x in 0..(n - 1) {
                     let i = z * n + x;
-                    geo.add_face(&[handles[i], handles[i + 1], handles[i + n + 1], handles[i + n]]);
+                    geo.add_face(&[
+                        handles[i],
+                        handles[i + 1],
+                        handles[i + n + 1],
+                        handles[i + n],
+                    ]);
                 }
             }
 
@@ -401,8 +409,7 @@ fn bench_full_pipeline(c: &mut Criterion) {
                 TypeQualifier::Color,
             )
             .unwrap();
-            let cd: AttribHandle<[f32; 3]> =
-                geo.find_attrib(AttribClass::Point, "Cd").unwrap();
+            let cd: AttribHandle<[f32; 3]> = geo.find_attrib(AttribClass::Point, "Cd").unwrap();
             for i in 0..geo.num_points() {
                 let f = i as f32 / geo.num_points() as f32;
                 geo.set_attrib(&cd, i, [f, 1.0 - f, 0.5]).unwrap();

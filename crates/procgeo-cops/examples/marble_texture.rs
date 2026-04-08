@@ -7,18 +7,13 @@
 
 use std::sync::Arc;
 
-use procgeo_cops::prelude::*;
-use procgeo_cops::generator::{
-    NoiseCop, NoiseParams, NoiseType,
-    RampCop, RampParams, RampType,
-};
+use procgeo_cops::composite::{CompOp, CompositeCop, CompositeParams};
 use procgeo_cops::filter::{BlurCop, BlurParams};
-use procgeo_cops::composite::{CompositeCop, CompositeParams, CompOp};
+use procgeo_cops::generator::{NoiseCop, NoiseParams, NoiseType, RampCop, RampParams, RampType};
+use procgeo_cops::prelude::*;
 
 fn main() {
-    let ctx = Arc::new(
-        GpuContext::new_blocking().expect("Failed to init GPU"),
-    );
+    let ctx = Arc::new(GpuContext::new_blocking().expect("Failed to init GPU"));
 
     let size = 1024;
 
@@ -104,10 +99,10 @@ fn main() {
             ramp_type: RampType::Diagonal,
             stops: vec![
                 (0.0, [0.95, 0.92, 0.88, 1.0]),  // bright cream
-                (0.25, [0.90, 0.85, 0.78, 1.0]),  // warm ivory
-                (0.5, [0.78, 0.70, 0.62, 1.0]),   // medium tan
-                (0.75, [0.62, 0.55, 0.48, 1.0]),  // medium stone
-                (1.0, [0.48, 0.40, 0.35, 1.0]),   // dark stone
+                (0.25, [0.90, 0.85, 0.78, 1.0]), // warm ivory
+                (0.5, [0.78, 0.70, 0.62, 1.0]),  // medium tan
+                (0.75, [0.62, 0.55, 0.48, 1.0]), // medium stone
+                (1.0, [0.48, 0.40, 0.35, 1.0]),  // dark stone
             ],
             width: size,
             height: size,

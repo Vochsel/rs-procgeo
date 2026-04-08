@@ -40,7 +40,9 @@ impl CrossField {
 
     /// Get the secondary (90°-rotated) direction for face fi.
     pub fn secondary_direction(&self, fi: usize) -> Vec3 {
-        self.normals[fi].cross(self.directions[fi]).normalize_or_zero()
+        self.normals[fi]
+            .cross(self.directions[fi])
+            .normalize_or_zero()
     }
 }
 
@@ -73,7 +75,11 @@ pub fn compute_cross_field(
         let e = (p1 - p0).normalize_or_zero();
         // Project e onto the tangent plane (should already be tangent for planar faces)
         let t = (e - n * e.dot(n)).normalize_or_zero();
-        ref_dirs.push(if t.length_squared() > 0.01 { t } else { arbitrary_tangent(n) });
+        ref_dirs.push(if t.length_squared() > 0.01 {
+            t
+        } else {
+            arbitrary_tangent(n)
+        });
     }
 
     // Step 2: Initialize field angles from curvature
@@ -369,11 +375,7 @@ fn detect_singularities(
 }
 
 /// Order faces around a vertex into a fan.
-fn order_faces_around_vertex(
-    adj: &MeshAdjacency,
-    vi: usize,
-    faces: &[usize],
-) -> Vec<usize> {
+fn order_faces_around_vertex(adj: &MeshAdjacency, vi: usize, faces: &[usize]) -> Vec<usize> {
     if faces.is_empty() {
         return Vec::new();
     }

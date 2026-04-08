@@ -197,7 +197,7 @@ impl Sop for AttribRandomizeSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
 
@@ -222,10 +222,7 @@ mod tests {
             .unwrap();
         for i in 0..result.num_points() {
             let v = result.get_attrib(&handle, i).unwrap();
-            assert!(
-                v >= 0.0 && v <= 1.0,
-                "point {i} value {v} out of [0,1]"
-            );
+            assert!(v >= 0.0 && v <= 1.0, "point {i} value {v} out of [0,1]");
         }
     }
 
@@ -283,10 +280,7 @@ mod tests {
         let avg = values.iter().sum::<f32>() / values.len() as f32;
 
         // Average should be within ~1.0 of mean=5.0
-        assert!(
-            (avg - 5.0).abs() < 2.0,
-            "expected avg near 5.0, got {avg}"
-        );
+        assert!((avg - 5.0).abs() < 2.0, "expected avg near 5.0, got {avg}");
     }
 
     #[test]

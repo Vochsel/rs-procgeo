@@ -51,15 +51,9 @@ impl Sop for BlastSop {
 
         match params.entity {
             BlastEntity::Primitives => {
-                let group = geo
-                    .groups()
-                    .prim_group(&params.group_name)
-                    .ok_or_else(|| {
-                        SopError::Other(format!(
-                            "prim group '{}' not found",
-                            params.group_name
-                        ))
-                    })?;
+                let group = geo.groups().prim_group(&params.group_name).ok_or_else(|| {
+                    SopError::Other(format!("prim group '{}' not found", params.group_name))
+                })?;
 
                 let keep: Vec<bool> = (0..geo.num_prims())
                     .map(|i| {
@@ -75,10 +69,7 @@ impl Sop for BlastSop {
                     .groups()
                     .point_group(&params.group_name)
                     .ok_or_else(|| {
-                        SopError::Other(format!(
-                            "point group '{}' not found",
-                            params.group_name
-                        ))
+                        SopError::Other(format!("point group '{}' not found", params.group_name))
                     })?;
 
                 let keep: Vec<bool> = (0..geo.num_points())
@@ -97,8 +88,10 @@ impl Sop for BlastSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
-    use crate::groups::group_create::{GroupCreateSop, GroupCreateParams, GroupType, GroupCreateMode};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::groups::group_create::{
+        GroupCreateMode, GroupCreateParams, GroupCreateSop, GroupType,
+    };
     use crate::{GeometryExt, generate};
 
     fn make_box() -> Geometry {
@@ -151,9 +144,7 @@ mod tests {
             range_end: 4,
             ..Default::default()
         };
-        let geo = make_box()
-            .apply(&GroupCreateSop, &params_gc)
-            .unwrap();
+        let geo = make_box().apply(&GroupCreateSop, &params_gc).unwrap();
 
         let params_blast = BlastParams {
             group_name: "bottom".to_string(),

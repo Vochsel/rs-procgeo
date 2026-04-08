@@ -153,9 +153,9 @@ fn tessellate_quad_patch(
 
     // Sample boundary curves
     let bottom = interpolate_side(geo, &patch.sides[0], nu); // side 0: u direction
-    let right = interpolate_side(geo, &patch.sides[1], nv);  // side 1: v direction
-    let top = interpolate_side(geo, &patch.sides[2], nu);    // side 2: u direction (reversed)
-    let left = interpolate_side(geo, &patch.sides[3], nv);   // side 3: v direction (reversed)
+    let right = interpolate_side(geo, &patch.sides[1], nv); // side 1: v direction
+    let top = interpolate_side(geo, &patch.sides[2], nu); // side 2: u direction (reversed)
+    let left = interpolate_side(geo, &patch.sides[3], nv); // side 3: v direction (reversed)
 
     // Generate interior grid points using transfinite interpolation (TFI)
     let mut grid = vec![vec![Vec3::ZERO; nu + 1]; nv + 1];
@@ -178,8 +178,8 @@ fn tessellate_quad_patch(
             let c01 = top[top.len() - 1];
 
             // TFI formula
-            let edge_interp = bottom_pt * (1.0 - v) + top_pt * v
-                + left_pt * (1.0 - u) + right_pt * u;
+            let edge_interp =
+                bottom_pt * (1.0 - v) + top_pt * v + left_pt * (1.0 - u) + right_pt * u;
             let corner_interp = c00 * (1.0 - u) * (1.0 - v)
                 + c10 * u * (1.0 - v)
                 + c01 * (1.0 - u) * v

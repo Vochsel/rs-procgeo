@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use wgpu;
 
-use crate::context::GpuContext;
 use crate::CopError;
+use crate::context::GpuContext;
 
 /// A GPU-backed RGBA32Float image.
 pub struct Image {
@@ -113,22 +113,19 @@ impl Image {
         let padded_bytes_per_row = align_up(unpadded_bytes_per_row, COPY_BYTES_PER_ROW_ALIGNMENT);
         let buffer_size = (padded_bytes_per_row as u64) * (self.height as u64);
 
-        let staging = self
-            .ctx
-            .device()
-            .create_buffer(&wgpu::BufferDescriptor {
-                label: Some("readback"),
-                size: buffer_size,
-                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                mapped_at_creation: false,
-            });
+        let staging = self.ctx.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("readback"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
 
-        let mut encoder = self
-            .ctx
-            .device()
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("readback"),
-            });
+        let mut encoder =
+            self.ctx
+                .device()
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("readback"),
+                });
 
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
@@ -196,22 +193,19 @@ impl Image {
         let padded_bytes_per_row = align_up(unpadded_bytes_per_row, COPY_BYTES_PER_ROW_ALIGNMENT);
         let buffer_size = (padded_bytes_per_row as u64) * (self.height as u64);
 
-        let staging = self
-            .ctx
-            .device()
-            .create_buffer(&wgpu::BufferDescriptor {
-                label: Some("readback_async"),
-                size: buffer_size,
-                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                mapped_at_creation: false,
-            });
+        let staging = self.ctx.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("readback_async"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
 
-        let mut encoder = self
-            .ctx
-            .device()
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("readback_async"),
-            });
+        let mut encoder =
+            self.ctx
+                .device()
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("readback_async"),
+                });
 
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {

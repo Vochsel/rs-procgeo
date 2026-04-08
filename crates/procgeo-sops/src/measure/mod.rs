@@ -3,4 +3,4 @@
 #[allow(clippy::module_inception)]
 pub mod measure;
 
-pub use measure::{MeasureSop, MeasureParams, MeasureType};
+pub use measure::{MeasureParams, MeasureSop, MeasureType};

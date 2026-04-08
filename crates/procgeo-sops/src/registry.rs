@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use procgeo_core::Geometry;
 
@@ -9,11 +9,7 @@ use crate::SopError;
 
 /// A type-erased SOP executor that takes JSON params.
 pub trait DynSop: Send + Sync {
-    fn execute_json(
-        &self,
-        inputs: &[&Geometry],
-        params_json: &str,
-    ) -> Result<Geometry, SopError>;
+    fn execute_json(&self, inputs: &[&Geometry], params_json: &str) -> Result<Geometry, SopError>;
 
     fn name(&self) -> &'static str;
     fn input_count(&self) -> (usize, usize);
@@ -30,11 +26,7 @@ where
     S: crate::Sop<Params = P> + Send + Sync + 'static,
     P: Default + Serialize + DeserializeOwned + Send + Sync + 'static,
 {
-    fn execute_json(
-        &self,
-        inputs: &[&Geometry],
-        params_json: &str,
-    ) -> Result<Geometry, SopError> {
+    fn execute_json(&self, inputs: &[&Geometry], params_json: &str) -> Result<Geometry, SopError> {
         let params: P = if params_json.is_empty() || params_json == "{}" {
             P::default()
         } else {
@@ -44,15 +36,13 @@ where
                 .map_err(|e| SopError::Other(format!("failed to serialize defaults: {e}")))?;
             let overrides: serde_json::Value = serde_json::from_str(params_json)
                 .map_err(|e| SopError::InvalidParam(format!("{e}")))?;
-            if let (Some(base_obj), Some(over_obj)) =
-                (base.as_object_mut(), overrides.as_object())
+            if let (Some(base_obj), Some(over_obj)) = (base.as_object_mut(), overrides.as_object())
             {
                 for (k, v) in over_obj {
                     base_obj.insert(k.clone(), v.clone());
                 }
             }
-            serde_json::from_value(base)
-                .map_err(|e| SopError::InvalidParam(format!("{e}")))?
+            serde_json::from_value(base).map_err(|e| SopError::InvalidParam(format!("{e}")))?
         };
         self.sop.execute(inputs, &params)
     }
@@ -141,8 +131,12 @@ pub fn default_registry() -> SopRegistry {
         r.add(crate::creation::SphereSop);
         r.add(crate::creation::LineSop);
         r.add(crate::creation::CircleSop);
+        r.add(crate::creation::SpiralSop);
+        r.add(crate::creation::HelixSop);
         r.add(crate::creation::TubeSop);
         r.add(crate::creation::TorusSop);
+        r.add(crate::creation::IcosphereSop);
+        r.add(crate::creation::TeapotSop);
         r.add(crate::creation::RevolveSop);
         r.add(crate::creation::MetaballSop);
     }
@@ -311,11 +305,7 @@ mod tests {
         let reg = default_registry();
         let box_geo = reg.execute("box", &[], "{}").unwrap();
         let moved = reg
-            .execute(
-                "transform",
-                &[&box_geo],
-                r#"{"translate":[10.0,0.0,0.0]}"#,
-            )
+            .execute("transform", &[&box_geo], r#"{"translate":[10.0,0.0,0.0]}"#)
             .unwrap();
         let bbox = moved.bounding_box();
         assert!((bbox.center().x - 10.0).abs() < 1e-4);
@@ -334,6 +324,10 @@ mod tests {
         let names = reg.list();
         assert!(names.contains(&"box"));
         assert!(names.contains(&"grid"));
+        assert!(names.contains(&"helix"));
+        assert!(names.contains(&"icosphere"));
+        assert!(names.contains(&"spiral"));
+        assert!(names.contains(&"teapot"));
         assert!(names.contains(&"transform"));
         assert!(names.len() >= 30); // we have 40+ SOPs
     }
@@ -375,7 +369,11 @@ mod tests {
         let reg = default_registry();
         let geo = reg.execute("box", &[], "{}").unwrap();
         let result = reg
-            .execute("bend", &[&geo], r#"{"bend_enable": true, "bend_angle": 45.0, "capture_length": 1.0}"#)
+            .execute(
+                "bend",
+                &[&geo],
+                r#"{"bend_enable": true, "bend_angle": 45.0, "capture_length": 1.0}"#,
+            )
             .unwrap();
         assert_eq!(result.num_points(), 8);
     }

@@ -67,9 +67,9 @@ impl Sop for TransformSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::assert_relative_eq;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
     use crate::{GeometryExt, generate};
+    use approx::assert_relative_eq;
 
     fn make_box() -> Geometry {
         generate(&BoxSop, &BoxParams::default()).unwrap()
@@ -104,7 +104,7 @@ mod tests {
         let bb = result.bounding_box();
         // Box was ±0.5, now should be ±1.0
         assert_relative_eq!(bb.min.x, -1.0, epsilon = 1e-4);
-        assert_relative_eq!(bb.max.x,  1.0, epsilon = 1e-4);
+        assert_relative_eq!(bb.max.x, 1.0, epsilon = 1e-4);
     }
 
     #[test]
@@ -128,6 +128,9 @@ mod tests {
         let params = TransformParams::default();
         let result = sop.execute(&[], &params);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), SopError::WrongInputCount { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            SopError::WrongInputCount { .. }
+        ));
     }
 }

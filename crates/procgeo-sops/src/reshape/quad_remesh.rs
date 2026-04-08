@@ -35,7 +35,8 @@ pub struct QuadRemeshParams {
     pub target_count: u32,
     /// Target edge length when `target_mode` is `EdgeLength`.
     pub target_edge_length: f64,
-    /// Optional seed for deterministic results.
+    /// Optional seed. When omitted, a stable default seed is used so remeshing
+    /// behaves consistently across native and WASM builds.
     pub seed: Option<u64>,
     /// Optimization mode.
     pub mode: QuadRemeshMode,
@@ -54,6 +55,8 @@ impl Default for QuadRemeshParams {
 }
 
 pub struct QuadRemeshSop;
+
+const DEFAULT_QUAD_REMESH_SEED: u64 = 0;
 
 /// Convert procgeo Geometry into a `quadrs::Mesh`.
 fn geometry_to_quadrs_mesh(geo: &Geometry) -> quadrs::Mesh {
@@ -109,7 +112,9 @@ impl Sop for QuadRemeshSop {
 
         let input_geo = inputs[0];
         if input_geo.num_points() == 0 || input_geo.num_prims() == 0 {
-            return Err(SopError::Other("quad remesh requires non-empty geometry".into()));
+            return Err(SopError::Other(
+                "quad remesh requires non-empty geometry".into(),
+            ));
         }
 
         let mesh = geometry_to_quadrs_mesh(input_geo);
@@ -127,15 +132,17 @@ impl Sop for QuadRemeshSop {
         };
 
         let mut options = quadrs::RemeshOptions::new(target);
-        options.seed = params.seed;
+        // `quadrs` falls back to `SystemTime::now()` when the seed is omitted,
+        // which traps on wasm32-unknown-unknown. Resolve a stable seed here so
+        // the SOP stays usable and deterministic across targets.
+        options.seed = Some(params.seed.unwrap_or(DEFAULT_QUAD_REMESH_SEED));
         options.mode = match params.mode {
             QuadRemeshMode::Intrinsic => quadrs::RemeshMode::Intrinsic,
             QuadRemeshMode::Extrinsic => quadrs::RemeshMode::Extrinsic,
         };
 
-        let result = quadrs::remesh(&mesh, &options).map_err(|e| {
-            SopError::Other(format!("quad remesh failed: {e}"))
-        })?;
+        let result = quadrs::remesh(&mesh, &options)
+            .map_err(|e| SopError::Other(format!("quad remesh failed: {e}")))?;
 
         Ok(quadrs_mesh_to_geometry(&result.mesh))
     }
@@ -144,10 +151,10 @@ impl Sop for QuadRemeshSop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
-    use crate::creation::grid::{GridSop, GridParams};
-    use crate::creation::sphere::{SphereSop, SphereParams};
-    use crate::reshape::subdivide::{SubdivideSop, SubdivideParams};
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::creation::grid::{GridParams, GridSop};
+    use crate::creation::sphere::{SphereParams, SphereSop};
+    use crate::reshape::subdivide::{SubdivideParams, SubdivideSop};
     use crate::{GeometryExt, generate};
 
     #[test]
@@ -286,7 +293,10 @@ mod tests {
         };
 
         let result = geo.apply(&QuadRemeshSop, &params).unwrap();
-        assert!(result.num_points() > 0, "seeded remesh should produce points");
+        assert!(
+            result.num_points() > 0,
+            "seeded remesh should produce points"
+        );
         assert!(result.num_prims() > 0, "seeded remesh should produce faces");
     }
 
@@ -296,6 +306,22 @@ mod tests {
         let params = QuadRemeshParams::default();
         let result = QuadRemeshSop.execute(&[&geo], &params);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn quad_remesh_default_params_work_on_default_sphere() {
+        let geo = generate(&SphereSop, &SphereParams::default()).unwrap();
+        let params = QuadRemeshParams::default();
+
+        let result = geo.apply(&QuadRemeshSop, &params).unwrap();
+        assert!(
+            result.num_points() > 0,
+            "default remesh should produce points"
+        );
+        assert!(
+            result.num_prims() > 0,
+            "default remesh should produce faces"
+        );
     }
 
     #[test]

@@ -15,12 +15,21 @@ use std::path::Path;
 
 /// Rectangular prism centered at `center` with given `size`, colored.
 fn colored_box(size: Vec3, center: Vec3, color: [f32; 3]) -> Result<Geometry, SopError> {
-    generate(&BoxSop, &BoxParams { size, ..Default::default() })?
-        .apply(&TransformSop, &TransformParams {
+    generate(
+        &BoxSop,
+        &BoxParams {
+            size,
+            ..Default::default()
+        },
+    )?
+    .apply(
+        &TransformSop,
+        &TransformParams {
             translate: center,
             ..Default::default()
-        })?
-        .apply(&ColorSop, &ColorParams { color })
+        },
+    )?
+    .apply(&ColorSop, &ColorParams { color })
 }
 
 /// A triangular prism roof (wedge shape) built manually.
@@ -68,10 +77,13 @@ fn column(radius: f32, height: f32, center: Vec3, color: [f32; 3]) -> Result<Geo
             ..Default::default()
         },
     )?
-    .apply(&TransformSop, &TransformParams {
-        translate: center,
-        ..Default::default()
-    })?
+    .apply(
+        &TransformSop,
+        &TransformParams {
+            translate: center,
+            ..Default::default()
+        },
+    )?
     .apply(&ColorSop, &ColorParams { color })
 }
 
@@ -182,14 +194,15 @@ fn build_farmhouse() -> Result<Geometry, SopError> {
             ..Default::default()
         },
     )?
-    .apply(&ColorSop, &ColorParams { color: ground_color })?;
+    .apply(
+        &ColorSop,
+        &ColorParams {
+            color: ground_color,
+        },
+    )?;
 
     // -- Fence posts around the yard ------------------------------------
-    let fence_post = colored_box(
-        Vec3::new(0.1, 0.8, 0.1),
-        Vec3::ZERO,
-        fence_color,
-    )?;
+    let fence_post = colored_box(Vec3::new(0.1, 0.8, 0.1), Vec3::ZERO, fence_color)?;
 
     // Create perimeter points: place posts at regular intervals
     let mut fence_points = Geometry::new();
@@ -208,9 +221,12 @@ fn build_farmhouse() -> Result<Geometry, SopError> {
         i += spacing;
     }
 
-    let fence = CopyToPointsSop.execute(&[&fence_post, &fence_points], &CopyToPointsParams {
-        piece_attrib: String::new(),
-    })?;
+    let fence = CopyToPointsSop.execute(
+        &[&fence_post, &fence_points],
+        &CopyToPointsParams {
+            piece_attrib: String::new(),
+        },
+    )?;
 
     // -- Merge everything -----------------------------------------------
     let farmhouse = MergeSop.execute(

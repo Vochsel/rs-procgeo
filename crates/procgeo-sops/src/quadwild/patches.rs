@@ -75,11 +75,7 @@ pub fn decompose_patches(
 }
 
 /// Determine which mesh edges are "cut" by the traced curves.
-fn compute_cut_edges(
-    geo: &Geometry,
-    adj: &MeshAdjacency,
-    trace: &TraceResult,
-) -> HashSet<EdgeKey> {
+fn compute_cut_edges(geo: &Geometry, adj: &MeshAdjacency, trace: &TraceResult) -> HashSet<EdgeKey> {
     let mut cut = HashSet::new();
 
     for curve in &trace.curves {
@@ -143,7 +139,9 @@ fn is_crossing(pos: &Vec3, curve_points: &[Vec3], ea: &Vec3, eb: &Vec3) -> bool 
 
     // Check if the curve direction is roughly perpendicular to the edge
     // (a true crossing should go across the edge, not along it)
-    let pos_idx = curve_points.iter().position(|p| (*p - *pos).length() < 1e-8);
+    let pos_idx = curve_points
+        .iter()
+        .position(|p| (*p - *pos).length() < 1e-8);
     if let Some(idx) = pos_idx {
         if idx > 0 && idx < curve_points.len() - 1 {
             let curve_dir = (curve_points[idx + 1] - curve_points[idx - 1]).normalize_or_zero();
@@ -250,10 +248,7 @@ fn build_patch(
 }
 
 /// Order boundary edges into a vertex loop.
-fn order_boundary_loop(
-    edges: &[EdgeKey],
-    _verts: &HashSet<usize>,
-) -> Vec<usize> {
+fn order_boundary_loop(edges: &[EdgeKey], _verts: &HashSet<usize>) -> Vec<usize> {
     if edges.is_empty() {
         return Vec::new();
     }
@@ -325,7 +320,8 @@ fn detect_patch_corners(
 
         // Mark as corner if angle deviates significantly from 180° (straight)
         let deviation = (std::f32::consts::PI - angle).abs();
-        if deviation > 0.5 { // ~30 degrees
+        if deviation > 0.5 {
+            // ~30 degrees
             corners.push(curr);
         }
     }
@@ -344,10 +340,7 @@ fn detect_patch_corners(
 }
 
 /// Split the boundary vertex loop into sides at corners.
-fn split_boundary_at_corners(
-    boundary: &[usize],
-    corners: &[usize],
-) -> Vec<Vec<usize>> {
+fn split_boundary_at_corners(boundary: &[usize], corners: &[usize]) -> Vec<Vec<usize>> {
     if boundary.is_empty() || corners.is_empty() {
         return vec![boundary.to_vec()];
     }
@@ -391,11 +384,11 @@ fn split_boundary_at_corners(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::adjacency::MeshAdjacency;
     use super::super::cross_field;
     use super::super::features;
     use super::super::tracing;
+    use super::*;
 
     fn make_grid() -> (Geometry, MeshAdjacency) {
         let mut geo = Geometry::new();
@@ -409,7 +402,11 @@ mod tests {
         for r in 0..4 {
             for c in 0..4 {
                 geo.add_face(&[pts[r * w + c], pts[r * w + c + 1], pts[(r + 1) * w + c + 1]]);
-                geo.add_face(&[pts[r * w + c], pts[(r + 1) * w + c + 1], pts[(r + 1) * w + c]]);
+                geo.add_face(&[
+                    pts[r * w + c],
+                    pts[(r + 1) * w + c + 1],
+                    pts[(r + 1) * w + c],
+                ]);
             }
         }
         let adj = MeshAdjacency::build(&geo).unwrap();

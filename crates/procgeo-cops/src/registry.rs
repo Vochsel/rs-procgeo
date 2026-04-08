@@ -56,15 +56,13 @@ where
                 .map_err(|e| CopError::Other(format!("failed to serialize defaults: {e}")))?;
             let overrides: serde_json::Value = serde_json::from_str(params_json)
                 .map_err(|e| CopError::InvalidParam(format!("{e}")))?;
-            if let (Some(base_obj), Some(over_obj)) =
-                (base.as_object_mut(), overrides.as_object())
+            if let (Some(base_obj), Some(over_obj)) = (base.as_object_mut(), overrides.as_object())
             {
                 for (k, v) in over_obj {
                     base_obj.insert(k.clone(), v.clone());
                 }
             }
-            serde_json::from_value(base)
-                .map_err(|e| CopError::InvalidParam(format!("{e}")))?
+            serde_json::from_value(base).map_err(|e| CopError::InvalidParam(format!("{e}")))?
         };
 
         self.cop.execute(ctx, inputs, &params)
@@ -291,11 +289,19 @@ mod tests {
 
     #[test]
     fn execute_constant_via_registry() {
-        let ctx = match make_ctx() { Some(c) => c, None => return };
+        let ctx = match make_ctx() {
+            Some(c) => c,
+            None => return,
+        };
         let reg = default_cop_registry();
 
         let img = reg
-            .execute("constant", &ctx, &[], r#"{"color":[1.0,0.0,0.0,1.0],"width":4,"height":4}"#)
+            .execute(
+                "constant",
+                &ctx,
+                &[],
+                r#"{"color":[1.0,0.0,0.0,1.0],"width":4,"height":4}"#,
+            )
             .expect("registry execute failed");
 
         assert_eq!(img.width(), 4);
@@ -313,7 +319,10 @@ mod tests {
 
     #[test]
     fn unknown_cop_returns_error() {
-        let ctx = match make_ctx() { Some(c) => c, None => return };
+        let ctx = match make_ctx() {
+            Some(c) => c,
+            None => return,
+        };
         let reg = default_cop_registry();
 
         let result = reg.execute("does_not_exist", &ctx, &[], "{}");

@@ -52,7 +52,12 @@ impl Cop for SwirlCop {
         (1, 1)
     }
 
-    fn execute(&self, ctx: &Arc<GpuContext>, inputs: &[&Image], params: &SwirlParams) -> Result<Image, CopError> {
+    fn execute(
+        &self,
+        ctx: &Arc<GpuContext>,
+        inputs: &[&Image],
+        params: &SwirlParams,
+    ) -> Result<Image, CopError> {
         self.validate_inputs(inputs)?;
         let input = inputs[0];
 
@@ -103,11 +108,11 @@ impl Cop for SwirlCop {
             ],
         });
 
-        let mut encoder =
-            ctx.device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("swirl_dispatch"),
-                });
+        let mut encoder = ctx
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("swirl_dispatch"),
+            });
 
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -143,7 +148,9 @@ mod tests {
         let input = Image::from_cpu(Arc::clone(&ctx), 8, 8, &data).expect("from_cpu failed");
 
         let params = SwirlParams::default();
-        let output = SwirlCop.execute(&ctx, &[&input], &params).expect("execute failed");
+        let output = SwirlCop
+            .execute(&ctx, &[&input], &params)
+            .expect("execute failed");
 
         assert_eq!(output.width(), 8);
         assert_eq!(output.height(), 8);

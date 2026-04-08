@@ -1,7 +1,7 @@
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 
-use procgeo_core::{Geometry, PointHandle, PolyType, Primitive, PrimHandle};
+use procgeo_core::{Geometry, PointHandle, PolyType, PrimHandle, Primitive};
 
 use crate::{Sop, SopError};
 
@@ -25,11 +25,7 @@ impl Default for ResampleParams {
 pub struct ResampleSop;
 
 /// Resample an open polyline to have evenly spaced points at `length` intervals.
-fn resample_polyline(
-    pts: &[Vec3],
-    length: f32,
-    max_segments: u32,
-) -> Vec<Vec3> {
+fn resample_polyline(pts: &[Vec3], length: f32, max_segments: u32) -> Vec<Vec3> {
     if pts.len() < 2 {
         return pts.to_vec();
     }
@@ -46,7 +42,9 @@ fn resample_polyline(
         return pts.to_vec();
     }
 
-    let num_segments = ((total_length / length).round() as u32).max(1).min(max_segments);
+    let num_segments = ((total_length / length).round() as u32)
+        .max(1)
+        .min(max_segments);
     let actual_length = total_length / num_segments as f32;
 
     let mut result = Vec::with_capacity(num_segments as usize + 1);
@@ -109,22 +107,15 @@ impl Sop for ResampleSop {
                     match poly.poly_type {
                         PolyType::Open => {
                             // Resample this polyline
-                            let positions: Vec<Vec3> = orig_pts
-                                .iter()
-                                .map(|&h| geo.point_pos(h))
-                                .collect();
+                            let positions: Vec<Vec3> =
+                                orig_pts.iter().map(|&h| geo.point_pos(h)).collect();
 
-                            let resampled = resample_polyline(
-                                &positions,
-                                params.length,
-                                params.max_segments,
-                            );
+                            let resampled =
+                                resample_polyline(&positions, params.length, params.max_segments);
 
                             // Add new points and build polyline
-                            let new_handles: Vec<PointHandle> = resampled
-                                .iter()
-                                .map(|&pos| out.add_point(pos))
-                                .collect();
+                            let new_handles: Vec<PointHandle> =
+                                resampled.iter().map(|&pos| out.add_point(pos)).collect();
 
                             out.add_polyline(&new_handles);
                         }
@@ -148,10 +139,10 @@ impl Sop for ResampleSop {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::creation::box_sop::{BoxParams, BoxSop};
+    use crate::{GeometryExt, generate};
     use approx::assert_relative_eq;
     use glam::Vec3;
-    use crate::creation::box_sop::{BoxSop, BoxParams};
-    use crate::{GeometryExt, generate};
 
     /// Build a 5-point open polyline along X from 0 to 4
     fn make_line() -> Geometry {
@@ -205,13 +196,17 @@ mod tests {
         );
 
         // Each prim should still be closed
-        use procgeo_core::{Primitive, PolyType};
+        use procgeo_core::{PolyType, Primitive};
         for i in 0..result.num_prims() {
             let ph = PrimHandle::from_index(i);
             let prim = result.prim(ph);
             match prim {
                 Primitive::Polygon(poly) => {
-                    assert_eq!(poly.poly_type, PolyType::Closed, "prim {i} should be closed");
+                    assert_eq!(
+                        poly.poly_type,
+                        PolyType::Closed,
+                        "prim {i} should be closed"
+                    );
                 }
             }
         }

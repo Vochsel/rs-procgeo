@@ -15,8 +15,8 @@ pub use attribute::{
 pub use error::CoreError;
 pub use geometry::Geometry;
 pub use group::{EdgeGroup, ElementGroup, GroupMap};
-pub use handle::{PrimHandle, PointHandle, VertexHandle};
-pub use math::{BBox, fit, efit, smooth};
+pub use handle::{PointHandle, PrimHandle, VertexHandle};
+pub use math::{BBox, efit, fit, smooth};
 pub use point::PointStorage;
 pub use primitive::{PolyType, PolygonPrim, PrimStorage, Primitive};
 pub use vertex::VertexStorage;
