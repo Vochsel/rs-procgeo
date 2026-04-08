@@ -102,9 +102,9 @@ impl Sop for TubeSop {
                 let next_col = (col_idx + 1) % cols;
                 geo.add_face(&[
                     cur[col_idx],
-                    cur[next_col],
-                    next[next_col],
                     next[col_idx],
+                    next[next_col],
+                    cur[next_col],
                 ]);
             }
         }
@@ -117,7 +117,7 @@ impl Sop for TubeSop {
             for col_idx in 0..cols {
                 let next_col = (col_idx + 1) % cols;
                 // Winding: outward normal points down (-Y)
-                geo.add_face(&[bot_center, bottom_ring[next_col], bottom_ring[col_idx]]);
+                geo.add_face(&[bot_center, bottom_ring[col_idx], bottom_ring[next_col]]);
             }
         }
 
@@ -129,7 +129,7 @@ impl Sop for TubeSop {
             for col_idx in 0..cols {
                 let next_col = (col_idx + 1) % cols;
                 // Winding: outward normal points up (+Y)
-                geo.add_face(&[top_center, top_ring[col_idx], top_ring[next_col]]);
+                geo.add_face(&[top_center, top_ring[next_col], top_ring[col_idx]]);
             }
         }
 

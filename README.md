@@ -79,6 +79,10 @@ Well-known attributes are treated as first-class citizens, matching Houdini conv
 
 Writing to `P` via the attribute API (e.g., Attribute Noise with `attrib_name="P"`) actually moves points — the SoA position storage and attribute map stay in sync.
 
+### Winding Order
+
+All polygon faces use **CCW winding when viewed from outside**, producing outward-pointing normals via the right-hand rule (Newell's method). This matches Houdini's convention and is required for correct behavior of normal-dependent SOPs like PolyExtrude, Normal, and CopyToPoints.
+
 ### The SOP Trait
 
 Every operator implements the same stateless interface:

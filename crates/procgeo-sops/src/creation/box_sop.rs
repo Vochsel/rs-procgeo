@@ -62,17 +62,17 @@ impl Sop for BoxSop {
         let p7 = geo.add_point(c + Vec3::new(-half.x,  half.y,  half.z));
 
         // Bottom face: normal pointing -Y (outward)
-        geo.add_face(&[p0, p3, p2, p1]);
+        geo.add_face(&[p0, p1, p2, p3]);
         // Top face: normal pointing +Y (outward)
-        geo.add_face(&[p4, p5, p6, p7]);
+        geo.add_face(&[p4, p7, p6, p5]);
         // Front face (-Z): normal pointing -Z
-        geo.add_face(&[p0, p1, p5, p4]);
+        geo.add_face(&[p0, p4, p5, p1]);
         // Back face (+Z): normal pointing +Z
-        geo.add_face(&[p2, p3, p7, p6]);
+        geo.add_face(&[p2, p6, p7, p3]);
         // Left face (-X): normal pointing -X
-        geo.add_face(&[p0, p4, p7, p3]);
+        geo.add_face(&[p0, p3, p7, p4]);
         // Right face (+X): normal pointing +X
-        geo.add_face(&[p1, p2, p6, p5]);
+        geo.add_face(&[p1, p5, p6, p2]);
 
         Ok(geo)
     }

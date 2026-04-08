@@ -32,6 +32,15 @@ The python build allows interaction with custom ai model training, and interacti
 - Uses `glam` for vector/matrix math
 - Use `GeometryExt` trait for `.apply()` chaining
 
+### Winding order convention
+
+All polygon faces must use **CCW winding when viewed from outside** (right-hand rule), producing **outward-pointing normals** via Newell's method. This matches Houdini's convention.
+
+- Creation SOPs (box, sphere, tube, grid, etc.) must emit faces with outward normals
+- SOPs that compute face normals (polyextrude, normal, group_create) use Newell's method and depend on correct winding
+- When adding new faces in any SOP, verify the normal direction with `(v1-v0).cross(v2-v0)` or Newell's method
+- Tests that check extrusion/normal direction must assert the actual signed value, not `abs()`
+
 ## Bindings
 
 **Bindings must always be kept up to date.** When adding or modifying SOPs, I/O formats, or core Geometry APIs:

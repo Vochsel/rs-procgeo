@@ -92,9 +92,9 @@ impl Sop for TorusSop {
                 let next_col = (col_idx + 1) % cols;
                 geo.add_face(&[
                     handles[row_idx][col_idx],
-                    handles[next_row][col_idx],
-                    handles[next_row][next_col],
                     handles[row_idx][next_col],
+                    handles[next_row][next_col],
+                    handles[next_row][col_idx],
                 ]);
             }
         }

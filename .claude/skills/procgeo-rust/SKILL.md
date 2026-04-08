@@ -191,7 +191,18 @@ fn instance_on_surface(
 }
 ```
 
-### 6. Custom Geometry When SOPs Aren't Enough
+### 6. Winding Order Convention
+
+All polygon faces must use **CCW winding when viewed from outside** (right-hand rule). This produces outward-pointing normals via Newell's method and is required for correct PolyExtrude, Normal SOP, and rendering behavior.
+
+When manually creating faces with `add_face()`, verify your winding produces the expected outward normal. For a quad in the XZ plane with +Y outward normal, use:
+
+```rust
+// CCW from +Y → normal points +Y (up)
+geo.add_face(&[p0, p3, p2, p1]); // NOT [p0, p1, p2, p3]
+```
+
+### 7. Custom Geometry When SOPs Aren't Enough
 
 For procedural patterns that don't map to existing SOPs, build geometry manually:
 

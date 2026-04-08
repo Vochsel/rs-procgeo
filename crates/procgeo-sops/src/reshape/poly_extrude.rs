@@ -156,7 +156,8 @@ mod tests {
         let p1 = geo.add_point(Vec3::new( 0.5, 0.0, -0.5));
         let p2 = geo.add_point(Vec3::new( 0.5, 0.0,  0.5));
         let p3 = geo.add_point(Vec3::new(-0.5, 0.0,  0.5));
-        geo.add_face(&[p0, p1, p2, p3]);
+        // CCW winding from +Y → outward normal points +Y
+        geo.add_face(&[p0, p3, p2, p1]);
         geo
     }
 
@@ -181,11 +182,12 @@ mod tests {
         };
         let result = make_single_quad().apply(&PolyExtrudeSop, &params).unwrap();
 
-        // Original 4 points are at y=0; extruded 4 points should be at |y|=2.0
+        // Original 4 points are at y=0; extruded 4 points should be at y=+2.0
+        // (quad winding produces +Y outward normal)
         for i in 4..8 {
             let ph = PointHandle::from_index(i);
             let pos = result.point_pos(ph);
-            assert_relative_eq!(pos.y.abs(), 2.0, epsilon = 1e-4);
+            assert_relative_eq!(pos.y, 2.0, epsilon = 1e-4);
         }
     }
 

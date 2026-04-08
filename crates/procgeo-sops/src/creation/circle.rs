@@ -66,6 +66,7 @@ impl Sop for CircleSop {
             handles.push(geo.add_point(pos));
         }
 
+        handles.reverse();
         geo.add_face(&handles);
 
         Ok(geo)

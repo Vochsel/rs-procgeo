@@ -100,7 +100,7 @@ impl Sop for GridSop {
                 let p1 = handles[idx(row,     col + 1)];
                 let p2 = handles[idx(row + 1, col + 1)];
                 let p3 = handles[idx(row + 1, col    )];
-                geo.add_face(&[p0, p1, p2, p3]);
+                geo.add_face(&[p0, p3, p2, p1]);
             }
         }
 

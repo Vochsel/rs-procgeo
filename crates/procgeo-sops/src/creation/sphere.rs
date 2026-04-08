@@ -100,7 +100,7 @@ impl Sop for SphereSop {
         let first_ring = &rings[0];
         for col_idx in 0..cols {
             let next = (col_idx + 1) % cols;
-            geo.add_face(&[top_pole, first_ring[col_idx], first_ring[next]]);
+            geo.add_face(&[top_pole, first_ring[next], first_ring[col_idx]]);
         }
 
         // Middle quad strips
@@ -111,9 +111,9 @@ impl Sop for SphereSop {
                 let next_col = (col_idx + 1) % cols;
                 geo.add_face(&[
                     cur_ring[col_idx],
-                    next_ring[col_idx],
-                    next_ring[next_col],
                     cur_ring[next_col],
+                    next_ring[next_col],
+                    next_ring[col_idx],
                 ]);
             }
         }
@@ -122,7 +122,7 @@ impl Sop for SphereSop {
         let last_ring = &rings[rows - 2];
         for col_idx in 0..cols {
             let next = (col_idx + 1) % cols;
-            geo.add_face(&[last_ring[col_idx], bot_pole, last_ring[next]]);
+            geo.add_face(&[last_ring[col_idx], last_ring[next], bot_pole]);
         }
 
         Ok(geo)
