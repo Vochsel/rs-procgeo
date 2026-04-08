@@ -273,10 +273,21 @@ pnpm build:rust      # Rust only (build + test)
 pnpm build:wasm      # WASM + copy to web/
 pnpm build:python    # Python binding
 pnpm test            # cargo test --workspace
+pnpm test:blender    # Blender Geometry Nodes conformance tests
 pnpm check           # cargo check all crates + bindings
 pnpm bench           # criterion benchmarks
 pnpm dev:web         # start playground dev server
 ```
+
+## Blender Conformance
+
+Blender equivalence checks live separately from Rust unit tests in `tests/blender_conformance/`. They depend on `bpy`, Python 3.13, and the local `procgeo` Python binding, so they are intentionally opt-in instead of part of `cargo test`.
+
+```bash
+pnpm test:blender
+```
+
+That runner uses `uv` to build `bindings/procgeo-py`, install `bpy` + `pytest`, and execute the Blender conformance suite. The current coverage validates `BoxSop`, `SubdivideSop`, `PolyExtrudeSop`, and `PolyBevelSop` against Blender-side reference geometry by comparing canonicalized point positions, primitive vertex loops, and total vertex layout.
 
 ## License
 

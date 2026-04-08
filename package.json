@@ -8,6 +8,7 @@
     "build:python": "cd bindings/procgeo-py && maturin develop --release",
     "build:editor-types": "node scripts/validate-web-editor-types.mjs",
     "test": "cargo test --workspace",
+    "test:blender": "./scripts/test-blender-conformance.sh",
     "check": "cargo check --workspace && cargo check -p procgeo-py && node scripts/validate-web-editor-types.mjs",
     "clean": "cargo clean && rm -rf bindings/procgeo-wasm/pkg web/wasm/*.wasm web/wasm/*.js web/wasm/*.d.ts",
     "setup:web": "cd web && ./setup.sh",

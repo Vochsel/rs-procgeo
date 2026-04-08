@@ -22,6 +22,33 @@ instances = pg.color(instances, { color: [0.9, 0.5, 0.2] });
 return instances;
 `,
 
+    attribTransfer: `// Attribute transfer from a stretched sphere onto a dense grid
+const d = 1000;
+let p = pg.createGrid({
+  rows: d,
+  cols: d,
+});
+p = pg.color(p, { color: [1, 1, 1] });
+
+let s = pg.createSphere();
+s = pg.transform(s, {
+  translate: [2, 0, 0],
+  scale: [5, 1, 1],
+});
+s = pg.color(s, {
+  color: [1, 0.5, 0],
+});
+
+p = pg.attribTransfer(p, s, {
+  attribName: 'Cd',
+  attribType: 'Vector3',
+  distanceThreshold: 0.5,
+});
+
+const scene = pg.merge(p, s);
+return scene;
+`,
+
     extrude: `// Extruded city blocks
 const grid = pg.createGrid({ rows: 2, cols: 2, sizeX: 8, sizeY: 8 });
 const points = pg.scatter(grid, { count: 12, seed: 7 });
