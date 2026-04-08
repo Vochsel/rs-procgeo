@@ -5,6 +5,10 @@
   "type": "module",
   "main": "index.js",
   "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
   "exports": {
     ".": {
       "import": "./index.js",
@@ -12,7 +16,17 @@
     }
   },
   "peerDependencies": {
-    "three": ">=0.150.0"
+    "three": ">=0.150.0",
+    "@procgeo/lib": ">=0.1.0"
   },
-  "license": "MIT"
+  "peerDependenciesMeta": {
+    "@procgeo/lib": { "optional": true }
+  },
+  "keywords": ["procgeo", "threejs", "3d", "geometry", "mesh", "wireframe", "pointcloud"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vochsel/rs-procgeo"
+  },
+  "sideEffects": false
 }
