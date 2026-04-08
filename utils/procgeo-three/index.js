@@ -89,24 +89,61 @@ export function toMesh(geo, options = {}) {
 }
 
 /**
- * Convert a ProcGeo Geometry to a Three.js wireframe LineSegments.
+ * Convert a ProcGeo Geometry to a Three.js wireframe LineSegments
+ * using the **original polygon edges**, not the triangulated mesh edges.
  *
- * @param {object} geo - ProcGeo Geometry instance
+ * Walks each primitive via primPointIndices() and emits one line segment
+ * per unique edge, so quads show 4 edges (not 5 with a diagonal) and
+ * n-gons show their true outline.
+ *
+ * @param {object} geo - ProcGeo Geometry instance (must have primPointIndices)
  * @param {object} [options]
  * @param {number|string} [options.color=0x88aaff] - Wire color
  * @param {number} [options.linewidth=1] - Line width (limited by WebGL)
  * @returns {THREE.LineSegments}
  */
 export function toWireframe(geo, options = {}) {
-  const bufGeo = toBufferGeometry(geo);
-  const wireGeo = new THREE.WireframeGeometry(bufGeo);
+  const positions = geo.getPositions();
+  const numPrims = geo.numPrims;
+
+  // Collect unique edges using "min-max" dedup
+  const edgeSet = new Set();
+  const edgePairs = [];
+
+  for (let p = 0; p < numPrims; p++) {
+    const pts = geo.primPointIndices(p);
+    const n = pts.length;
+    if (n < 2) continue;
+    for (let i = 0; i < n; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % n];
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      const key = lo * 1000000 + hi;
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key);
+        edgePairs.push(a, b);
+      }
+    }
+  }
+
+  const linePositions = new Float32Array(edgePairs.length * 3);
+  for (let i = 0; i < edgePairs.length; i++) {
+    const ptIdx = edgePairs[i];
+    linePositions[i * 3]     = positions[ptIdx * 3];
+    linePositions[i * 3 + 1] = positions[ptIdx * 3 + 1];
+    linePositions[i * 3 + 2] = positions[ptIdx * 3 + 2];
+  }
+
+  const lineGeo = new THREE.BufferGeometry();
+  lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
 
   const material = new THREE.LineBasicMaterial({
     color: options.color ?? 0x88aaff,
     linewidth: options.linewidth ?? 1,
   });
 
-  return new THREE.LineSegments(wireGeo, material);
+  return new THREE.LineSegments(lineGeo, material);
 }
 
 /**

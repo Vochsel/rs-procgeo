@@ -56,6 +56,7 @@ scene.add(meshGroup);
 
 let currentGeo = null;
 let currentMode = 'geo'; // 'geo' or 'cop'
+let viewMode = 'shaded_wire'; // 'shaded' | 'shaded_wire' | 'wire'
 
 // ── COP Image Rendering ─────────────────────────────────
 const copCanvas = document.getElementById('cop-canvas');
@@ -107,6 +108,53 @@ function resizeViewer() {
     }
 }
 
+/**
+ * Build a LineSegments wireframe from the original polygon edges,
+ * not from the triangulated Three.js mesh.
+ * Walks each primitive via primPointIndices() and emits edge pairs.
+ */
+function buildTrueWireframe(geo, color = 0x88aaff) {
+    const positions = geo.getPositions(); // flat [x0,y0,z0, x1,y1,z1, ...]
+    const numPrims = geo.numPrims;
+
+    // Collect unique edges as "minIdx-maxIdx" to avoid duplicates
+    const edgeSet = new Set();
+    const edgePairs = [];
+
+    for (let p = 0; p < numPrims; p++) {
+        const pts = geo.primPointIndices(p);
+        const n = pts.length;
+        if (n < 2) continue;
+
+        for (let i = 0; i < n; i++) {
+            const a = pts[i];
+            const b = pts[(i + 1) % n];
+            const lo = Math.min(a, b);
+            const hi = Math.max(a, b);
+            const key = lo * 1000000 + hi; // fast numeric key
+            if (!edgeSet.has(key)) {
+                edgeSet.add(key);
+                edgePairs.push(a, b);
+            }
+        }
+    }
+
+    // Build line geometry from edge pairs
+    const linePositions = new Float32Array(edgePairs.length * 3);
+    for (let i = 0; i < edgePairs.length; i++) {
+        const ptIdx = edgePairs[i];
+        linePositions[i * 3]     = positions[ptIdx * 3];
+        linePositions[i * 3 + 1] = positions[ptIdx * 3 + 1];
+        linePositions[i * 3 + 2] = positions[ptIdx * 3 + 2];
+    }
+
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
+
+    const material = new THREE.LineBasicMaterial({ color });
+    return new THREE.LineSegments(lineGeo, material);
+}
+
 function toBufferGeometry(geo) {
     const bufGeo = new THREE.BufferGeometry();
     bufGeo.setAttribute('position', new THREE.BufferAttribute(geo.getPositions(), 3));
@@ -120,35 +168,49 @@ function toBufferGeometry(geo) {
     return bufGeo;
 }
 
-function updateScene(geo) {
-    currentGeo = geo;
-
-    // Clear old meshes
+function clearMeshGroup() {
     while (meshGroup.children.length) {
         const c = meshGroup.children[0];
         c.geometry?.dispose();
         c.material?.dispose();
         meshGroup.remove(c);
     }
+}
 
-    const bufGeo = toBufferGeometry(geo);
-    const hasColors = !!bufGeo.getAttribute('color');
-
-    const mesh = new THREE.Mesh(bufGeo, new THREE.MeshStandardMaterial({
-        color: hasColors ? 0xffffff : 0x4488cc,
-        vertexColors: hasColors,
-        side: THREE.DoubleSide,
-        roughness: 0.55,
-        metalness: 0.15,
-    }));
-    meshGroup.add(mesh);
-
-    // Edges
-    const edgesGeo = new THREE.EdgesGeometry(bufGeo, 20);
-    meshGroup.add(new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color: 0x223355 })));
-
+function updateScene(geo) {
+    currentGeo = geo;
+    rebuildView();
     setStatus(`${geo.numPoints} pts | ${geo.numPrims} prims`, 'success');
     updateSpreadsheet();
+}
+
+function rebuildView() {
+    const geo = currentGeo;
+    if (!geo) return;
+
+    clearMeshGroup();
+
+    const showShaded = viewMode === 'shaded' || viewMode === 'shaded_wire';
+    const showWire = viewMode === 'wire' || viewMode === 'shaded_wire';
+
+    if (showShaded) {
+        const bufGeo = toBufferGeometry(geo);
+        const hasColors = !!bufGeo.getAttribute('color');
+        const mesh = new THREE.Mesh(bufGeo, new THREE.MeshStandardMaterial({
+            color: hasColors ? 0xffffff : 0x4488cc,
+            vertexColors: hasColors,
+            side: THREE.DoubleSide,
+            roughness: 0.55,
+            metalness: 0.15,
+        }));
+        meshGroup.add(mesh);
+    }
+
+    if (showWire) {
+        // Use true polygon wireframe, not triangulated
+        const wireColor = viewMode === 'wire' ? 0x88aaff : 0x223355;
+        meshGroup.add(buildTrueWireframe(geo, wireColor));
+    }
 }
 
 function fitCameraToScene() {
@@ -570,6 +632,18 @@ document.getElementById('export-glb').addEventListener('click', () => {
     const blob = new Blob([currentGeo.toGlb()], { type: 'model/gltf-binary' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = 'procgeo.glb'; a.click();
+});
+
+// ── View Mode Toggle ─────────────────────────────────────
+document.getElementById('view-modes').addEventListener('click', (e) => {
+    const btn = e.target.closest('.view-mode-btn');
+    if (!btn) return;
+    const mode = btn.dataset.mode;
+    if (mode === viewMode) return;
+    viewMode = mode;
+    document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    rebuildView();
 });
 
 // ── Geometry Spreadsheet ─────────────────────────────────
