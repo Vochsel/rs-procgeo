@@ -957,6 +957,35 @@ geo = pg.computeNormals(geo);
 return geo;
 `,
 
+    quadWild: `// QuadWild — field-aligned quad remeshing
+// Converts a triangle mesh into a quad-dominant mesh
+let geo = pg.createSphere({ radius: 1.0, rows: 8, cols: 16 });
+geo = pg.subdivide(geo, { depth: 1, mode: 'linear' });
+geo = pg.quadWild(geo, {
+  sharpAngle: 35,
+  scaleFactor: 1.5,
+  curvatureWeight: 0.3,
+  smoothIterations: 15,
+  postSmoothIterations: 20,
+});
+geo = pg.computeNormals(geo);
+geo = pg.color(geo, { color: [0.3, 0.7, 0.9] });
+return geo;
+`,
+
+    quadWildBox: `// QuadWild on a subdivided box
+// Sharp features at 90° edges are preserved
+let geo = pg.createBox({ size: [1.5, 1.5, 1.5] });
+geo = pg.subdivide(geo, { depth: 2, mode: 'linear' });
+geo = pg.quadWild(geo, {
+  sharpAngle: 45,
+  scaleFactor: 1.0,
+});
+geo = pg.computeNormals(geo);
+geo = pg.color(geo, { color: [0.9, 0.6, 0.3] });
+return geo;
+`,
+
     booleanIntersect: `// Boolean intersect — only the overlapping region
 let box = pg.createBox({ size: [1.5, 1.5, 1.5] });
 let sphere = pg.createSphere({ radius: 1.0, rows: 16, cols: 32 });
