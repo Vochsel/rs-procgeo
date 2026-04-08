@@ -1,0 +1,21 @@
+{
+  "name": "procgeo-wasm",
+  "type": "module",
+  "description": "Procedural geometry library inspired by Houdini SOPs — WASM bindings",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vochsel/rs-procgeo"
+  },
+  "files": [
+    "procgeo_wasm_bg.wasm",
+    "procgeo_wasm.js",
+    "procgeo_wasm.d.ts"
+  ],
+  "main": "procgeo_wasm.js",
+  "types": "procgeo_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
