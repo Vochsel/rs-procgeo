@@ -268,6 +268,12 @@ pub fn default_registry() -> SopRegistry {
         r.add(crate::boolean::BooleanSop);
     }
 
+    // QuadWild
+    #[cfg(feature = "quadwild")]
+    {
+        r.add(crate::quadwild::QuadWildSop);
+    }
+
     r
 }
 
