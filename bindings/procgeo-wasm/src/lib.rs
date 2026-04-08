@@ -1026,6 +1026,23 @@ pub fn quad_remesh(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, 
     Ok(Geometry { inner })
 }
 
+#[wasm_bindgen(js_name = "quadWild")]
+pub fn quad_wild(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::quadwild::QuadWildParams {
+        sharp_angle: get_f32(&p, "sharpAngle", 35.0),
+        curvature_weight: get_f32(&p, "curvatureWeight", 0.3),
+        smooth_iterations: get_u32(&p, "smoothIterations", 20),
+        scale_factor: get_f32(&p, "scaleFactor", 1.0),
+        alpha: get_f32(&p, "alpha", 0.02),
+        post_smooth_iterations: get_u32(&p, "postSmoothIterations", 30),
+    };
+    let inner = procgeo_sops::quadwild::QuadWildSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---------------------------------------------------------------------------
 // Topology SOPs (additional)
 // ---------------------------------------------------------------------------
