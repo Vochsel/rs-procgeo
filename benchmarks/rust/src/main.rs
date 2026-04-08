@@ -938,6 +938,86 @@ fn bench_meshopt(results: &mut Vec<BenchResult>) {
 }
 
 // ---------------------------------------------------------------------------
+// Quad Remesh benchmarks
+// ---------------------------------------------------------------------------
+
+fn bench_quad_remesh(results: &mut Vec<BenchResult>) {
+    // Quad remesh is expensive, so use smaller inputs and fewer scales
+    for scale in [500u32, 2_000, 5_000] {
+        let rc = grid_rc(scale);
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                rows: rc,
+                cols: rc,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        // -- Quad remesh (face count target) --
+        let target_faces = (scale / 10).max(20);
+        let (mean, std, iters) = bench(|| {
+            let _ = grid.clone().apply(
+                &QuadRemeshSop,
+                &QuadRemeshParams {
+                    target_mode: QuadRemeshTarget::FaceCount,
+                    target_count: target_faces,
+                    seed: Some(42),
+                    ..Default::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "reshape",
+            operation: "quad_remesh",
+            scale,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+
+    // -- Sphere quad remesh --
+    {
+        let (rows, cols) = sphere_rc(2_000);
+        let sphere = generate(
+            &SphereSop,
+            &SphereParams {
+                rows,
+                cols,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let (mean, std, iters) = bench(|| {
+            let _ = sphere.clone().apply(
+                &QuadRemeshSop,
+                &QuadRemeshParams {
+                    target_mode: QuadRemeshTarget::FaceCount,
+                    target_count: 200,
+                    seed: Some(42),
+                    ..Default::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "reshape",
+            operation: "quad_remesh_sphere",
+            scale: 2_000,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -952,6 +1032,9 @@ fn main() {
 
     eprintln!("Running boolean benchmarks...");
     bench_boolean(&mut results);
+
+    eprintln!("Running quad remesh benchmarks...");
+    bench_quad_remesh(&mut results);
 
     eprintln!("Running parry3d benchmarks...");
     bench_parry3d(&mut results);

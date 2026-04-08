@@ -715,6 +715,31 @@ pub fn poly_fill(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Ge
 }
 
 #[napi]
+pub fn quad_remesh(geo: &Geometry, params: Option<serde_json::Value>) -> Result<Geometry> {
+    let p = params.unwrap_or(serde_json::json!({}));
+    let target_mode = match p.get("target_mode").and_then(|v| v.as_str()).unwrap_or("face_count") {
+        "vertex_count" => procgeo_sops::reshape::QuadRemeshTarget::VertexCount,
+        "edge_length" => procgeo_sops::reshape::QuadRemeshTarget::EdgeLength,
+        _ => procgeo_sops::reshape::QuadRemeshTarget::FaceCount,
+    };
+    let mode = match p.get("mode").and_then(|v| v.as_str()).unwrap_or("intrinsic") {
+        "extrinsic" => procgeo_sops::reshape::QuadRemeshMode::Extrinsic,
+        _ => procgeo_sops::reshape::QuadRemeshMode::Intrinsic,
+    };
+    let params = procgeo_sops::reshape::QuadRemeshParams {
+        target_mode,
+        target_count: get_u32(&p, "target_count", 1000),
+        target_edge_length: p.get("target_edge_length").and_then(|v| v.as_f64()).unwrap_or(0.1),
+        seed: p.get("seed").and_then(|v| v.as_u64()),
+        mode,
+    };
+    let inner = procgeo_sops::reshape::QuadRemeshSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[napi]
 pub fn reverse(geo: &Geometry) -> Result<Geometry> {
     let inner = procgeo_sops::topology::ReverseSop
         .execute(
