@@ -996,6 +996,36 @@ pub fn poly_fill(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, Js
     Ok(Geometry { inner })
 }
 
+#[wasm_bindgen(js_name = "quadRemesh")]
+pub fn quad_remesh(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let target_mode = match get_str(&p, "targetMode", "faceCount").as_str() {
+        "vertexCount" => procgeo_sops::reshape::QuadRemeshTarget::VertexCount,
+        "edgeLength" => procgeo_sops::reshape::QuadRemeshTarget::EdgeLength,
+        _ => procgeo_sops::reshape::QuadRemeshTarget::FaceCount,
+    };
+    let mode = match get_str(&p, "mode", "intrinsic").as_str() {
+        "extrinsic" => procgeo_sops::reshape::QuadRemeshMode::Extrinsic,
+        _ => procgeo_sops::reshape::QuadRemeshMode::Intrinsic,
+    };
+    let seed_val = js_sys::Reflect::get(&p, &"seed".into())
+        .ok()
+        .and_then(|v| v.as_f64())
+        .map(|v| v as u64);
+    let params = procgeo_sops::reshape::QuadRemeshParams {
+        target_mode,
+        target_count: get_u32(&p, "targetCount", 1000),
+        target_edge_length: js_sys::Reflect::get(&p, &"targetEdgeLength".into())
+            .ok()
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.1),
+        seed: seed_val,
+        mode,
+    };
+    let inner = procgeo_sops::reshape::QuadRemeshSop.execute(&[&geo.inner], &params).map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---------------------------------------------------------------------------
 // Topology SOPs (additional)
 // ---------------------------------------------------------------------------
