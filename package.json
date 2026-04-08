@@ -4,12 +4,13 @@
   "scripts": {
     "build": "scripts/build.sh",
     "build:rust": "cargo build --release && cargo test --workspace",
-    "build:node": "cd bindings/procgeo-node && pnpm install && pnpm run build",
     "build:wasm": "scripts/build-wasm.sh",
     "build:python": "cd bindings/procgeo-py && maturin develop --release",
+    "build:editor-types": "node scripts/validate-web-editor-types.mjs",
     "test": "cargo test --workspace",
-    "check": "cargo check --workspace && cargo check -p procgeo-node && cargo check -p procgeo-py",
-    "clean": "cargo clean && rm -rf bindings/procgeo-node/procgeo.*.node bindings/procgeo-wasm/pkg web/wasm/*.wasm web/wasm/*.js web/wasm/*.d.ts",
+    "check": "cargo check --workspace && cargo check -p procgeo-py && node scripts/validate-web-editor-types.mjs",
+    "clean": "cargo clean && rm -rf bindings/procgeo-wasm/pkg web/wasm/*.wasm web/wasm/*.js web/wasm/*.d.ts",
+    "setup:web": "cd web && ./setup.sh",
     "dev:web": "cd web && pnpm dev",
     "bench": "scripts/bench.sh"
   }

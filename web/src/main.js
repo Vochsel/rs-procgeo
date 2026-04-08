@@ -2,6 +2,7 @@ import * as monaco from 'monaco-editor';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { examples } from './examples.js';
+import procgeoTypes from './procgeo-editor-types.d.ts?raw';
 
 // ── WASM Loading ─────────────────────────────────────────
 // We load procgeo from the pre-built pkg/ directory
@@ -295,187 +296,6 @@ self.MonacoEnvironment = {
     }
 };
 
-// ProcGeo type definitions for autocomplete
-// Using `declare const pg` so Monaco knows pg is a variable with these methods
-const procgeoTypes = `
-interface ProcGeoGeometry {
-    /** Number of points in the geometry. */
-    readonly numPoints: number;
-    /** Number of primitives (faces) in the geometry. */
-    readonly numPrims: number;
-    /** Number of vertices in the geometry. */
-    readonly numVertices: number;
-    /** Get all positions as a flat Float32Array [x0,y0,z0, x1,y1,z1, ...]. */
-    getPositions(): Float32Array;
-    /** Get triangle indices as a flat Uint32Array. */
-    getTriangleIndices(): Uint32Array;
-    /** Get normals as a flat Float32Array (if "N" attribute exists). */
-    getNormals(): Float32Array | undefined;
-    /** Get vertex colors as a flat Float32Array (if "Cd" attribute exists). */
-    getColors(): Float32Array | undefined;
-    /** Get position of a point by index. */
-    pointPos(index: number): Float32Array;
-    /** Get the axis-aligned bounding box. */
-    boundingBox(): { min: Float32Array, max: Float32Array };
-    /** Export geometry as OBJ string. */
-    toObj(): string;
-    /** Export geometry as GLB binary (Uint8Array). */
-    toGlb(): Uint8Array;
-}
-
-declare const pg: {
-    // ── Creation ──
-    /** Create a box. Default: unit cube at origin. */
-    createBox(params?: { size?: [number, number, number]; center?: [number, number, number] }): ProcGeoGeometry;
-    /** Create a grid of quads. Default: 10x10, size 10x10 on XZ plane. */
-    createGrid(params?: { rows?: number; cols?: number; sizeX?: number; sizeY?: number; center?: [number, number, number] }): ProcGeoGeometry;
-    /** Create a UV sphere. Default: radius 0.5, 12 rows, 24 cols. */
-    createSphere(params?: { radius?: number; rows?: number; cols?: number; center?: [number, number, number] }): ProcGeoGeometry;
-    /** Create a line (open polyline). Default: unit length along Y. */
-    createLine(params?: { origin?: [number, number, number]; direction?: [number, number, number]; length?: number; points?: number }): ProcGeoGeometry;
-    /** Create a circle (closed polygon). Default: radius 1, 40 divisions. */
-    createCircle(params?: { radius?: number; divisions?: number; center?: [number, number, number] }): ProcGeoGeometry;
-    /** Create a tube/cylinder. Default: radius 0.5, height 1. */
-    createTube(params?: { radiusBottom?: number; radiusTop?: number; height?: number; cols?: number; rows?: number; center?: [number, number, number] }): ProcGeoGeometry;
-    /** Create a torus. Default: outer radius 1, inner radius 0.3. */
-    createTorus(params?: { radiusOuter?: number; radiusInner?: number; rows?: number; cols?: number; center?: [number, number, number] }): ProcGeoGeometry;
-
-    // ── Manipulation ──
-    /** Transform geometry: translate, rotate (degrees), scale with optional pivot. */
-    transform(geo: ProcGeoGeometry, params?: { translate?: [number, number, number]; rotate?: [number, number, number]; scale?: [number, number, number]; pivot?: [number, number, number] }): ProcGeoGeometry;
-    /** Compute vertex normals (area-weighted). */
-    computeNormals(geo: ProcGeoGeometry): ProcGeoGeometry;
-    /** Subdivide geometry. mode: "linear" or "catmullClark". */
-    subdivide(geo: ProcGeoGeometry, params?: { depth?: number; mode?: "linear" | "catmullClark" }): ProcGeoGeometry;
-    /** Scatter random points on mesh surface (area-weighted). */
-    scatter(geo: ProcGeoGeometry, params?: { count?: number; seed?: number }): ProcGeoGeometry;
-    /** Copy source geometry onto each point of target. */
-    copyToPoints(source: ProcGeoGeometry, target: ProcGeoGeometry): ProcGeoGeometry;
-    /** Extrude polygon faces along their normals. */
-    polyExtrude(geo: ProcGeoGeometry, params?: { distance?: number; inset?: number; outputFront?: boolean; outputSide?: boolean }): ProcGeoGeometry;
-    /** Laplacian smoothing. */
-    smooth(geo: ProcGeoGeometry, params?: { iterations?: number; strength?: number }): ProcGeoGeometry;
-    /** Clip geometry by a plane, keeping one side. */
-    clip(geo: ProcGeoGeometry, params?: { origin?: [number, number, number]; normal?: [number, number, number]; keepAbove?: boolean }): ProcGeoGeometry;
-    /** Reverse polygon winding order (flip normals). */
-    reverse(geo: ProcGeoGeometry): ProcGeoGeometry;
-    /** Set vertex color attribute (Cd). */
-    color(geo: ProcGeoGeometry, params?: { color?: [number, number, number] }): ProcGeoGeometry;
-    /** Merge coincident points within a distance tolerance. */
-    fuse(geo: ProcGeoGeometry, params?: { distance?: number }): ProcGeoGeometry;
-    /** Voronoi fracture a mesh into pieces using external seed points. */
-    voronoiFracture(geo: ProcGeoGeometry, points: ProcGeoGeometry, params?: { cutPlaneOffset?: number; createInsideFaces?: boolean }): ProcGeoGeometry;
-
-    // ── Deform ──
-    /** Bend/twist/taper/length-scale deformation within a capture region. */
-    bend(geo: ProcGeoGeometry, params?: {
-        group?: string; maskAttrib?: string;
-        enableDeformation?: boolean; limitToCaptureRegion?: boolean; deformBothDirections?: boolean;
-        bendEnable?: boolean; bendMode?: "angle" | "direction"; bendAngle?: number; bendGoalDirection?: [number, number, number];
-        twistEnable?: boolean; twistAngle?: number; twistContinuousBoth?: boolean;
-        lengthScaleEnable?: boolean; lengthScale?: number; preserveVolume?: boolean;
-        taperEnable?: boolean; taperAlongX?: boolean; taperAlongY?: boolean; taperMode?: "linear" | "smooth";
-        taperValue?: number; squish?: number; squishPivot?: number;
-        upVector?: [number, number, number]; upVectorAngle?: number;
-        captureOrigin?: [number, number, number]; captureDirection?: [number, number, number]; captureLength?: number;
-    }): ProcGeoGeometry;
-    /** Deform geometry using a point lattice (rest → deformed comparison). */
-    pointDeform(geo: ProcGeoGeometry, restLattice: ProcGeoGeometry, deformedLattice: ProcGeoGeometry, params?: {
-        radius?: number; minPoints?: number; maxPoints?: number;
-        rigidProjection?: boolean; mask?: number;
-    }): ProcGeoGeometry;
-    /** Boolean/CSG operations between two polygonal meshes. */
-    booleanOp(a: ProcGeoGeometry, b: ProcGeoGeometry, params?: {
-        operation?: "union" | "intersect" | "subtract" | "shatter" | "seam" | "detect";
-        treatAAs?: "solid" | "surface"; treatBAs?: "solid" | "surface";
-        collapseTinyEdges?: boolean;
-    }): ProcGeoGeometry;
-
-    // ── Merge ──
-    /** Merge two geometries into one. Chain calls to merge more: merge(merge(a, b), c). */
-    merge(a: ProcGeoGeometry, b: ProcGeoGeometry): ProcGeoGeometry;
-
-    // ── Group SOPs ──
-    /** Create a named group on points or primitives by range, bounding box, or normal direction. */
-    groupCreate(geo: ProcGeoGeometry, params?: { name?: string; groupType?: "points" | "primitives"; mode?: "range" | "boundingBox" | "normal"; rangeStart?: number; rangeEnd?: number; bboxMin?: [number, number, number]; bboxMax?: [number, number, number]; normalDirection?: [number, number, number]; normalAngle?: number }): ProcGeoGeometry;
-    /** Boolean-combine two named groups: union, intersect, or subtract. */
-    groupCombine(geo: ProcGeoGeometry, params?: { nameA?: string; nameB?: string; result?: string; operation?: "union" | "intersect" | "subtract"; groupType?: "points" | "primitives" }): ProcGeoGeometry;
-
-    // ── Delete SOPs ──
-    /** Delete elements belonging to a named group (or keep them with negate). */
-    blast(geo: ProcGeoGeometry, params?: { groupName?: string; entity?: "points" | "primitives"; negate?: boolean }): ProcGeoGeometry;
-    /** Delete elements by index range. */
-    deleteSop(geo: ProcGeoGeometry, params?: { entity?: "points" | "primitives"; rangeStart?: number; rangeEnd?: number }): ProcGeoGeometry;
-
-    // ── Creation (additional) ──
-    /** Create implicit metaball surface via marching cubes. */
-    createMetaball(params?: { balls?: Array<{ center?: [number, number, number]; radius?: number; weight?: number }>; kernel?: "wyvill" | "blinn" | "hart"; threshold?: number; resolution?: number; padding?: number }): ProcGeoGeometry;
-
-    // ── Attribute SOPs ──
-    /** Apply procedural noise to an attribute. Default operation is "add" (stacks noise layers). */
-    attribNoise(geo: ProcGeoGeometry, params?: { attribName?: string; noiseType?: "perlin" | "simplex" | "worley" | "worleyF2F1"; operation?: "setInitial" | "set" | "add" | "subtract" | "multiply" | "min" | "max"; elementSize?: number; amplitude?: number; seed?: number; dimensions?: number; fractal?: "none" | "standard" | "terrain"; octaves?: number; lacunarity?: number; roughness?: number; range?: "positive" | "zeroCentered" | "minMax"; minValue?: number; maxValue?: number; offset?: [number, number, number]; gain?: number; bias?: number }): ProcGeoGeometry;
-
-    // ── SOP Registry (generic dispatch) ──
-    /** Execute any registered SOP by name with a single input geometry. Params use snake_case field names. */
-    executeSop(name: string, geo: ProcGeoGeometry, params?: Record<string, any>): ProcGeoGeometry;
-    /** Execute a creation SOP by name (no input geometry). Params use snake_case field names. */
-    executeSopCreate(name: string, params?: Record<string, any>): ProcGeoGeometry;
-    /** List all registered SOP names. */
-    listSops(): string[];
-
-    // ── COP (Image Compositing) ──
-    // Registry-based (dynamic dispatch by name)
-    executeCopCreate(name: string, params?: Record<string, any>): CopImage;
-    executeCop(name: string, image: CopImage, params?: Record<string, any>): CopImage;
-    executeCopComposite(name: string, imageA: CopImage, imageB: CopImage, params?: Record<string, any>): CopImage;
-    listCops(): string[];
-
-    // Typed COP functions — generators
-    /** Generate a solid color image. */
-    copConstant(params?: { color?: number[]; width?: number; height?: number }): CopImage;
-    /** Generate a checkerboard pattern. */
-    copCheckerboard(params?: { colorA?: number[]; colorB?: number[]; frequency?: number[]; width?: number; height?: number }): CopImage;
-    /** Generate procedural noise (perlin, simplex, worley). */
-    copNoise(params?: { noiseType?: string; frequency?: number; octaves?: number; lacunarity?: number; gain?: number; amplitude?: number; offset?: number[]; seed?: number; width?: number; height?: number }): CopImage;
-    /** Generate a gradient ramp. */
-    copRamp(params?: { rampType?: string; stops?: Array<{ position: number; color: number[] }>; width?: number; height?: number }): CopImage;
-    /** Load an image from a path. */
-    copLoadImage(params?: { path?: string }): CopImage;
-
-    // Typed COP functions — filters
-    /** Apply Gaussian or box blur. */
-    copBlur(image: CopImage, params?: { blurType?: string; radiusX?: number; radiusY?: number }): CopImage;
-    /** Flip an image horizontally/vertically. */
-    copFlip(image: CopImage, params?: { horizontal?: boolean; vertical?: boolean }): CopImage;
-    /** Mirror across an axis. */
-    copMirror(image: CopImage, params?: { axis?: string; offset?: number }): CopImage;
-    /** Reorder RGBA channels. */
-    copChannelSwap(image: CopImage, params?: { r?: string; g?: string; b?: string; a?: string }): CopImage;
-    /** Resize an image. */
-    copResize(image: CopImage, params?: { width?: number; height?: number; filter?: string }): CopImage;
-    /** Rotate an image. */
-    copRotate(image: CopImage, params?: { angle?: number; center?: number[]; filter?: string }): CopImage;
-    /** Apply a swirl distortion. */
-    copSwirl(image: CopImage, params?: { center?: number[]; angle?: number; radius?: number }): CopImage;
-
-    // Typed COP functions — composite & custom
-    /** Blend two images with various operations. */
-    copComposite(a: CopImage, b: CopImage, params?: { operation?: string; mix?: number }): CopImage;
-    /** Run a custom WGSL or GLSL shader. */
-    copCustomShader(inputA?: CopImage | null, inputB?: CopImage | null, params?: { source?: string; language?: string; width?: number; height?: number }): CopImage;
-};
-
-/** GPU-backed RGBA32Float image returned by COP operations. */
-interface CopImage {
-    /** Image width in pixels. */
-    readonly width: number;
-    /** Image height in pixels. */
-    readonly height: number;
-    /** Read pixel data back from GPU as Float32Array (RGBA per pixel). */
-    getPixels(): Float32Array;
-}
-`;
-
 // Create a TypeScript model so the TS worker can transpile it
 const editorModel = monaco.editor.createModel(
     examples.basic,
@@ -511,7 +331,7 @@ monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
     module: monaco.languages.typescript.ModuleKind.None,
 });
 
-monaco.languages.typescript.typescriptDefaults.addExtraLib(procgeoTypes, 'procgeo.d.ts');
+monaco.languages.typescript.typescriptDefaults.addExtraLib(procgeoTypes, 'file:///procgeo.d.ts');
 
 // ── Debounced auto-compile ───────────────────────────────
 let debounceTimer = null;

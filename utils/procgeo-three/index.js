@@ -1,7 +1,7 @@
 /**
  * @procgeo/three — Three.js bridge for ProcGeo geometry.
  *
- * Converts ProcGeo Geometry objects (from WASM or napi-rs bindings)
+ * Converts ProcGeo Geometry objects from the WASM/JavaScript binding
  * into Three.js BufferGeometry / Mesh objects.
  *
  * Works with any object that implements the ProcGeo Geometry interface:

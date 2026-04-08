@@ -202,19 +202,17 @@ def generate_markdown(results: list[dict], system_info: dict) -> str:
             node_time = None
             py_time = None
             for (fw, lang), scale_data in fw_data.items():
-                if fw != "procgeo":
-                    continue
                 target_scale = 100_000 if 100_000 in scale_data else (10_000 if 10_000 in scale_data else None)
                 if target_scale is None:
                     continue
                 t = scale_data[target_scale].get("mean_ms")
                 if t is None or t != t:
                     continue
-                if lang == "rust":
+                if fw == "procgeo" and lang == "rust":
                     rust_time = t
-                elif lang == "typescript":
+                elif fw == "procgeo" and lang == "typescript":
                     node_time = t
-                elif lang == "python":
+                elif fw == "procgeo" and lang == "python":
                     py_time = t
 
             if rust_time is not None:
@@ -459,17 +457,15 @@ def generate_html(results: list[dict], system_info: dict) -> str:
         for op, fw_data in sorted(tables[cat_key].items()):
             rust_time = node_time = py_time = None
             for (fw, lang), scale_data in fw_data.items():
-                if fw != "procgeo":
-                    continue
                 for s in [100_000, 10_000]:
                     if s in scale_data:
                         t = scale_data[s].get("mean_ms")
                         if t is not None and t == t:
-                            if lang == "rust":
+                            if fw == "procgeo" and lang == "rust":
                                 rust_time = t
-                            elif lang == "typescript":
+                            elif fw == "procgeo" and lang == "typescript":
                                 node_time = t
-                            elif lang == "python":
+                            elif fw == "procgeo" and lang == "python":
                                 py_time = t
                         break
 

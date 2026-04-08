@@ -41,24 +41,33 @@
   <div class="breadcrumb"><a href="index.html">Docs</a> &rsaquo; Bindings</div>
 
   <h1>Node.js API</h1>
-  <p class="subtitle">Server-side usage via napi-rs bindings.</p>
+  <p class="subtitle">Server-side usage through the WebAssembly package.</p>
 
-  <!-- ── Installation ─────────────────────────── -->
   <h2>Installation</h2>
-  <pre><code>npm install @procgeo/core</code></pre>
+  <pre><code>npm install @vochsel/procgeo-js</code></pre>
   <p>
-    The package ships pre-built native binaries for Linux (x64, arm64), macOS (x64, arm64),
-    and Windows (x64). No Rust toolchain required at install time.
+    ProcGeo uses the same WebAssembly package in both browsers and Node.js. There are no
+    platform-specific native addon binaries to install.
   </p>
-  <pre><code><span class="kw">const</span> pg = <span class="fn">require</span>(<span class="st">'@procgeo/core'</span>);
-<span class="cm">// or</span>
-<span class="kw">import</span> * <span class="kw">as</span> pg <span class="kw">from</span> <span class="st">'@procgeo/core'</span>;</code></pre>
 
-  <!-- ── Geometry Object ──────────────────────── -->
+  <h2>Initialization</h2>
+  <p>
+    The Node.js package is ESM and must be initialized once before use.
+  </p>
+  <pre><code><span class="kw">import</span> <span class="fn">init</span>, * <span class="kw">as</span> pg <span class="kw">from</span> <span class="st">'@vochsel/procgeo-js'</span>;
+
+<span class="kw">await</span> <span class="fn">init</span>();</code></pre>
+
+  <div class="info-box">
+    Typed SOP helpers use <strong>camelCase</strong> parameter keys in JavaScript.
+    Registry calls such as <code>executeSop</code> accept <strong>snake_case</strong> keys
+    because they map directly to the Rust registry serializer.
+  </div>
+
   <h2>Geometry Object</h2>
   <p>
     All creation and manipulation functions return a <code>Geometry</code> object with
-    the following properties and methods:
+    the same API as the browser/WebAssembly binding.
   </p>
 
   <table>
@@ -83,251 +92,73 @@
       </tr>
       <tr>
         <td><code>pointPos(index)</code></td>
-        <td><code>number[]</code></td>
-        <td>Position of a point as <code>[x, y, z]</code>.</td>
+        <td><code>Float32Array</code></td>
+        <td>Point position as <code>[x, y, z]</code>.</td>
       </tr>
       <tr>
         <td><code>boundingBox()</code></td>
-        <td><code>{ min: number[], max: number[] }</code></td>
+        <td><code>{ min: Float32Array, max: Float32Array }</code></td>
         <td>Axis-aligned bounding box.</td>
       </tr>
-    </tbody>
-  </table>
-
-  <!-- ── Creation Functions ───────────────────── -->
-  <h2>Creation Functions</h2>
-  <p>
-    All creation functions accept an optional params object. Param keys use <code>snake_case</code>
-    to match the Rust convention. Omitted fields use Houdini-style defaults.
-  </p>
-
-  <table>
-    <thead>
-      <tr><th>Function</th><th>Params</th><th>Description</th></tr>
-    </thead>
-    <tbody>
       <tr>
-        <td><code>createBox(params?)</code></td>
-        <td><code>size: [x,y,z]</code>, <code>center: [x,y,z]</code></td>
-        <td>Axis-aligned box. Default size <code>[1,1,1]</code>.</td>
+        <td><code>getPositions()</code></td>
+        <td><code>Float32Array</code></td>
+        <td>Interleaved point positions for GPU upload.</td>
       </tr>
       <tr>
-        <td><code>createGrid(params?)</code></td>
-        <td><code>rows</code>, <code>cols</code>, <code>size_x</code>, <code>size_y</code>, <code>center: [x,y,z]</code></td>
-        <td>Quad grid. Default 10x10, size 10x10.</td>
+        <td><code>getTriangleIndices()</code></td>
+        <td><code>Uint32Array</code></td>
+        <td>Fan-triangulated primitive indices.</td>
       </tr>
       <tr>
-        <td><code>createSphere(params?)</code></td>
-        <td><code>radius</code>, <code>rows</code>, <code>cols</code>, <code>center: [x,y,z]</code></td>
-        <td>UV sphere. Default radius 0.5, 12 rows, 24 cols.</td>
+        <td><code>toObj()</code></td>
+        <td><code>string</code></td>
+        <td>Export geometry as Wavefront OBJ text.</td>
       </tr>
       <tr>
-        <td><code>createLine(params?)</code></td>
-        <td><code>origin: [x,y,z]</code>, <code>direction: [x,y,z]</code>, <code>length</code>, <code>points</code></td>
-        <td>Open polyline. Default length 1, 2 points.</td>
-      </tr>
-      <tr>
-        <td><code>createCircle(params?)</code></td>
-        <td><code>radius</code>, <code>divisions</code>, <code>center: [x,y,z]</code></td>
-        <td>Circle polygon. Default radius 1, 40 divisions.</td>
-      </tr>
-      <tr>
-        <td><code>createTube(params?)</code></td>
-        <td><code>radius_bottom</code>, <code>radius_top</code>, <code>height</code>, <code>cols</code>, <code>rows</code>, <code>center: [x,y,z]</code></td>
-        <td>Cylinder/cone. Default radii 0.5, height 1.</td>
-      </tr>
-      <tr>
-        <td><code>createTorus(params?)</code></td>
-        <td><code>radius_outer</code>, <code>radius_inner</code>, <code>rows</code>, <code>cols</code>, <code>center: [x,y,z]</code></td>
-        <td>Torus. Default outer 1.0, inner 0.3.</td>
-      </tr>
-      <tr>
-        <td><code>revolve(geo, params?)</code></td>
-        <td><code>origin: [x,y,z]</code>, <code>axis: [x,y,z]</code>, <code>divisions</code>, <code>start_angle</code>, <code>end_angle</code>, <code>end_caps</code></td>
-        <td>Revolve a profile curve around an axis.</td>
-      </tr>
-      <tr>
-        <td><code>createMetaball(params?)</code></td>
-        <td><code>balls: [{center, radius, weight}]</code>, <code>threshold</code>, <code>kernel</code>, <code>resolution</code></td>
-        <td>Metaball isosurface.</td>
+        <td><code>toGlb()</code></td>
+        <td><code>Uint8Array</code></td>
+        <td>Export geometry as binary glTF.</td>
       </tr>
     </tbody>
   </table>
 
-  <!-- ── Manipulation Functions ───────────────── -->
-  <h2>Manipulation Functions</h2>
+  <h2>Common Pattern</h2>
   <p>
-    All manipulation functions take a <code>Geometry</code> as the first argument and return
-    a new <code>Geometry</code>. Input geometry is never mutated.
+    Build geometry synchronously in Rust-backed WASM, then write the exported bytes or text
+    with Node's filesystem APIs:
   </p>
+  <pre><code><span class="kw">import</span> { <span class="fn">writeFile</span> } <span class="kw">from</span> <span class="st">'node:fs/promises'</span>;
+<span class="kw">import</span> <span class="fn">init</span>, * <span class="kw">as</span> pg <span class="kw">from</span> <span class="st">'@vochsel/procgeo-js'</span>;
 
-  <table>
-    <thead>
-      <tr><th>Function</th><th>Params</th><th>Description</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>transform(geo, params?)</code></td>
-        <td><code>translate: [x,y,z]</code>, <code>rotate: [x,y,z]</code>, <code>scale: [x,y,z]</code>, <code>pivot: [x,y,z]</code></td>
-        <td>Translate, rotate, and scale.</td>
-      </tr>
-      <tr>
-        <td><code>computeNormals(geo)</code></td>
-        <td>&mdash;</td>
-        <td>Area-weighted vertex normals.</td>
-      </tr>
-      <tr>
-        <td><code>merge(geometries)</code></td>
-        <td>Array of <code>Geometry</code></td>
-        <td>Merge multiple geometries into one.</td>
-      </tr>
-      <tr>
-        <td><code>subdivide(geo, params?)</code></td>
-        <td><code>depth</code></td>
-        <td>Subdivide faces. Default depth 1.</td>
-      </tr>
-      <tr>
-        <td><code>scatter(geo, params?)</code></td>
-        <td><code>count</code>, <code>seed</code></td>
-        <td>Random points on surface. Default 100 points.</td>
-      </tr>
-      <tr>
-        <td><code>copyToPoints(source, target)</code></td>
-        <td>&mdash;</td>
-        <td>Instance source at each target point.</td>
-      </tr>
-      <tr>
-        <td><code>polyExtrude(geo, params?)</code></td>
-        <td><code>distance</code>, <code>inset</code>, <code>output_front</code>, <code>output_side</code></td>
-        <td>Extrude faces. Default distance 1.</td>
-      </tr>
-      <tr>
-        <td><code>smooth(geo, params?)</code></td>
-        <td><code>iterations</code>, <code>strength</code></td>
-        <td>Laplacian smooth. Default 1 iter, 0.5 strength.</td>
-      </tr>
-      <tr>
-        <td><code>clip(geo, params?)</code></td>
-        <td><code>origin: [x,y,z]</code>, <code>normal: [x,y,z]</code>, <code>keep_above</code></td>
-        <td>Clip by plane. Default clips above Y=0.</td>
-      </tr>
-      <tr>
-        <td><code>reverse(geo)</code></td>
-        <td>&mdash;</td>
-        <td>Flip polygon winding order.</td>
-      </tr>
-      <tr>
-        <td><code>resample(geo, params?)</code></td>
-        <td><code>length</code>, <code>max_segments</code></td>
-        <td>Resample curves. Default length 0.1.</td>
-      </tr>
-      <tr>
-        <td><code>sort(geo, params?)</code></td>
-        <td><code>seed</code></td>
-        <td>Randomize point/prim order.</td>
-      </tr>
-      <tr>
-        <td><code>fuse(geo, params?)</code></td>
-        <td><code>distance</code></td>
-        <td>Merge coincident points. Default 0.001.</td>
-      </tr>
-      <tr>
-        <td><code>connectivity(geo, params?)</code></td>
-        <td><code>attrib_name</code></td>
-        <td>Label connected components. Default attrib <code>"class"</code>.</td>
-      </tr>
-      <tr>
-        <td><code>color(geo, params?)</code></td>
-        <td><code>color: [r,g,b]</code></td>
-        <td>Set uniform colour. Default white.</td>
-      </tr>
-      <tr>
-        <td><code>enumerateAttrib(geo, params?)</code></td>
-        <td><code>name</code>, <code>start</code></td>
-        <td>Add sequential index attribute. Default <code>"index"</code> from 0.</td>
-      </tr>
-      <tr>
-        <td><code>measure(geo, params?)</code></td>
-        <td><code>attrib_name</code></td>
-        <td>Compute area per primitive.</td>
-      </tr>
-    </tbody>
-  </table>
+<span class="kw">await</span> <span class="fn">init</span>();
 
-  <!-- ── I/O Functions ────────────────────────── -->
-  <h2>I/O Functions</h2>
+<span class="kw">const</span> base = pg.<span class="fn">createBox</span>({ size: [<span class="nu">2</span>, <span class="nu">2</span>, <span class="nu">2</span>] });
+<span class="kw">const</span> smooth = pg.<span class="fn">smooth</span>(
+  pg.<span class="fn">subdivide</span>(base, { depth: <span class="nu">2</span>, mode: <span class="st">'catmullClark'</span> }),
+  { iterations: <span class="nu">3</span>, strength: <span class="nu">0.5</span> }
+);
+<span class="kw">const</span> geo = pg.<span class="fn">computeNormals</span>(smooth);
+
+console.<span class="fn">log</span>(<span class="st">`Points: ${geo.numPoints}`</span>);
+console.<span class="fn">log</span>(<span class="st">`Prims: ${geo.numPrims}`</span>);
+
+<span class="kw">await</span> <span class="fn">writeFile</span>(<span class="st">'output.obj'</span>, geo.<span class="fn">toObj</span>());
+<span class="kw">await</span> <span class="fn">writeFile</span>(<span class="st">'output.glb'</span>, geo.<span class="fn">toGlb</span>());</code></pre>
+
+  <h2>Registry Dispatch</h2>
   <p>
-    Write geometry to disk in OBJ or GLB format. The format is determined by the function
-    you call, not the file extension.
+    New SOPs and COPs are available automatically through the registry helpers.
   </p>
-
-  <table>
-    <thead>
-      <tr><th>Function</th><th>Description</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>writeObj(geo, path)</code></td>
-        <td>Write geometry as Wavefront OBJ.</td>
-      </tr>
-      <tr>
-        <td><code>writeGlb(geo, path)</code></td>
-        <td>Write geometry as binary glTF (GLB).</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <!-- ── Example ──────────────────────────────── -->
-  <h2>Example</h2>
-  <p>
-    A complete Node.js script that generates procedural geometry, processes it through
-    multiple SOPs, and exports to disk:
-  </p>
-  <pre><code><span class="kw">const</span> pg = <span class="fn">require</span>(<span class="st">'@procgeo/core'</span>);
-
-<span class="cm">// Generate a box and subdivide it</span>
-<span class="kw">const</span> box = pg.<span class="fn">createBox</span>({ size: [<span class="nu">2</span>, <span class="nu">2</span>, <span class="nu">2</span>] });
-<span class="kw">const</span> subdiv = pg.<span class="fn">subdivide</span>(box, { depth: <span class="nu">2</span> });
-
-<span class="cm">// Smooth the subdivided box</span>
-<span class="kw">const</span> smoothed = pg.<span class="fn">smooth</span>(subdiv, {
-  iterations: <span class="nu">3</span>,
-  strength: <span class="nu">0.5</span>
-});
-
-<span class="cm">// Compute normals for shading</span>
-<span class="kw">const</span> withNormals = pg.<span class="fn">computeNormals</span>(smoothed);
-
-<span class="cm">// Scatter points on the surface</span>
-<span class="kw">const</span> scattered = pg.<span class="fn">scatter</span>(withNormals, {
-  count: <span class="nu">200</span>,
-  seed: <span class="nu">42</span>
-});
-
-<span class="cm">// Create a small sphere to instance at each scattered point</span>
-<span class="kw">const</span> stamp = pg.<span class="fn">createSphere</span>({ radius: <span class="nu">0.05</span> });
-<span class="kw">const</span> instances = pg.<span class="fn">copyToPoints</span>(stamp, scattered);
-
-<span class="cm">// Merge the smoothed box and the scattered instances</span>
-<span class="kw">const</span> final = pg.<span class="fn">merge</span>([withNormals, instances]);
-
-<span class="cm">// Query geometry info</span>
-console.<span class="fn">log</span>(<span class="st">`Points: ${final.numPoints}`</span>);
-console.<span class="fn">log</span>(<span class="st">`Prims:  ${final.numPrims}`</span>);
-console.<span class="fn">log</span>(<span class="st">`BBox:   ${JSON.stringify(final.boundingBox())}`</span>);
-
-<span class="cm">// Export to disk</span>
-pg.<span class="fn">writeObj</span>(final, <span class="st">'output.obj'</span>);
-pg.<span class="fn">writeGlb</span>(final, <span class="st">'output.glb'</span>);
-
-console.<span class="fn">log</span>(<span class="st">'Done!'</span>);</code></pre>
+  <pre><code><span class="kw">const</span> names = pg.<span class="fn">listSops</span>();
+<span class="kw">const</span> geo = pg.<span class="fn">executeSopCreate</span>(<span class="st">'box'</span>, { size: [<span class="nu">1</span>, <span class="nu">1</span>, <span class="nu">1</span>] });
+<span class="kw">const</span> moved = pg.<span class="fn">executeSop</span>(<span class="st">'transform'</span>, geo, { translate: [<span class="nu">5</span>, <span class="nu">0</span>, <span class="nu">0</span>] });</code></pre>
 
   <div class="info-box">
-    All SOP functions are synchronous. They execute the full Rust geometry pipeline on the
-    main thread and return the result immediately. For heavy workloads, consider running
-    the pipeline in a <code>Worker</code> thread.
+    ProcGeo's Node.js API now mirrors the WebAssembly/browser binding. If you were previously
+    using native addon helpers such as <code>writeObj(..., path)</code>, replace them with
+    <code>toObj()</code> / <code>toGlb()</code> plus <code>fs.writeFile</code>.
   </div>
-
 </main>
 
 </body>

@@ -2,7 +2,7 @@
 
 Procedural geometry library for Rust, inspired by Houdini's SOP (Surface Operator) architecture.
 
-ProcGeo brings Houdini's proven geometry model — points, vertices, primitives, attributes, and groups — into Rust as a composable, high-performance library with bindings for Node.js, Python, and WebAssembly.
+ProcGeo brings Houdini's proven geometry model — points, vertices, primitives, attributes, and groups — into Rust as a composable, high-performance library with bindings for WebAssembly/JavaScript and Python.
 
 ## Motivation
 
@@ -11,7 +11,7 @@ Houdini's procedural geometry pipeline is one of the most expressive and battle-
 - **Portability.** Use procedural geometry anywhere: game engines, web apps, CLI tools, cloud pipelines — not just inside Houdini.
 - **Composability.** SOPs are pure functions. Chain them, branch them, run them in parallel. No hidden state, no side effects.
 - **Performance.** SoA memory layout, SIMD-accelerated math, and zero-cost abstractions let you process millions of points without leaving Rust's safety guarantees.
-- **Polyglot.** First-class bindings for TypeScript/Node.js (napi-rs), Python (PyO3), and WebAssembly mean the same geometry engine works across your entire stack.
+- **Polyglot.** First-class bindings for TypeScript/JavaScript via WebAssembly and Python mean the same geometry engine works across your entire stack.
 
 ## Quick Start
 
@@ -46,9 +46,8 @@ procgeo (umbrella crate, re-exports + prelude)
  ├── procgeo-sops     SOP implementations, feature-gated by category
  ├── procgeo-io       Format readers/writers (OBJ, glTF)
  ├── bindings/
- │    ├── procgeo-node   TypeScript/Node.js (napi-rs)
  │    ├── procgeo-py     Python (PyO3/maturin)
- │    └── procgeo-wasm   WebAssembly (wasm-bindgen)
+ │    └── procgeo-wasm   WebAssembly for browser + Node.js (wasm-bindgen)
  └── utils/
       └── procgeo-three  Three.js bridge (toMesh, toBufferGeometry, etc.)
 ```
@@ -213,15 +212,20 @@ const geo = pg.executeSopCreate('box', { size: [1, 1, 1] });
 const moved = pg.executeSop('transform', geo, { translate: [5, 0, 0] });
 ```
 
-### Node.js (napi-rs)
+### Node.js (via WebAssembly)
 
-```javascript
-const pg = require('@procgeo/core');
+```js
+import { writeFile } from 'node:fs/promises';
+import init, * as pg from '@vochsel/procgeo-js';
 
+await init();
 const grid = pg.createGrid({ rows: 10, cols: 10 });
 const box = pg.createBox({ size: [0.1, 0.1, 0.1] });
 const instances = pg.copyToPoints(box, grid);
 console.log(`${instances.numPoints} points`);
+
+await writeFile('output.obj', instances.toObj());
+await writeFile('output.glb', instances.toGlb());
 ```
 
 ### Python (PyO3)
@@ -246,6 +250,8 @@ pnpm dev:web      # start Vite dev server
 
 Includes 14 example presets: noise terrain, Catmull-Clark sphere, scatter instances, extruded city, voronoi fracture, and more.
 
+The playground autocomplete is sourced from `web/src/procgeo-editor-types.d.ts`. `pnpm dev:web`, `pnpm build`, `pnpm build:wasm`, and `pnpm build:editor-types` validate that file against the generated WASM surface in `web/wasm/procgeo_wasm.d.ts`, so new exports cannot drift out of the editor typings silently.
+
 ## Build
 
 One command builds everything — Rust, tests, and all bindings:
@@ -256,15 +262,14 @@ pnpm build         # or: ./scripts/build.sh
 
 This runs:
 1. `cargo build --release` + `cargo test --workspace`
-2. Node.js binding (napi-rs)
-3. WASM build + auto-copies to `web/wasm/`
+2. WASM build + auto-copies to `web/wasm/`
+3. Web editor typings validation against the generated WASM `.d.ts`
 4. Python binding (maturin)
 
 Individual targets:
 
 ```bash
 pnpm build:rust      # Rust only (build + test)
-pnpm build:node      # Node.js binding
 pnpm build:wasm      # WASM + copy to web/
 pnpm build:python    # Python binding
 pnpm test            # cargo test --workspace

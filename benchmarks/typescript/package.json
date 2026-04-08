@@ -7,8 +7,7 @@
     "bench": "tsx bench.ts"
   },
   "dependencies": {
-    "three": "^0.170.0",
-    "procgeo-node": "file:../../bindings/procgeo-node"
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "tsx": "^4.0.0",

@@ -19,9 +19,9 @@ echo ""
 # 1. Build bindings
 # ---------------------------------------------------------------------------
 
-echo "=== Building procgeo-node binding ==="
-if [ -d "$REPO_DIR/bindings/procgeo-node" ]; then
-    (cd "$REPO_DIR/bindings/procgeo-node" && npm install --silent 2>/dev/null && npx napi build --platform --release) || echo "WARN: procgeo-node build failed, skipping Node.js procgeo benchmarks"
+echo "=== Building procgeo-wasm binding ==="
+if [ -d "$REPO_DIR/bindings/procgeo-wasm" ]; then
+    (cd "$REPO_DIR" && ./scripts/build-wasm.sh) || echo "WARN: procgeo-wasm build failed, skipping WASM procgeo benchmarks"
 fi
 
 echo ""

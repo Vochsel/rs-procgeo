@@ -19,13 +19,6 @@ cargo build --release --workspace --exclude procgeo-py
 cargo test --workspace --exclude procgeo-py
 ok "Built + tested"
 
-# ── Node.js (napi-rs) ──
-step "Node.js binding"
-cd bindings/procgeo-node
-pnpm install --silent 2>/dev/null || true
-pnpm run build 2>/dev/null && ok "procgeo-node" || warn "Skipped (needs @napi-rs/cli)"
-cd ../..
-
 # ── WASM ──
 step "WASM binding"
 if command -v wasm-pack &>/dev/null; then
@@ -33,6 +26,7 @@ if command -v wasm-pack &>/dev/null; then
   cp bindings/procgeo-wasm/pkg/procgeo_wasm.js web/wasm/
   cp bindings/procgeo-wasm/pkg/procgeo_wasm_bg.wasm web/wasm/
   cp bindings/procgeo-wasm/pkg/procgeo_wasm.d.ts web/wasm/
+  node scripts/validate-web-editor-types.mjs
   ok "procgeo-wasm → web/wasm/"
 else
   warn "wasm-pack not found — install: cargo install wasm-pack"

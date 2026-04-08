@@ -150,10 +150,14 @@
 <span class="kw">const</span> glbBytes  = geo.<span class="fn">toGlb</span>();      <span class="cm">// GLB as Uint8Array</span></code></pre>
 
   <h3>Node.js</h3>
-  <pre><code><span class="kw">const</span> { <span class="fn">writeObj</span>, <span class="fn">writeGlb</span> } = <span class="fn">require</span>(<span class="st">'@procgeo/core'</span>);
+  <pre><code><span class="kw">import</span> { <span class="fn">writeFile</span> } <span class="kw">from</span> <span class="st">'node:fs/promises'</span>;
+<span class="kw">import</span> <span class="fn">init</span>, * <span class="kw">as</span> pg <span class="kw">from</span> <span class="st">'@vochsel/procgeo-js'</span>;
 
-<span class="fn">writeObj</span>(geo, <span class="st">'output.obj'</span>);
-<span class="fn">writeGlb</span>(geo, <span class="st">'output.glb'</span>);</code></pre>
+<span class="kw">await</span> <span class="fn">init</span>();
+<span class="kw">const</span> geo = pg.<span class="fn">createBox</span>();
+
+<span class="kw">await</span> <span class="fn">writeFile</span>(<span class="st">'output.obj'</span>, geo.<span class="fn">toObj</span>());
+<span class="kw">await</span> <span class="fn">writeFile</span>(<span class="st">'output.glb'</span>, geo.<span class="fn">toGlb</span>());</code></pre>
 
   <h3>Python</h3>
   <pre><code><span class="kw">import</span> procgeo

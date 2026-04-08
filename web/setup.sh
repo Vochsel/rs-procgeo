@@ -21,6 +21,7 @@ if [ -d "$WASM_PKG" ]; then
     cp "$WASM_PKG/procgeo_wasm_bg.wasm" wasm/
     cp "$WASM_PKG/procgeo_wasm.d.ts" wasm/
     cp "$WASM_PKG/procgeo_wasm_bg.wasm.d.ts" wasm/ 2>/dev/null || true
+    node ../scripts/validate-web-editor-types.mjs
     echo "WASM files copied to wasm/"
 else
     echo "WASM package not found. Run: cd ../bindings/procgeo-wasm && ./build.sh"

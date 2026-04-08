@@ -517,9 +517,39 @@ export function attribTransfer(dest, source, params) {
  * @param {any | null} [params]
  * @returns {Geometry}
  */
+export function bend(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.bend(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
 export function blast(geo, params) {
     _assertClass(geo, Geometry);
     const ret = wasm.blast(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} a
+ * @param {Geometry} b
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function booleanOp(a, b, params) {
+    _assertClass(a, Geometry);
+    _assertClass(b, Geometry);
+    const ret = wasm.booleanOp(a.__wbg_ptr, b.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -1110,6 +1140,24 @@ export function merge(a, b) {
 
 /**
  * @param {Geometry} geo
+ * @param {Geometry} rest_lattice
+ * @param {Geometry} deformed_lattice
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function pointDeform(geo, rest_lattice, deformed_lattice, params) {
+    _assertClass(geo, Geometry);
+    _assertClass(rest_lattice, Geometry);
+    _assertClass(deformed_lattice, Geometry);
+    const ret = wasm.pointDeform(geo.__wbg_ptr, rest_lattice.__wbg_ptr, deformed_lattice.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
  * @param {any | null} [params]
  * @returns {Geometry}
  */
@@ -1172,6 +1220,34 @@ export function polyReduce(geo, params) {
 export function polyWire(geo, params) {
     _assertClass(geo, Geometry);
     const ret = wasm.polyWire(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function quadRemesh(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.quadRemesh(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function quadWild(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.quadWild(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -1886,12 +1962,12 @@ function __wbg_get_imports() {
             arg0.writeBuffer(arg1, arg2, arg3, arg4, arg5);
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 616, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 615, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__hd28ba1d3b3161cad);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 637, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 636, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h8d52734cc70625dc);
             return ret;
         },

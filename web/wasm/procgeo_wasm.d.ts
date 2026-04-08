@@ -121,7 +121,11 @@ export function attribSort(geo: Geometry, params?: any | null): Geometry;
 
 export function attribTransfer(dest: Geometry, source: Geometry, params?: any | null): Geometry;
 
+export function bend(geo: Geometry, params?: any | null): Geometry;
+
 export function blast(geo: Geometry, params?: any | null): Geometry;
+
+export function booleanOp(a: Geometry, b: Geometry, params?: any | null): Geometry;
 
 export function clip(geo: Geometry, params?: any | null): Geometry;
 
@@ -225,6 +229,8 @@ export function measure(geo: Geometry, params?: any | null): Geometry;
  */
 export function merge(a: Geometry, b: Geometry): Geometry;
 
+export function pointDeform(geo: Geometry, rest_lattice: Geometry, deformed_lattice: Geometry, params?: any | null): Geometry;
+
 export function polyBevel(geo: Geometry, params?: any | null): Geometry;
 
 export function polyExtrude(geo: Geometry, params?: any | null): Geometry;
@@ -234,6 +240,10 @@ export function polyFill(geo: Geometry, params?: any | null): Geometry;
 export function polyReduce(geo: Geometry, params?: any | null): Geometry;
 
 export function polyWire(geo: Geometry, params?: any | null): Geometry;
+
+export function quadRemesh(geo: Geometry, params?: any | null): Geometry;
+
+export function quadWild(geo: Geometry, params?: any | null): Geometry;
 
 export function resample(geo: Geometry, params?: any | null): Geometry;
 
@@ -270,7 +280,9 @@ export interface InitOutput {
     readonly attribRename: (a: number, b: number) => [number, number, number];
     readonly attribSort: (a: number, b: number) => [number, number, number];
     readonly attribTransfer: (a: number, b: number, c: number) => [number, number, number];
+    readonly bend: (a: number, b: number) => [number, number, number];
     readonly blast: (a: number, b: number) => [number, number, number];
+    readonly booleanOp: (a: number, b: number, c: number) => [number, number, number];
     readonly clip: (a: number, b: number) => [number, number, number];
     readonly color: (a: number, b: number) => [number, number, number];
     readonly computeNormals: (a: number) => [number, number, number];
@@ -340,11 +352,14 @@ export interface InitOutput {
     readonly listSops: () => [number, number];
     readonly measure: (a: number, b: number) => [number, number, number];
     readonly merge: (a: number, b: number) => [number, number, number];
+    readonly pointDeform: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly polyBevel: (a: number, b: number) => [number, number, number];
     readonly polyExtrude: (a: number, b: number) => [number, number, number];
     readonly polyFill: (a: number, b: number) => [number, number, number];
     readonly polyReduce: (a: number, b: number) => [number, number, number];
     readonly polyWire: (a: number, b: number) => [number, number, number];
+    readonly quadRemesh: (a: number, b: number) => [number, number, number];
+    readonly quadWild: (a: number, b: number) => [number, number, number];
     readonly resample: (a: number, b: number) => [number, number, number];
     readonly reverse: (a: number) => [number, number, number];
     readonly revolve: (a: number, b: number) => [number, number, number];
