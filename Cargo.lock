@@ -587,6 +587,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f70749695b063ecbf6b62949ccccde2e733ec3ecbbd71d467dca4e5c6c97cca0"
+
+[[package]]
 name = "glow"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1330,7 +1336,7 @@ name = "procgeo"
 version = "0.1.0"
 dependencies = [
  "approx",
- "glam",
+ "glam 0.29.3",
  "procgeo-cops",
  "procgeo-core",
  "procgeo-io",
@@ -1341,12 +1347,13 @@ dependencies = [
 name = "procgeo-bench-compare"
 version = "0.1.0"
 dependencies = [
- "glam",
+ "glam 0.29.3",
  "meshopt",
  "nalgebra",
  "parry3d",
  "procgeo",
  "procgeo-io",
+ "quadrs",
  "serde",
  "serde_json",
 ]
@@ -1358,7 +1365,7 @@ dependencies = [
  "approx",
  "bytemuck",
  "futures-channel",
- "glam",
+ "glam 0.29.3",
  "image",
  "naga",
  "pollster",
@@ -1375,7 +1382,7 @@ dependencies = [
  "approx",
  "bitvec",
  "criterion",
- "glam",
+ "glam 0.29.3",
  "serde",
  "smallvec",
  "thiserror 2.0.18",
@@ -1386,7 +1393,7 @@ name = "procgeo-io"
 version = "0.1.0"
 dependencies = [
  "approx",
- "glam",
+ "glam 0.29.3",
  "procgeo-core",
  "procgeo-sops",
  "serde_json",
@@ -1397,7 +1404,7 @@ dependencies = [
 name = "procgeo-node"
 version = "0.1.0"
 dependencies = [
- "glam",
+ "glam 0.29.3",
  "napi",
  "napi-build",
  "napi-derive",
@@ -1413,7 +1420,7 @@ dependencies = [
 name = "procgeo-py"
 version = "0.1.0"
 dependencies = [
- "glam",
+ "glam 0.29.3",
  "procgeo-cops",
  "procgeo-core",
  "procgeo-io",
@@ -1427,9 +1434,10 @@ name = "procgeo-sops"
 version = "0.1.0"
 dependencies = [
  "approx",
- "glam",
+ "glam 0.29.3",
  "nalgebra",
  "procgeo-core",
+ "quadrs",
  "rand",
  "robust",
  "serde",
@@ -1442,7 +1450,7 @@ name = "procgeo-wasm"
 version = "0.1.0"
 dependencies = [
  "getrandom",
- "glam",
+ "glam 0.29.3",
  "js-sys",
  "procgeo-cops",
  "procgeo-core",
@@ -1518,6 +1526,15 @@ dependencies = [
  "pyo3-build-config",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "quadrs"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3eaaeeb49a5caec7758b73a1869576998ddb835c7c3d5cfde845470b7b9a737c"
+dependencies = [
+ "glam 0.32.1",
 ]
 
 [[package]]

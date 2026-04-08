@@ -68,6 +68,31 @@ html, body, #app {
     font-size: 12px;
 }
 
+/* ── View Mode Toggle ────────────────────────────────── */
+
+#view-modes {
+    display: flex;
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid #555;
+}
+
+.view-mode-btn {
+    padding: 3px 10px !important;
+    background: #3c3c3c !important;
+    color: #999 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    border-right: 1px solid #555 !important;
+    cursor: pointer;
+    font-size: 11px !important;
+    white-space: nowrap;
+}
+
+.view-mode-btn:last-child { border-right: none !important; }
+.view-mode-btn:hover { background: #505050 !important; color: #ccc !important; }
+.view-mode-btn.active { background: #0e639c !important; color: #fff !important; }
+
 #status {
     font-size: 11px;
     color: #888;

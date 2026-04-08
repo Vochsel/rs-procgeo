@@ -8,6 +8,7 @@ pub mod poly_bevel;
 pub mod poly_wire;
 pub mod poly_reduce;
 pub mod poly_fill;
+pub mod quad_remesh;
 
 pub use subdivide::{SubdivideSop, SubdivideParams, SubdivideMode};
 pub use poly_extrude::{PolyExtrudeSop, PolyExtrudeParams};
@@ -17,3 +18,4 @@ pub use poly_bevel::{PolyBevelSop, PolyBevelParams};
 pub use poly_wire::{PolyWireSop, PolyWireParams};
 pub use poly_reduce::{PolyReduceSop, PolyReduceParams};
 pub use poly_fill::{PolyFillSop, PolyFillParams, PolyFillMode};
+pub use quad_remesh::{QuadRemeshSop, QuadRemeshParams, QuadRemeshTarget, QuadRemeshMode};

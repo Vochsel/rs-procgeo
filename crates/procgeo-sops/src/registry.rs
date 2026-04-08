@@ -212,6 +212,7 @@ pub fn default_registry() -> SopRegistry {
         r.add(crate::reshape::PolyWireSop);
         r.add(crate::reshape::PolyReduceSop);
         r.add(crate::reshape::PolyFillSop);
+        r.add(crate::reshape::QuadRemeshSop);
     }
 
     // Scatter

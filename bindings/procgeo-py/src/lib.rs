@@ -659,6 +659,38 @@ fn poly_fill(geo: &Geometry, mode: &str, smooth: f32) -> PyResult<Geometry> {
     Ok(Geometry { inner })
 }
 
+#[pyfunction]
+#[pyo3(signature = (geo, target_mode="face_count", target_count=1000, target_edge_length=0.1, seed=None, mode="intrinsic"))]
+fn quad_remesh(
+    geo: &Geometry,
+    target_mode: &str,
+    target_count: u32,
+    target_edge_length: f64,
+    seed: Option<u64>,
+    mode: &str,
+) -> PyResult<Geometry> {
+    let tm = match target_mode {
+        "vertex_count" => procgeo_sops::reshape::QuadRemeshTarget::VertexCount,
+        "edge_length" => procgeo_sops::reshape::QuadRemeshTarget::EdgeLength,
+        _ => procgeo_sops::reshape::QuadRemeshTarget::FaceCount,
+    };
+    let m = match mode {
+        "extrinsic" => procgeo_sops::reshape::QuadRemeshMode::Extrinsic,
+        _ => procgeo_sops::reshape::QuadRemeshMode::Intrinsic,
+    };
+    let params = procgeo_sops::reshape::QuadRemeshParams {
+        target_mode: tm,
+        target_count,
+        target_edge_length,
+        seed,
+        mode: m,
+    };
+    let inner = procgeo_sops::reshape::QuadRemeshSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
 // ---- Delete SOPs ----
 
 #[pyfunction]
@@ -1498,6 +1530,7 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(poly_wire, m)?)?;
     m.add_function(wrap_pyfunction!(poly_reduce, m)?)?;
     m.add_function(wrap_pyfunction!(poly_fill, m)?)?;
+    m.add_function(wrap_pyfunction!(quad_remesh, m)?)?;
     // Delete SOPs
     m.add_function(wrap_pyfunction!(blast, m)?)?;
     m.add_function(wrap_pyfunction!(delete_geo, m)?)?;
