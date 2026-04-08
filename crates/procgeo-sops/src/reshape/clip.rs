@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
@@ -15,6 +15,8 @@ pub struct ClipParams {
     pub normal: Vec3,
     /// If true, keep faces on the "above" side; if false, keep "below" side.
     pub keep_above: bool,
+    /// Seal the cut by generating a cap face on each clip-plane boundary loop.
+    pub create_cap: bool,
 }
 
 impl Default for ClipParams {
@@ -23,6 +25,7 @@ impl Default for ClipParams {
             origin: Vec3::ZERO,
             normal: Vec3::Y,
             keep_above: true,
+            create_cap: false,
         }
     }
 }
@@ -131,6 +134,130 @@ fn clip_polygon(
     Some(output)
 }
 
+fn edge_key(a: usize, b: usize) -> (usize, usize) {
+    (a.min(b), a.max(b))
+}
+
+/// Compute a face normal via Newell's method.
+fn face_normal(positions: &[Vec3]) -> Vec3 {
+    let n = positions.len();
+    let mut nx = 0.0_f32;
+    let mut ny = 0.0_f32;
+    let mut nz = 0.0_f32;
+    for i in 0..n {
+        let cur = positions[i];
+        let next = positions[(i + 1) % n];
+        nx += (cur.y - next.y) * (cur.z + next.z);
+        ny += (cur.z - next.z) * (cur.x + next.x);
+        nz += (cur.x - next.x) * (cur.y + next.y);
+    }
+    Vec3::new(nx, ny, nz).normalize_or_zero()
+}
+
+fn point_on_plane(pos: Vec3, origin: Vec3, normal: Vec3, eps: f32) -> bool {
+    (pos - origin).dot(normal).abs() <= eps
+}
+
+/// Find boundary loops that lie on the current clip plane.
+fn find_planar_boundary_loops(
+    geo: &Geometry,
+    origin: Vec3,
+    normal: Vec3,
+    eps: f32,
+) -> Vec<Vec<PointHandle>> {
+    let mut edge_count: HashMap<(usize, usize), usize> = HashMap::new();
+
+    for prim_idx in 0..geo.num_prims() {
+        let ph = PrimHandle::from_index(prim_idx);
+        let prim = geo.prim(ph);
+        let pts = geo.prim_points(ph);
+        let edge_count_for_prim = match prim {
+            Primitive::Polygon(poly) => match poly.poly_type {
+                PolyType::Closed => pts.len(),
+                PolyType::Open => pts.len().saturating_sub(1),
+            },
+        };
+
+        for i in 0..edge_count_for_prim {
+            let a = pts[i].index();
+            let b = pts[(i + 1) % pts.len()].index();
+            *edge_count.entry(edge_key(a, b)).or_insert(0) += 1;
+        }
+    }
+
+    let mut planar_edges: Vec<(usize, usize)> = Vec::new();
+    for ((a, b), count) in edge_count {
+        if count != 1 {
+            continue;
+        }
+
+        let pa = geo.point_pos(PointHandle::from_index(a));
+        let pb = geo.point_pos(PointHandle::from_index(b));
+        if point_on_plane(pa, origin, normal, eps) && point_on_plane(pb, origin, normal, eps) {
+            planar_edges.push((a, b));
+        }
+    }
+
+    if planar_edges.is_empty() {
+        return Vec::new();
+    }
+
+    let mut adjacency: HashMap<usize, Vec<usize>> = HashMap::new();
+    let mut unused: HashSet<(usize, usize)> = HashSet::new();
+    for &(a, b) in &planar_edges {
+        adjacency.entry(a).or_default().push(b);
+        adjacency.entry(b).or_default().push(a);
+        unused.insert(edge_key(a, b));
+    }
+
+    let mut loops: Vec<Vec<PointHandle>> = Vec::new();
+    for &(start, next) in &planar_edges {
+        let start_edge = edge_key(start, next);
+        if !unused.remove(&start_edge) {
+            continue;
+        }
+
+        let mut loop_pts = vec![start, next];
+        let mut prev = start;
+        let mut current = next;
+        let mut closed = false;
+
+        for _ in 0..=planar_edges.len() {
+            let Some(neighbors) = adjacency.get(&current) else {
+                break;
+            };
+
+            let Some(candidate) = neighbors.iter().copied().find(|&neighbor| {
+                neighbor != prev && unused.contains(&edge_key(current, neighbor))
+            }) else {
+                break;
+            };
+
+            unused.remove(&edge_key(current, candidate));
+            prev = current;
+            current = candidate;
+
+            if current == start {
+                closed = true;
+                break;
+            }
+
+            loop_pts.push(current);
+        }
+
+        if closed && loop_pts.len() >= 3 {
+            loops.push(
+                loop_pts
+                    .into_iter()
+                    .map(PointHandle::from_index)
+                    .collect::<Vec<_>>(),
+            );
+        }
+    }
+
+    loops
+}
+
 impl Sop for ClipSop {
     type Params = ClipParams;
 
@@ -198,6 +325,17 @@ impl Sop for ClipSop {
             }
         }
 
+        if params.create_cap && normal.length_squared() > 0.0 {
+            let desired_cap_normal = if params.keep_above { -normal } else { normal };
+            for mut loop_handles in find_planar_boundary_loops(&out, params.origin, normal, 1e-5) {
+                let positions: Vec<Vec3> = loop_handles.iter().map(|&h| out.point_pos(h)).collect();
+                if face_normal(&positions).dot(desired_cap_normal) < 0.0 {
+                    loop_handles.reverse();
+                }
+                out.add_face(&loop_handles);
+            }
+        }
+
         Ok(out)
     }
 }
@@ -225,6 +363,7 @@ mod tests {
             origin: Vec3::ZERO,
             normal: Vec3::Y,
             keep_above: true,
+            create_cap: false,
         };
         let result = box_geo.apply(&ClipSop, &params).unwrap();
 
@@ -243,6 +382,7 @@ mod tests {
             origin: Vec3::new(0.0, -10.0, 0.0),
             normal: Vec3::Y,
             keep_above: true,
+            create_cap: false,
         };
         let result = box_geo.apply(&ClipSop, &params).unwrap();
 
@@ -257,6 +397,7 @@ mod tests {
             origin: Vec3::new(0.0, 10.0, 0.0),
             normal: Vec3::Y,
             keep_above: true,
+            create_cap: false,
         };
         let result = box_geo.apply(&ClipSop, &params).unwrap();
 
@@ -274,6 +415,7 @@ mod tests {
             origin: Vec3::ZERO,
             normal: Vec3::Y,
             keep_above: true,
+            create_cap: false,
         };
         let result = box_geo.apply(&ClipSop, &params).unwrap();
 
@@ -283,6 +425,64 @@ mod tests {
             8,
             "clipped faces must share boundary points (got {} unique, expected 8)",
             result.num_points()
+        );
+    }
+
+    #[test]
+    fn clip_cap_closes_cut_surface() {
+        let box_geo = make_box();
+        let params = ClipParams {
+            origin: Vec3::ZERO,
+            normal: Vec3::Y,
+            keep_above: true,
+            create_cap: true,
+        };
+        let result = box_geo.apply(&ClipSop, &params).unwrap();
+
+        assert_eq!(
+            result.num_prims(),
+            6,
+            "capped half-box should have 6 faces, got {}",
+            result.num_prims()
+        );
+        assert_eq!(
+            result.num_points(),
+            8,
+            "cap should reuse the cut-loop points, got {} points",
+            result.num_points()
+        );
+    }
+
+    #[test]
+    fn clip_cap_faces_outward() {
+        let box_geo = make_box();
+        let params = ClipParams {
+            origin: Vec3::ZERO,
+            normal: Vec3::Y,
+            keep_above: true,
+            create_cap: true,
+        };
+        let result = box_geo.apply(&ClipSop, &params).unwrap();
+
+        let mut cap_normals = Vec::new();
+        for prim_idx in 0..result.num_prims() {
+            let pts = result.prim_points(PrimHandle::from_index(prim_idx));
+            let positions: Vec<Vec3> = pts.iter().map(|&h| result.point_pos(h)).collect();
+            if positions.iter().all(|p| p.y.abs() < 1e-5) {
+                cap_normals.push(face_normal(&positions));
+            }
+        }
+
+        assert_eq!(
+            cap_normals.len(),
+            1,
+            "expected exactly one cap face, got {}",
+            cap_normals.len()
+        );
+        assert!(
+            cap_normals[0].y < -0.9,
+            "top-half cap should face downward, got normal {:?}",
+            cap_normals[0]
         );
     }
 }

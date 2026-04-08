@@ -3,6 +3,9 @@ name = "procgeo-py"
 version = "0.1.0"
 edition = "2021"
 
+[build-dependencies]
+pyo3-build-config = "0.28"
+
 [lib]
 name = "procgeo"
 crate-type = ["cdylib"]

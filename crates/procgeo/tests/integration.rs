@@ -446,6 +446,7 @@ fn test_clip_and_measure() {
                 origin: Vec3::ZERO,
                 normal: Vec3::Y,
                 keep_above: true,
+                create_cap: false,
             },
         )
         .unwrap();

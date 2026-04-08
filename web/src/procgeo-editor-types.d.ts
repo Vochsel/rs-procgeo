@@ -258,6 +258,7 @@ interface ProcGeoClipParams {
     origin?: ProcGeoVec3;
     normal?: ProcGeoVec3;
     keepAbove?: boolean;
+    createCap?: boolean;
 }
 
 interface ProcGeoPolyBevelParams {

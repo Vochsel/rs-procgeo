@@ -14,8 +14,6 @@ pub struct VoronoiFractureParams {
     /// between pieces; negative values create overlap.
     pub cut_plane_offset: f32,
     /// Whether to create interior faces on cut surfaces.
-    /// (The Clip SOP already creates edge-crossing geometry; this flag is reserved
-    /// for future cap-face generation and currently has no additional effect.)
     pub create_inside_faces: bool,
 }
 
@@ -154,6 +152,7 @@ impl Sop for VoronoiFractureSop {
                     origin: midpoint + normal * params.cut_plane_offset,
                     normal,
                     keep_above: true,
+                    create_cap: params.create_inside_faces,
                 };
 
                 piece = clip_sop.execute(&[&piece], &clip_params)?;
@@ -322,5 +321,89 @@ mod tests {
             with_offset.num_points(),
             no_offset.num_points(),
         );
+    }
+
+    #[test]
+    fn voronoi_generates_inside_faces() {
+        let box_geo = make_box();
+        let seeds = make_seed_points(&[Vec3::new(-0.25, 0.0, 0.0), Vec3::new(0.25, 0.0, 0.0)]);
+
+        let open_shell = VoronoiFractureSop
+            .execute(
+                &[&box_geo, &seeds],
+                &VoronoiFractureParams {
+                    create_inside_faces: false,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let capped = VoronoiFractureSop
+            .execute(
+                &[&box_geo, &seeds],
+                &VoronoiFractureParams {
+                    create_inside_faces: true,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+
+        assert_eq!(
+            open_shell.num_prims(),
+            10,
+            "uncapped two-piece fracture should have 10 faces, got {}",
+            open_shell.num_prims()
+        );
+        assert_eq!(
+            capped.num_prims(),
+            12,
+            "capped two-piece fracture should have 12 faces, got {}",
+            capped.num_prims()
+        );
+
+        let piece_handle = capped
+            .find_attrib::<i32>(AttribClass::Primitive, "piece")
+            .expect("piece attribute should exist");
+
+        let mut cap_faces = 0;
+        let mut piece_caps = std::collections::HashSet::new();
+        for prim_idx in 0..capped.num_prims() {
+            let pts = capped.prim_points(PrimHandle::from_index(prim_idx));
+            let positions: Vec<Vec3> = pts.iter().map(|&h| capped.point_pos(h)).collect();
+            if !positions.iter().all(|p| p.x.abs() < 1e-5) {
+                continue;
+            }
+
+            cap_faces += 1;
+            let piece = capped.get_attrib(&piece_handle, prim_idx).unwrap();
+            piece_caps.insert(piece);
+
+            let mut nx = 0.0_f32;
+            let mut ny = 0.0_f32;
+            let mut nz = 0.0_f32;
+            for i in 0..positions.len() {
+                let cur = positions[i];
+                let next = positions[(i + 1) % positions.len()];
+                nx += (cur.y - next.y) * (cur.z + next.z);
+                ny += (cur.z - next.z) * (cur.x + next.x);
+                nz += (cur.x - next.x) * (cur.y + next.y);
+            }
+            let normal = Vec3::new(nx, ny, nz).normalize_or_zero();
+            if piece == 0 {
+                assert!(
+                    normal.x > 0.9,
+                    "left piece cap should face +X, got normal {:?}",
+                    normal
+                );
+            } else if piece == 1 {
+                assert!(
+                    normal.x < -0.9,
+                    "right piece cap should face -X, got normal {:?}",
+                    normal
+                );
+            }
+        }
+
+        assert_eq!(cap_faces, 2, "expected one interior face per piece");
+        assert_eq!(piece_caps.len(), 2, "both pieces should receive a cap face");
     }
 }

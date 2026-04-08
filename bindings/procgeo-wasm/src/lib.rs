@@ -615,6 +615,7 @@ pub fn clip(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError
         origin: get_vec3(&p, "origin", [0.0, 0.0, 0.0]),
         normal: get_vec3(&p, "normal", [0.0, 1.0, 0.0]),
         keep_above: get_bool(&p, "keepAbove", true),
+        create_cap: get_bool(&p, "createCap", false),
     };
     let inner = procgeo_sops::reshape::ClipSop
         .execute(&[&geo.inner], &params)

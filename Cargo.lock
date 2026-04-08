@@ -1332,6 +1332,7 @@ dependencies = [
  "procgeo-io",
  "procgeo-sops",
  "pyo3",
+ "pyo3-build-config",
  "serde_json",
 ]
 

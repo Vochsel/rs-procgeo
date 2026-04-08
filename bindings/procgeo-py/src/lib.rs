@@ -589,7 +589,7 @@ fn smooth(geo: &Geometry, iterations: u32, strength: f32) -> PyResult<Geometry> 
 }
 
 #[pyfunction]
-#[pyo3(signature = (geo, origin_x=0.0, origin_y=0.0, origin_z=0.0, normal_x=0.0, normal_y=1.0, normal_z=0.0, keep_above=true))]
+#[pyo3(signature = (geo, origin_x=0.0, origin_y=0.0, origin_z=0.0, normal_x=0.0, normal_y=1.0, normal_z=0.0, keep_above=true, create_cap=false))]
 fn clip(
     geo: &Geometry,
     origin_x: f32,
@@ -599,11 +599,13 @@ fn clip(
     normal_y: f32,
     normal_z: f32,
     keep_above: bool,
+    create_cap: bool,
 ) -> PyResult<Geometry> {
     let params = procgeo_sops::reshape::ClipParams {
         origin: glam::Vec3::new(origin_x, origin_y, origin_z),
         normal: glam::Vec3::new(normal_x, normal_y, normal_z),
         keep_above,
+        create_cap,
     };
     let inner = procgeo_sops::reshape::ClipSop
         .execute(&[&geo.inner], &params)
