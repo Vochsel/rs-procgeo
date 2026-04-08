@@ -4,6 +4,10 @@ Cargo.lock
 *.glb
 *.gltf
 .DS_Store
+node_modules
+*.node
+wheels
 
 docs/
 !web/docs/
+.superpowers
