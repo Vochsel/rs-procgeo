@@ -1164,6 +1164,31 @@ fn execute_sop_create(name: &str, params_json: &str) -> PyResult<Geometry> {
     Ok(Geometry { inner })
 }
 
+#[pyfunction]
+#[pyo3(signature = (geo, sharp_angle=35.0, curvature_weight=0.3, smooth_iterations=20, scale_factor=1.0, alpha=0.02, post_smooth_iterations=30))]
+fn quad_wild(
+    geo: &Geometry,
+    sharp_angle: f32,
+    curvature_weight: f32,
+    smooth_iterations: u32,
+    scale_factor: f32,
+    alpha: f32,
+    post_smooth_iterations: u32,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::quadwild::QuadWildParams {
+        sharp_angle,
+        curvature_weight,
+        smooth_iterations,
+        scale_factor,
+        alpha,
+        post_smooth_iterations,
+    };
+    let inner = procgeo_sops::quadwild::QuadWildSop
+        .execute(&[&geo.inner], &params)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("{e}")))?;
+    Ok(Geometry { inner })
+}
+
 /// List all registered SOP names.
 #[pyfunction]
 fn list_sops() -> Vec<String> {
@@ -1524,6 +1549,8 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Group SOPs
     m.add_function(wrap_pyfunction!(group_create, m)?)?;
     m.add_function(wrap_pyfunction!(group_combine, m)?)?;
+    // QuadWild
+    m.add_function(wrap_pyfunction!(quad_wild, m)?)?;
     // SOP Registry
     m.add_function(wrap_pyfunction!(execute_sop, m)?)?;
     m.add_function(wrap_pyfunction!(execute_sop_create, m)?)?;

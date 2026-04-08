@@ -40,6 +40,8 @@ pub mod voronoi;
 pub mod deform;
 #[cfg(feature = "boolean")]
 pub mod boolean;
+#[cfg(feature = "quadwild")]
+pub mod quadwild;
 
 #[derive(Debug, Error)]
 pub enum SopError {

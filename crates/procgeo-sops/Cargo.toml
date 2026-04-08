@@ -18,7 +18,7 @@ quadrs = "1.0"
 approx = { workspace = true }
 
 [features]
-default = ["creation", "transform", "normals", "merge", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops", "color", "voronoi", "deform", "boolean"]
+default = ["creation", "transform", "normals", "merge", "attributes", "groups_sops", "delete", "copy", "reshape", "scatter", "topology", "measure_sops", "utility_sops", "color", "voronoi", "deform", "boolean", "quadwild"]
 creation = []
 transform = []
 normals = []
@@ -36,3 +36,4 @@ color = []
 voronoi = ["reshape"]
 deform = []
 boolean = []
+quadwild = []
