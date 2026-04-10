@@ -1,3 +1,3 @@
 pub mod normal;
 
-pub use normal::{NormalParams, NormalSop};
+pub use normal::{NormalGroupType, NormalParams, NormalSop, NormalTarget, NormalWeightingMethod};

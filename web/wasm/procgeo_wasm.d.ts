@@ -135,7 +135,7 @@ export function clip(geo: Geometry, params?: any | null): Geometry;
 
 export function color(geo: Geometry, params?: any | null): Geometry;
 
-export function computeNormals(geo: Geometry): Geometry;
+export function computeNormals(geo: Geometry, params?: any | null): Geometry;
 
 export function connectivity(geo: Geometry, params?: any | null): Geometry;
 
@@ -297,7 +297,7 @@ export interface InitOutput {
     readonly booleanOp: (a: number, b: number, c: number) => [number, number, number];
     readonly clip: (a: number, b: number) => [number, number, number];
     readonly color: (a: number, b: number) => [number, number, number];
-    readonly computeNormals: (a: number) => [number, number, number];
+    readonly computeNormals: (a: number, b: number) => [number, number, number];
     readonly connectivity: (a: number, b: number) => [number, number, number];
     readonly copBlur: (a: number, b: number) => [number, number, number];
     readonly copChannelSwap: (a: number, b: number) => [number, number, number];

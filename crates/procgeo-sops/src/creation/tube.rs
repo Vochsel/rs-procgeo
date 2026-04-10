@@ -63,9 +63,9 @@ impl Sop for TubeSop {
                 params.cols
             )));
         }
-        if params.rows < 2 {
+        if params.rows < 1 {
             return Err(SopError::InvalidParam(format!(
-                "rows must be >= 2, got {}",
+                "rows must be >= 1, got {}",
                 params.rows
             )));
         }
@@ -76,6 +76,20 @@ impl Sop for TubeSop {
         let half_h = params.height * 0.5;
 
         let mut geo = Geometry::new();
+
+        // rows == 1: flat circle (single closed polygon)
+        if rows == 1 {
+            let radius = params.radius_bottom;
+            let mut ring = Vec::with_capacity(cols);
+            for col_idx in 0..cols {
+                let angle = TAU * col_idx as f32 / cols as f32;
+                let (sin_a, cos_a) = angle.sin_cos();
+                let pos = c + Vec3::new(cos_a * radius, 0.0, sin_a * radius);
+                ring.push(geo.add_point(pos));
+            }
+            geo.add_face(&ring);
+            return Ok(geo);
+        }
 
         // Generate ring points for each row
         let mut ring_handles: Vec<Vec<_>> = Vec::with_capacity(rows);
@@ -168,6 +182,31 @@ mod tests {
         // top cap tris: 8
         // total: 8 + 8 + 8 = 24
         assert_eq!(geo.num_prims(), 24);
+    }
+
+    #[test]
+    fn tube_single_row_circle() {
+        let sop = TubeSop;
+        let params = TubeParams {
+            cols: 8,
+            rows: 1,
+            radius_bottom: 1.0,
+            ..Default::default()
+        };
+        let geo = generate(&sop, &params).unwrap();
+
+        // 1 row * 8 cols = 8 points
+        assert_eq!(geo.num_points(), 8);
+        // Single polygon face
+        assert_eq!(geo.num_prims(), 1);
+
+        // All points should lie on XZ plane at y=0
+        for pt in geo.points() {
+            assert_relative_eq!(pt.y, 0.0, epsilon = 1e-5);
+            // All at radius 1.0
+            let r = (pt.x * pt.x + pt.z * pt.z).sqrt();
+            assert_relative_eq!(r, 1.0, epsilon = 1e-5);
+        }
     }
 
     #[test]

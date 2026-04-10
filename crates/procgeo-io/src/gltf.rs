@@ -425,7 +425,7 @@ mod tests {
         use procgeo_sops::{GeometryExt, generate};
 
         let box_geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-        let geo_with_normals = box_geo.apply(&NormalSop, &NormalParams).unwrap();
+        let geo_with_normals = box_geo.apply(&NormalSop, &NormalParams::default()).unwrap();
 
         let mut buf: Vec<u8> = Vec::new();
         GlbWriter.write(&geo_with_normals, &mut buf).unwrap();

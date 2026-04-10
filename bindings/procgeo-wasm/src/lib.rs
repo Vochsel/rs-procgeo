@@ -529,9 +529,26 @@ pub fn transform(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, Js
 }
 
 #[wasm_bindgen(js_name = "computeNormals")]
-pub fn compute_normals(geo: &Geometry) -> Result<Geometry, JsError> {
+pub fn compute_normals(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = procgeo_sops::normals::NormalParams {
+        group: get_str(&p, "group", ""),
+        group_type: parse_normal_group_type(&get_str(&p, "groupType", "guess")),
+        override_normal: get_str(&p, "overrideNormal", "N"),
+        compute_normals: get_bool(&p, "computeNormals", true),
+        add_normals_to: parse_normal_target(&get_str(&p, "addNormalsTo", "points")),
+        cusp_angle: get_f32(&p, "cuspAngle", 60.0),
+        weighting_method: parse_normal_weighting_method(&get_str(
+            &p,
+            "weightingMethod",
+            "vertexAngle",
+        )),
+        keep_original_zero: get_bool(&p, "keepOriginalZero", false),
+        make_unit_length: get_bool(&p, "makeUnitLength", false),
+        reverse_normals: get_bool(&p, "reverseNormals", false),
+    };
     let inner = procgeo_sops::normals::NormalSop
-        .execute(&[&geo.inner], &Default::default())
+        .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;
     Ok(Geometry { inner })
 }
@@ -890,6 +907,37 @@ fn parse_attrib_class(s: &str) -> procgeo_core::AttribClass {
 
 fn parse_attrib_type(s: &str) -> procgeo_core::AttribType {
     serde_json::from_str(&format!("\"{}\"", s)).unwrap_or(procgeo_core::AttribType::Float)
+}
+
+fn parse_normal_group_type(s: &str) -> procgeo_sops::normals::NormalGroupType {
+    match s {
+        "points" | "point" => procgeo_sops::normals::NormalGroupType::Points,
+        "vertices" | "vertex" => procgeo_sops::normals::NormalGroupType::Vertices,
+        "primitives" | "primitive" | "prim" => procgeo_sops::normals::NormalGroupType::Primitives,
+        "edges" | "edge" => procgeo_sops::normals::NormalGroupType::Edges,
+        _ => procgeo_sops::normals::NormalGroupType::GuessFromGroup,
+    }
+}
+
+fn parse_normal_target(s: &str) -> procgeo_sops::normals::NormalTarget {
+    match s {
+        "vertices" | "vertex" => procgeo_sops::normals::NormalTarget::Vertices,
+        "primitives" | "primitive" | "prim" => procgeo_sops::normals::NormalTarget::Primitives,
+        "detail" => procgeo_sops::normals::NormalTarget::Detail,
+        _ => procgeo_sops::normals::NormalTarget::Points,
+    }
+}
+
+fn parse_normal_weighting_method(s: &str) -> procgeo_sops::normals::NormalWeightingMethod {
+    match s {
+        "eachVertexEqually" | "each" | "equal" => {
+            procgeo_sops::normals::NormalWeightingMethod::EachVertexEqually
+        }
+        "faceArea" | "byFaceArea" | "area" => {
+            procgeo_sops::normals::NormalWeightingMethod::ByFaceArea
+        }
+        _ => procgeo_sops::normals::NormalWeightingMethod::ByVertexAngle,
+    }
 }
 
 #[wasm_bindgen(js_name = "attribTransfer")]

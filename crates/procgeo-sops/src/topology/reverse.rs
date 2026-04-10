@@ -86,7 +86,10 @@ mod tests {
         .unwrap();
 
         // Normal before reverse
-        let with_normals = grid.clone().apply(&NormalSop, &NormalParams).unwrap();
+        let with_normals = grid
+            .clone()
+            .apply(&NormalSop, &NormalParams::default())
+            .unwrap();
         let n_handle = with_normals
             .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
             .unwrap();
@@ -94,7 +97,9 @@ mod tests {
 
         // Reverse and recompute normals
         let reversed = grid.apply(&ReverseSop, &ReverseParams).unwrap();
-        let with_normals_after = reversed.apply(&NormalSop, &NormalParams).unwrap();
+        let with_normals_after = reversed
+            .apply(&NormalSop, &NormalParams::default())
+            .unwrap();
         let n_handle2 = with_normals_after
             .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
             .unwrap();

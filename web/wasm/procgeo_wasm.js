@@ -595,11 +595,12 @@ export function color(geo, params) {
 
 /**
  * @param {Geometry} geo
+ * @param {any | null} [params]
  * @returns {Geometry}
  */
-export function computeNormals(geo) {
+export function computeNormals(geo, params) {
     _assertClass(geo, Geometry);
-    const ret = wasm.computeNormals(geo.__wbg_ptr);
+    const ret = wasm.computeNormals(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

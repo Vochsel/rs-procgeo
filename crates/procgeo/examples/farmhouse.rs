@@ -250,7 +250,7 @@ fn build_farmhouse() -> Result<Geometry, SopError> {
     )?;
 
     // Compute normals for the whole scene
-    farmhouse.apply(&NormalSop, &NormalParams)
+    farmhouse.apply(&NormalSop, &NormalParams::default())
 }
 
 fn main() {

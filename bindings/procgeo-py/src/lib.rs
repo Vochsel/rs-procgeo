@@ -152,6 +152,41 @@ fn py_parse_class(class: &str) -> procgeo_core::AttribClass {
     }
 }
 
+fn py_parse_normal_group_type(group_type: &str) -> procgeo_sops::normals::NormalGroupType {
+    match group_type {
+        "points" | "point" | "Points" => procgeo_sops::normals::NormalGroupType::Points,
+        "vertices" | "vertex" | "Vertex" => procgeo_sops::normals::NormalGroupType::Vertices,
+        "primitives" | "primitive" | "prim" | "Primitive" => {
+            procgeo_sops::normals::NormalGroupType::Primitives
+        }
+        "edges" | "edge" | "Edge" => procgeo_sops::normals::NormalGroupType::Edges,
+        _ => procgeo_sops::normals::NormalGroupType::GuessFromGroup,
+    }
+}
+
+fn py_parse_normal_target(target: &str) -> procgeo_sops::normals::NormalTarget {
+    match target {
+        "vertices" | "vertex" | "Vertex" => procgeo_sops::normals::NormalTarget::Vertices,
+        "primitives" | "primitive" | "prim" | "Primitive" => {
+            procgeo_sops::normals::NormalTarget::Primitives
+        }
+        "detail" | "Detail" => procgeo_sops::normals::NormalTarget::Detail,
+        _ => procgeo_sops::normals::NormalTarget::Points,
+    }
+}
+
+fn py_parse_normal_weighting_method(method: &str) -> procgeo_sops::normals::NormalWeightingMethod {
+    match method {
+        "each_vertex_equally" | "eachVertexEqually" | "equal" => {
+            procgeo_sops::normals::NormalWeightingMethod::EachVertexEqually
+        }
+        "face_area" | "faceArea" | "area" => {
+            procgeo_sops::normals::NormalWeightingMethod::ByFaceArea
+        }
+        _ => procgeo_sops::normals::NormalWeightingMethod::ByVertexAngle,
+    }
+}
+
 fn sop_err(e: procgeo_sops::SopError) -> PyErr {
     pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
 }
@@ -507,9 +542,46 @@ fn transform(
 }
 
 #[pyfunction]
-fn compute_normals(geo: &Geometry) -> PyResult<Geometry> {
+#[pyo3(signature = (
+    geo,
+    group="",
+    group_type="guess",
+    override_normal="N",
+    compute_normals=true,
+    add_normals_to="points",
+    cusp_angle=60.0,
+    weighting_method="vertex_angle",
+    keep_original_zero=false,
+    make_unit_length=false,
+    reverse_normals=false
+))]
+fn compute_normals(
+    geo: &Geometry,
+    group: &str,
+    group_type: &str,
+    override_normal: &str,
+    compute_normals: bool,
+    add_normals_to: &str,
+    cusp_angle: f32,
+    weighting_method: &str,
+    keep_original_zero: bool,
+    make_unit_length: bool,
+    reverse_normals: bool,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::normals::NormalParams {
+        group: group.to_string(),
+        group_type: py_parse_normal_group_type(group_type),
+        override_normal: override_normal.to_string(),
+        compute_normals,
+        add_normals_to: py_parse_normal_target(add_normals_to),
+        cusp_angle,
+        weighting_method: py_parse_normal_weighting_method(weighting_method),
+        keep_original_zero,
+        make_unit_length,
+        reverse_normals,
+    };
     let inner = procgeo_sops::normals::NormalSop
-        .execute(&[&geo.inner], &Default::default())
+        .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;
     Ok(Geometry { inner })
 }

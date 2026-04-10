@@ -44,7 +44,7 @@ fn test_sop_chaining() {
         .unwrap()
         .apply(&TransformSop, &params)
         .unwrap()
-        .apply(&NormalSop, &NormalParams)
+        .apply(&NormalSop, &NormalParams::default())
         .unwrap();
 
     // BBox center should be ~(5, 0, 0), size ~(2, 2, 2)
@@ -405,7 +405,7 @@ fn test_full_workflow() {
             },
         )
         .unwrap();
-    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams::default()).unwrap();
     let geo = geo
         .apply(
             &ColorSop,
@@ -482,14 +482,16 @@ fn test_reverse_normals() {
         },
     )
     .unwrap();
-    let with_normals = geo.apply(&NormalSop, &NormalParams).unwrap();
+    let with_normals = geo.apply(&NormalSop, &NormalParams::default()).unwrap();
     let n_handle = with_normals
         .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
         .unwrap();
     let orig_n = with_normals.get_attrib(&n_handle, 0).unwrap();
 
     let reversed = with_normals.apply(&ReverseSop, &ReverseParams).unwrap();
-    let recomputed = reversed.apply(&NormalSop, &NormalParams).unwrap();
+    let recomputed = reversed
+        .apply(&NormalSop, &NormalParams::default())
+        .unwrap();
     let n_handle2 = recomputed
         .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
         .unwrap();
@@ -622,7 +624,7 @@ fn test_noise_on_p_displaces_geometry() {
 #[test]
 fn test_n_created_by_normal_sop() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams::default()).unwrap();
 
     let n_handle = geo
         .find_attrib::<[f32; 3]>(AttribClass::Point, "N")
@@ -637,7 +639,7 @@ fn test_n_created_by_normal_sop() {
 #[test]
 fn test_n_exported_in_obj() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams::default()).unwrap();
 
     let mut buf = Vec::new();
     procgeo::io::obj::ObjWriter.write(&geo, &mut buf).unwrap();
@@ -652,7 +654,7 @@ fn test_n_exported_in_obj() {
 #[test]
 fn test_n_exported_in_glb() {
     let geo = generate(&BoxSop, &BoxParams::default()).unwrap();
-    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams::default()).unwrap();
 
     let mut buf = Vec::new();
     procgeo::io::gltf::GlbWriter.write(&geo, &mut buf).unwrap();
@@ -715,7 +717,7 @@ fn test_cd_exported_in_glb() {
 #[test]
 fn test_intrinsic_attribs_survive_merge() {
     let mut box1 = generate(&BoxSop, &BoxParams::default()).unwrap();
-    box1 = box1.apply(&NormalSop, &NormalParams).unwrap();
+    box1 = box1.apply(&NormalSop, &NormalParams::default()).unwrap();
     box1 = box1
         .apply(
             &ColorSop,
@@ -733,7 +735,7 @@ fn test_intrinsic_attribs_survive_merge() {
         },
     )
     .unwrap();
-    box2 = box2.apply(&NormalSop, &NormalParams).unwrap();
+    box2 = box2.apply(&NormalSop, &NormalParams::default()).unwrap();
     box2 = box2
         .apply(
             &ColorSop,
@@ -778,7 +780,7 @@ fn test_full_intrinsic_pipeline() {
             },
         )
         .unwrap();
-    let geo = geo.apply(&NormalSop, &NormalParams).unwrap();
+    let geo = geo.apply(&NormalSop, &NormalParams::default()).unwrap();
     let geo = geo
         .apply(
             &ColorSop,

@@ -36,6 +36,33 @@ type ProcGeoMetaballKernel = "wyvill" | "blinn" | "hart";
 type ProcGeoGroupCreateMode = "range" | "boundingBox" | "normal";
 type ProcGeoGroupCombineOperation = "union" | "intersect" | "subtract";
 type ProcGeoPolyFillMode = "single" | "fan";
+type ProcGeoNormalGroupType =
+    | "guess"
+    | "guessFromGroup"
+    | "points"
+    | "point"
+    | "vertices"
+    | "vertex"
+    | "primitives"
+    | "primitive"
+    | "prim"
+    | "edges"
+    | "edge";
+type ProcGeoNormalTarget =
+    | "points"
+    | "point"
+    | "vertices"
+    | "vertex"
+    | "primitives"
+    | "primitive"
+    | "prim"
+    | "detail";
+type ProcGeoNormalWeightingMethod =
+    | "vertexAngle"
+    | "byVertexAngle"
+    | "eachVertexEqually"
+    | "faceArea"
+    | "byFaceArea";
 type ProcGeoAttribPromoteMethod = "average" | "first" | "last" | "min" | "max";
 type ProcGeoAttribRandomizeDistribution = "Uniform" | "Gaussian" | "Bernoulli";
 type ProcGeoAttribRandomizeOperation = "Set" | "Add" | "Multiply";
@@ -252,6 +279,19 @@ interface ProcGeoPolyExtrudeParams {
 interface ProcGeoSmoothParams {
     iterations?: number;
     strength?: number;
+}
+
+interface ProcGeoNormalParams {
+    group?: string;
+    groupType?: ProcGeoNormalGroupType;
+    overrideNormal?: string;
+    computeNormals?: boolean;
+    addNormalsTo?: ProcGeoNormalTarget;
+    cuspAngle?: number;
+    weightingMethod?: ProcGeoNormalWeightingMethod;
+    keepOriginalZero?: boolean;
+    makeUnitLength?: boolean;
+    reverseNormals?: boolean;
 }
 
 interface ProcGeoClipParams {
@@ -653,7 +693,7 @@ interface ProcGeoModule {
 
     // Transform / deform
     transform(geo: ProcGeoGeometry, params?: ProcGeoTransformParams): ProcGeoGeometry;
-    computeNormals(geo: ProcGeoGeometry): ProcGeoGeometry;
+    computeNormals(geo: ProcGeoGeometry, params?: ProcGeoNormalParams): ProcGeoGeometry;
     bend(geo: ProcGeoGeometry, params?: ProcGeoBendParams): ProcGeoGeometry;
     pointDeform(
         geo: ProcGeoGeometry,
