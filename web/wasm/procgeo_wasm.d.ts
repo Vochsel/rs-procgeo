@@ -103,6 +103,8 @@ export class Geometry {
     readonly numVertices: number;
 }
 
+export function add(source?: Geometry | null, params?: any | null): Geometry;
+
 export function attribBlur(geo: Geometry, params?: any | null): Geometry;
 
 export function attribCopy(dest: Geometry, source?: Geometry | null, params?: any | null): Geometry;
@@ -195,6 +197,10 @@ export function createTube(params?: any | null): Geometry;
 
 export function deleteSop(geo: Geometry, params?: any | null): Geometry;
 
+export function displace(geo: Geometry, params?: any | null): Geometry;
+
+export function displaceImage(geo: Geometry, image: CopImage, params?: any | null): Promise<Geometry>;
+
 export function enumerateAttrib(geo: Geometry, params?: any | null): Geometry;
 
 export function executeCop(name: string, image: CopImage, params?: any | null): CopImage;
@@ -281,6 +287,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_copimage_free: (a: number, b: number) => void;
     readonly __wbg_geometry_free: (a: number, b: number) => void;
+    readonly add: (a: number, b: number) => [number, number, number];
     readonly attribBlur: (a: number, b: number) => [number, number, number];
     readonly attribCopy: (a: number, b: number, c: number) => [number, number, number];
     readonly attribCreate: (a: number, b: number) => [number, number, number];
@@ -330,6 +337,8 @@ export interface InitOutput {
     readonly createTorus: (a: number) => [number, number, number];
     readonly createTube: (a: number) => [number, number, number];
     readonly deleteSop: (a: number, b: number) => [number, number, number];
+    readonly displace: (a: number, b: number) => [number, number, number];
+    readonly displaceImage: (a: number, b: number, c: number) => any;
     readonly enumerateAttrib: (a: number, b: number) => [number, number, number];
     readonly executeCop: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly executeCopComposite: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];

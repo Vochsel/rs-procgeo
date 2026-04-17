@@ -187,6 +187,84 @@ fn test_all_creation_sops_produce_valid_geometry() {
     }
 }
 
+#[test]
+fn test_add_sop_custom_profile_pipeline() {
+    let profile = generate(
+        &AddSop,
+        &AddParams {
+            points: vec![
+                [-0.5, 0.0, -0.5],
+                [0.5, 0.0, -0.5],
+                [0.5, 0.0, 0.5],
+                [-0.5, 0.0, 0.5],
+                [0.0, 1.0, 0.0],
+                [0.5, 1.5, 0.0],
+                [1.0, 1.0, 0.0],
+            ],
+            polygons: vec![vec![0, 3, 2, 1]],
+            polylines: vec![vec![4, 5, 6]],
+        },
+    )
+    .unwrap();
+
+    assert_eq!(profile.num_prims(), 2);
+
+    let extruded = profile
+        .clone()
+        .apply(&PolyExtrudeSop, &PolyExtrudeParams::default())
+        .unwrap();
+    let wired = profile
+        .apply(
+            &PolyWireSop,
+            &PolyWireParams {
+                radius: 0.1,
+                divisions: 6,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(extruded.num_prims(), 5);
+    assert_eq!(wired.num_prims(), 1 + (2 * 6));
+}
+
+#[test]
+fn test_displace_sop_texture_pipeline() {
+    let grid = generate(
+        &GridSop,
+        &GridParams {
+            rows: 2,
+            cols: 2,
+            size: [1.0, 1.0],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let displaced = grid
+        .apply(
+            &DisplaceSop,
+            &DisplaceParams {
+                texture: Some(DisplaceTexture {
+                    width: 2,
+                    height: 1,
+                    pixels: vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                }),
+                direction: DisplaceDirection::Y,
+                coordinates: DisplaceCoordinates::BoundingBox,
+                projection: DisplaceProjection::XZ,
+                sampler: DisplaceSampler::Nearest,
+                wrap: DisplaceWrapMode::Clamp,
+                midlevel: 0.0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+    let bbox = displaced.bounding_box();
+    assert_relative_eq!(bbox.max.y, 1.0, epsilon = 1e-5);
+    assert_relative_eq!(bbox.min.y, 0.0, epsilon = 1e-5);
+}
+
 // ---------------------------------------------------------------------------
 // Test 6: Attributes survive a SOP chain (box → transform)
 // ---------------------------------------------------------------------------

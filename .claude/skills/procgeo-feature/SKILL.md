@@ -16,6 +16,29 @@ When adding a new feature to the procgeo library, you MUST implement it across A
 | New I/O format reader/writer | `procgeo-io` | `crates/procgeo-io/src/` |
 | New composite operation (COP) | `procgeo-cops` | `crates/procgeo-cops/src/` |
 
+## Coordinate System and Creation Defaults
+
+Treat these as repo-wide geometry conventions unless a source format or explicit user requirement overrides them:
+
+- `Y` is up
+- The default ground plane is `XZ`
+- Most generator SOPs default to `center = Vec3::ZERO`
+- Height-like or axial defaults usually run along `+Y`
+- Polygon winding must be CCW when viewed from outside so normals point outward
+- New SOP param defaults must match Houdini defaults first; when no Houdini-specific convention applies, follow the repo's existing creation defaults
+
+Common built-in defaults to preserve when adding related features, examples, or bindings:
+
+- `Box`: size `1,1,1`, centered at origin
+- `Grid`: `10x10`, `rows=10`, `cols=10`, oriented on `XZ`
+- `Circle`: radius `1`, `divisions=40`, oriented on `XZ`
+- `Line`: origin at zero, direction `+Y`, length `1`, `points=2`
+- `Sphere`: radius `0.5`, centered at origin
+- `Tube`: height `1`, centered at origin, aligned to `Y`, no caps by default
+- `Helix`: rises along `Y`
+- `Spiral`: expands in `XZ`, optional rise in `Y`
+- `Add`: starts empty; points/polygons/polylines are explicit user input
+
 SOPs are organized by category. Use an existing category if the feature fits, or create a new one:
 
 | Category | Feature flag | Module | Examples |
@@ -61,7 +84,8 @@ impl Default for <Name>Params {
     fn default() -> Self {
         Self {
             some_param: 1.0,
-            // Houdini-matching defaults
+            // Houdini-matching defaults. If Houdini leaves orientation implied,
+            // align with ProcGeo's Y-up / XZ-ground conventions.
         }
     }
 }
@@ -164,6 +188,8 @@ mod tests {
 - Test edge cases (empty geometry, single point/prim)
 - Use `approx` crate for floating-point comparisons where needed
 - For generators: verify point count, prim count, bounding box
+- For generators with orientation semantics: assert the actual axis/plane, not just counts
+- For polygons/surfaces: assert signed normal direction or winding-sensitive behavior, not `abs()`
 - For modifiers: verify the operation transforms geometry correctly
 - For attributes: verify attribute existence, type, and values
 

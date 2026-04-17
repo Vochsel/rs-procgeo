@@ -187,11 +187,115 @@ fn py_parse_normal_weighting_method(method: &str) -> procgeo_sops::normals::Norm
     }
 }
 
+fn py_parse_displace_direction(direction: &str) -> procgeo_sops::deform::DisplaceDirection {
+    match direction {
+        "x" | "X" => procgeo_sops::deform::DisplaceDirection::X,
+        "y" | "Y" => procgeo_sops::deform::DisplaceDirection::Y,
+        "z" | "Z" => procgeo_sops::deform::DisplaceDirection::Z,
+        "rgb_to_xyz" | "rgbToXyz" | "rgbtoxyz" => procgeo_sops::deform::DisplaceDirection::RGBToXYZ,
+        "custom_vector" | "customVector" | "custom" => {
+            procgeo_sops::deform::DisplaceDirection::CustomVector
+        }
+        _ => procgeo_sops::deform::DisplaceDirection::Normal,
+    }
+}
+
+fn py_parse_displace_coordinates(coords: &str) -> procgeo_sops::deform::DisplaceCoordinates {
+    match coords {
+        "uv" | "UV" => procgeo_sops::deform::DisplaceCoordinates::UV,
+        "bounding_box" | "boundingBox" | "bbox" => {
+            procgeo_sops::deform::DisplaceCoordinates::BoundingBox
+        }
+        "position" | "local" => procgeo_sops::deform::DisplaceCoordinates::Position,
+        _ => procgeo_sops::deform::DisplaceCoordinates::Auto,
+    }
+}
+
+fn py_parse_displace_projection(projection: &str) -> procgeo_sops::deform::DisplaceProjection {
+    match projection {
+        "xy" | "XY" => procgeo_sops::deform::DisplaceProjection::XY,
+        "yz" | "YZ" => procgeo_sops::deform::DisplaceProjection::YZ,
+        _ => procgeo_sops::deform::DisplaceProjection::XZ,
+    }
+}
+
+fn py_parse_displace_channel(channel: &str) -> procgeo_sops::deform::DisplaceSampleChannel {
+    match channel {
+        "red" | "r" => procgeo_sops::deform::DisplaceSampleChannel::Red,
+        "green" | "g" => procgeo_sops::deform::DisplaceSampleChannel::Green,
+        "blue" | "b" => procgeo_sops::deform::DisplaceSampleChannel::Blue,
+        "alpha" | "a" => procgeo_sops::deform::DisplaceSampleChannel::Alpha,
+        "average" | "avg" => procgeo_sops::deform::DisplaceSampleChannel::Average,
+        _ => procgeo_sops::deform::DisplaceSampleChannel::Luminance,
+    }
+}
+
+fn py_parse_displace_sampler(sampler: &str) -> procgeo_sops::deform::DisplaceSampler {
+    match sampler {
+        "nearest" => procgeo_sops::deform::DisplaceSampler::Nearest,
+        _ => procgeo_sops::deform::DisplaceSampler::Bilinear,
+    }
+}
+
+fn py_parse_displace_wrap(wrap: &str) -> procgeo_sops::deform::DisplaceWrapMode {
+    match wrap {
+        "clamp" => procgeo_sops::deform::DisplaceWrapMode::Clamp,
+        _ => procgeo_sops::deform::DisplaceWrapMode::Repeat,
+    }
+}
+
+fn py_parse_displace_noise_type(noise_type: &str) -> procgeo_sops::deform::DisplaceNoiseType {
+    match noise_type {
+        "simplex" => procgeo_sops::deform::DisplaceNoiseType::Simplex,
+        "worley" => procgeo_sops::deform::DisplaceNoiseType::Worley,
+        "worley_f2f1" | "worleyF2F1" => procgeo_sops::deform::DisplaceNoiseType::WorleyF2F1,
+        _ => procgeo_sops::deform::DisplaceNoiseType::Perlin,
+    }
+}
+
+fn py_parse_displace_noise_fractal(fractal: &str) -> procgeo_sops::deform::DisplaceNoiseFractal {
+    match fractal {
+        "standard" | "fbm" => procgeo_sops::deform::DisplaceNoiseFractal::Standard,
+        "terrain" | "ridged" => procgeo_sops::deform::DisplaceNoiseFractal::Terrain,
+        _ => procgeo_sops::deform::DisplaceNoiseFractal::None,
+    }
+}
+
 fn sop_err(e: procgeo_sops::SopError) -> PyErr {
     pyo3::exceptions::PyRuntimeError::new_err(e.to_string())
 }
 
 // ---- Creation SOPs ----
+
+#[pyfunction]
+#[pyo3(signature = (source=None, points=None, polygons=None, polylines=None))]
+fn add(
+    source: Option<&Geometry>,
+    points: Option<Vec<(f32, f32, f32)>>,
+    polygons: Option<Vec<Vec<usize>>>,
+    polylines: Option<Vec<Vec<usize>>>,
+) -> PyResult<Geometry> {
+    let params = procgeo_sops::creation::AddParams {
+        points: points
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(x, y, z)| [x, y, z])
+            .collect(),
+        polygons: polygons.unwrap_or_default(),
+        polylines: polylines.unwrap_or_default(),
+    };
+
+    let inner = match source {
+        Some(src) => procgeo_sops::creation::AddSop
+            .execute(&[&src.inner], &params)
+            .map_err(sop_err)?,
+        None => procgeo_sops::creation::AddSop
+            .execute(&[], &params)
+            .map_err(sop_err)?,
+    };
+
+    Ok(Geometry { inner })
+}
 
 #[pyfunction]
 #[pyo3(signature = (size_x=1.0, size_y=1.0, size_z=1.0, center_x=0.0, center_y=0.0, center_z=0.0))]
@@ -1640,6 +1744,118 @@ fn bend(
 }
 
 #[pyfunction]
+#[pyo3(signature = (
+    geo,
+    image=None,
+    strength=1.0,
+    midlevel=0.5,
+    direction="normal",
+    coordinates="auto",
+    projection="xz",
+    uv_attrib="uv",
+    normal_attrib="N",
+    sample_channel="luminance",
+    sampler="bilinear",
+    wrap="repeat",
+    coord_scale_u=1.0,
+    coord_scale_v=1.0,
+    coord_offset_u=0.0,
+    coord_offset_v=0.0,
+    custom_vector_x=0.0,
+    custom_vector_y=1.0,
+    custom_vector_z=0.0,
+    noise_type=None,
+    noise_scale_x=1.0,
+    noise_scale_y=1.0,
+    noise_scale_z=1.0,
+    noise_offset_x=0.0,
+    noise_offset_y=0.0,
+    noise_offset_z=0.0,
+    noise_seed=0,
+    noise_octaves=4,
+    noise_lacunarity=2.0,
+    noise_roughness=0.5,
+    noise_fractal="none",
+))]
+#[allow(clippy::too_many_arguments)]
+fn displace(
+    geo: &Geometry,
+    image: Option<&CopImage>,
+    strength: f32,
+    midlevel: f32,
+    direction: &str,
+    coordinates: &str,
+    projection: &str,
+    uv_attrib: &str,
+    normal_attrib: &str,
+    sample_channel: &str,
+    sampler: &str,
+    wrap: &str,
+    coord_scale_u: f32,
+    coord_scale_v: f32,
+    coord_offset_u: f32,
+    coord_offset_v: f32,
+    custom_vector_x: f32,
+    custom_vector_y: f32,
+    custom_vector_z: f32,
+    noise_type: Option<&str>,
+    noise_scale_x: f32,
+    noise_scale_y: f32,
+    noise_scale_z: f32,
+    noise_offset_x: f32,
+    noise_offset_y: f32,
+    noise_offset_z: f32,
+    noise_seed: u64,
+    noise_octaves: u32,
+    noise_lacunarity: f32,
+    noise_roughness: f32,
+    noise_fractal: &str,
+) -> PyResult<Geometry> {
+    let texture = match image {
+        Some(img) => Some(procgeo_sops::deform::DisplaceTexture {
+            width: img.inner.width(),
+            height: img.inner.height(),
+            pixels: img.inner.to_cpu().map_err(cop_err)?,
+        }),
+        None => None,
+    };
+
+    let noise = noise_type.map(|kind| procgeo_sops::deform::DisplaceNoiseParams {
+        noise_type: py_parse_displace_noise_type(kind),
+        fractal: py_parse_displace_noise_fractal(noise_fractal),
+        scale: [noise_scale_x, noise_scale_y, noise_scale_z],
+        offset: [noise_offset_x, noise_offset_y, noise_offset_z],
+        seed: noise_seed,
+        octaves: noise_octaves,
+        lacunarity: noise_lacunarity,
+        roughness: noise_roughness,
+    });
+
+    let params = procgeo_sops::deform::DisplaceParams {
+        strength,
+        midlevel,
+        direction: py_parse_displace_direction(direction),
+        coordinates: py_parse_displace_coordinates(coordinates),
+        projection: py_parse_displace_projection(projection),
+        uv_attrib: uv_attrib.to_string(),
+        normal_attrib: normal_attrib.to_string(),
+        sample_channel: py_parse_displace_channel(sample_channel),
+        sampler: py_parse_displace_sampler(sampler),
+        wrap: py_parse_displace_wrap(wrap),
+        coord_scale: [coord_scale_u, coord_scale_v],
+        coord_offset: [coord_offset_u, coord_offset_v],
+        custom_vector: [custom_vector_x, custom_vector_y, custom_vector_z],
+        texture,
+        noise,
+    };
+
+    let inner = procgeo_sops::deform::DisplaceSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[pyfunction]
 #[pyo3(signature = (geo, rest_lattice, deformed_lattice, radius=1.0, min_points=1, max_points=10, rigid_projection=true, mask=1.0))]
 fn point_deform(
     geo: &Geometry,
@@ -1720,6 +1936,7 @@ fn boolean_op(
 fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Geometry>()?;
     // Creation
+    m.add_function(wrap_pyfunction!(add, m)?)?;
     m.add_function(wrap_pyfunction!(create_box, m)?)?;
     m.add_function(wrap_pyfunction!(create_grid, m)?)?;
     m.add_function(wrap_pyfunction!(create_sphere, m)?)?;
@@ -1736,6 +1953,7 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Manipulation
     m.add_function(wrap_pyfunction!(transform, m)?)?;
     m.add_function(wrap_pyfunction!(bend, m)?)?;
+    m.add_function(wrap_pyfunction!(displace, m)?)?;
     m.add_function(wrap_pyfunction!(point_deform, m)?)?;
     m.add_function(wrap_pyfunction!(boolean_op, m)?)?;
     m.add_function(wrap_pyfunction!(compute_normals, m)?)?;

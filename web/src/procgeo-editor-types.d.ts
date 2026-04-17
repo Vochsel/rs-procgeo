@@ -94,6 +94,24 @@ type ProcGeoCopCompositeOperation =
     | "min"
     | "max";
 type ProcGeoCopShaderLanguage = "wgsl" | "glsl";
+type ProcGeoDisplaceDirection =
+    | "normal"
+    | "x"
+    | "y"
+    | "z"
+    | "rgbToXyz"
+    | "customVector";
+type ProcGeoDisplaceCoordinates = "auto" | "uv" | "boundingBox" | "position";
+type ProcGeoDisplaceProjection = "xy" | "xz" | "yz";
+type ProcGeoDisplaceSampleChannel =
+    | "luminance"
+    | "red"
+    | "green"
+    | "blue"
+    | "alpha"
+    | "average";
+type ProcGeoDisplaceSampler = "nearest" | "bilinear";
+type ProcGeoDisplaceWrap = "clamp" | "repeat";
 
 interface ProcGeoBoundingBox {
     min: Float32Array;
@@ -250,6 +268,47 @@ interface ProcGeoCreateTeapotParams {
     size?: ProcGeoVec3;
     center?: ProcGeoVec3;
     resolution?: number;
+}
+
+interface ProcGeoAddParams {
+    points?: ProcGeoVec3[];
+    polygons?: number[][];
+    polylines?: number[][];
+}
+
+interface ProcGeoDisplaceTexture {
+    width: number;
+    height: number;
+    pixels: Float32Array | number[];
+}
+
+interface ProcGeoDisplaceNoiseParams {
+    noiseType?: ProcGeoAttribNoiseType;
+    fractal?: ProcGeoAttribNoiseFractal;
+    scale?: ProcGeoVec3;
+    offset?: ProcGeoVec3;
+    seed?: number;
+    octaves?: number;
+    lacunarity?: number;
+    roughness?: number;
+}
+
+interface ProcGeoDisplaceParams {
+    strength?: number;
+    midlevel?: number;
+    direction?: ProcGeoDisplaceDirection;
+    coordinates?: ProcGeoDisplaceCoordinates;
+    projection?: ProcGeoDisplaceProjection;
+    uvAttrib?: string;
+    normalAttrib?: string;
+    sampleChannel?: ProcGeoDisplaceSampleChannel;
+    sampler?: ProcGeoDisplaceSampler;
+    wrap?: ProcGeoDisplaceWrap;
+    coordScale?: ProcGeoVec2;
+    coordOffset?: ProcGeoVec2;
+    customVector?: ProcGeoVec3;
+    texture?: ProcGeoDisplaceTexture;
+    noise?: ProcGeoDisplaceNoiseParams;
 }
 
 interface ProcGeoTransformParams {
@@ -677,6 +736,7 @@ interface ProcGeoModule {
     initCopGpu(): Promise<void>;
 
     // Creation
+    add(source?: ProcGeoGeometry | null, params?: ProcGeoAddParams): ProcGeoGeometry;
     createBox(params?: ProcGeoCreateBoxParams): ProcGeoGeometry;
     createGrid(params?: ProcGeoCreateGridParams): ProcGeoGeometry;
     createSphere(params?: ProcGeoCreateSphereParams): ProcGeoGeometry;
@@ -695,6 +755,12 @@ interface ProcGeoModule {
     transform(geo: ProcGeoGeometry, params?: ProcGeoTransformParams): ProcGeoGeometry;
     computeNormals(geo: ProcGeoGeometry, params?: ProcGeoNormalParams): ProcGeoGeometry;
     bend(geo: ProcGeoGeometry, params?: ProcGeoBendParams): ProcGeoGeometry;
+    displace(geo: ProcGeoGeometry, params?: ProcGeoDisplaceParams): ProcGeoGeometry;
+    displaceImage(
+        geo: ProcGeoGeometry,
+        image: ProcGeoCopImage,
+        params?: ProcGeoDisplaceParams
+    ): Promise<ProcGeoGeometry>;
     pointDeform(
         geo: ProcGeoGeometry,
         restLattice: ProcGeoGeometry,

@@ -2,6 +2,7 @@ use std::sync::OnceLock;
 
 use procgeo_core::{AttribClass, PointHandle, PolyType, PrimHandle, Primitive};
 use procgeo_sops::Sop;
+use serde::de::DeserializeOwned;
 use wasm_bindgen::prelude::*;
 
 /// Geometry wrapper exposed to JS via WASM.
@@ -335,9 +336,39 @@ fn empty_obj() -> JsValue {
     js_sys::Object::new().into()
 }
 
+fn parse_params<P: Default + DeserializeOwned>(params: Option<JsValue>) -> Result<P, JsError> {
+    match params {
+        Some(value) if !value.is_null() && !value.is_undefined() => {
+            serde_wasm_bindgen::from_value(value)
+                .map_err(|e| JsError::new(&format!("Failed to parse params: {e}")))
+        }
+        _ => Ok(P::default()),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Creation SOPs
 // ---------------------------------------------------------------------------
+
+#[wasm_bindgen]
+pub fn add(source: Option<Geometry>, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let registry = get_registry();
+    let params_json = match params {
+        Some(p) if !p.is_undefined() && !p.is_null() => js_sys::JSON::stringify(&p)
+            .map_err(|_| JsError::new("Failed to serialize params"))?
+            .as_string()
+            .unwrap_or_default(),
+        _ => "{}".to_string(),
+    };
+
+    let inner = match source {
+        Some(geo) => registry.execute("add", &[&geo.inner], &params_json),
+        None => registry.execute("add", &[], &params_json),
+    }
+    .map_err(sop_err)?;
+
+    Ok(Geometry { inner })
+}
 
 #[wasm_bindgen(js_name = "createBox")]
 pub fn create_box(params: Option<JsValue>) -> Result<Geometry, JsError> {
@@ -749,6 +780,39 @@ pub fn bend(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError
         preserve_normal_length: get_bool(&p, "preserveNormalLength", false),
     };
     let inner = procgeo_sops::deform::BendSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen]
+pub fn displace(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let params: procgeo_sops::deform::DisplaceParams = parse_params(params)?;
+    let inner = procgeo_sops::deform::DisplaceSop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+#[wasm_bindgen(js_name = "displaceImage")]
+pub async fn displace_image(
+    geo: &Geometry,
+    image: &CopImage,
+    params: Option<JsValue>,
+) -> Result<Geometry, JsError> {
+    let mut params: procgeo_sops::deform::DisplaceParams = parse_params(params)?;
+    let pixels = image
+        .inner
+        .to_cpu_async()
+        .await
+        .map_err(|e| JsError::new(&format!("{e}")))?;
+    params.texture = Some(procgeo_sops::deform::DisplaceTexture {
+        width: image.inner.width(),
+        height: image.inner.height(),
+        pixels,
+    });
+
+    let inner = procgeo_sops::deform::DisplaceSop
         .execute(&[&geo.inner], &params)
         .map_err(sop_err)?;
     Ok(Geometry { inner })

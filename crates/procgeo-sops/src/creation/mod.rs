@@ -1,3 +1,4 @@
+pub mod add;
 pub mod box_sop;
 pub mod circle;
 pub mod grid;
@@ -12,6 +13,7 @@ pub mod teapot;
 pub mod torus;
 pub mod tube;
 
+pub use add::{AddParams, AddSop};
 pub use box_sop::{BoxParams, BoxSop};
 pub use circle::{CircleParams, CircleSop};
 pub use grid::{GridOrientation, GridParams, GridSop};

@@ -33,6 +33,30 @@ await init(); // REQUIRED before any calls
 import { toMesh, toBufferGeometry, toEdges, toPointCloud, toWireframe, createScene } from '@procgeo/three';
 ```
 
+## Coordinate System and Default Shape Conventions
+
+Keep JS and TS examples aligned with the Rust library defaults:
+
+- `Y` is up
+- The default ground plane is `XZ`
+- Most generators are centered at `[0, 0, 0]`
+- Height and direction defaults usually point along `+Y`
+- Polygon winding is CCW when viewed from outside
+
+Common creation defaults:
+
+- `createBox()`: size `[1, 1, 1]`, centered at origin
+- `createGrid()`: `10x10`, `rows = 10`, `cols = 10`, oriented on `XZ`
+- `createCircle()`: radius `1`, `divisions = 40`, oriented on `XZ`
+- `createLine()`: origin `[0, 0, 0]`, direction `[0, 1, 0]`, length `1`, `points = 2`
+- `createSphere()`: radius `0.5`, centered at origin
+- `createTube()`: bottom/top radius `0.5`, height `1`, centered at origin, aligned to `Y`
+- `createHelix()`: vertical progression along `Y`
+- `createSpiral()`: planar expansion in `XZ`, optional `Y` rise
+- `add()`: explicit points and explicit polygon/polyline connectivity
+
+When writing bindings examples, editor snippets, or Three.js demos, prefer these defaults unless the example is specifically showing a different orientation.
+
 ## Geometry Class
 
 Both bindings expose the same `Geometry` class:
@@ -75,6 +99,8 @@ geo.getColors()           // Float32Array|undefined — if "Cd" attrib exists
 geo.toObj()               // string — OBJ format
 geo.toGlb()               // Uint8Array — GLB binary
 ```
+
+For manual face creation, maintain CCW winding for outward normals. If you are building something intended to sit on the ground, prefer coordinates in the `XZ` plane and use `Y` for height.
 
 ## SOP Functions — Quick Reference
 

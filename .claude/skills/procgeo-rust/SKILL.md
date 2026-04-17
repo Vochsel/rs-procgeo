@@ -23,6 +23,30 @@ ProcGeo is a Houdini-inspired procedural geometry library. Think in **networks**
 | Group | `ElementGroup` (bitset) | Named, boolean ops, used by Blast/GroupCreate |
 | Detail attrib | `AttribClass::Detail` | Single value on the geometry itself |
 
+## Coordinate System and Default Shape Conventions
+
+Assume these defaults when generating or transforming geometry unless the user or a source asset says otherwise:
+
+- `Y` is up
+- The default working plane for planar primitives is `XZ`
+- Generators are usually centered at `Vec3::ZERO`
+- Length and height defaults usually extend along `+Y`
+- Polygon faces must use CCW winding when viewed from outside
+
+Useful built-in defaults:
+
+- `BoxSop`: `size = Vec3::ONE`, centered at origin
+- `GridSop`: `size = [10, 10]`, `rows = 10`, `cols = 10`, orientation `XZ`
+- `CircleSop`: radius `1`, `divisions = 40`, orientation `XZ`
+- `LineSop`: `origin = 0`, `direction = Vec3::Y`, `length = 1`, `points = 2`
+- `SphereSop`: radius `0.5`, centered at origin
+- `TubeSop`: radii `0.5`, `height = 1`, centered at origin, aligned to `Y`
+- `HelixSop`: radius `0.5`, height `1`, rises along `Y`
+- `SpiralSop`: starts in `XZ`, optional `Y` rise
+- `AddSop`: explicit points and explicit polygon/polyline connectivity
+
+When writing examples or helper functions, prefer these defaults over ad hoc coordinate assumptions so pipelines remain consistent with the Rust, WASM, and Python APIs.
+
 ## The Procedural Mindset
 
 ### 1. Generate, Don't Construct
@@ -40,6 +64,8 @@ let box_geo = generate(&BoxSop, &BoxParams {
 // AVOID: manually adding points/faces for standard shapes
 // (Reserve manual construction for custom topology only)
 ```
+
+If you create planar or axial geometry manually, stay aligned with the repo defaults: place it on `XZ` when it is "grounded", use `+Y` for upward extension, and only deviate when the problem statement requires it.
 
 ### 2. Chain SOPs with `.apply()`
 

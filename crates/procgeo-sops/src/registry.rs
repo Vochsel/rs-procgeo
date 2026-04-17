@@ -126,6 +126,7 @@ pub fn default_registry() -> SopRegistry {
     // Creation
     #[cfg(feature = "creation")]
     {
+        r.add(crate::creation::AddSop);
         r.add(crate::creation::BoxSop);
         r.add(crate::creation::GridSop);
         r.add(crate::creation::SphereSop);
@@ -254,6 +255,7 @@ pub fn default_registry() -> SopRegistry {
     #[cfg(feature = "deform")]
     {
         r.add(crate::deform::BendSop);
+        r.add(crate::deform::DisplaceSop);
         r.add(crate::deform::PointDeformSop);
     }
 
@@ -283,11 +285,88 @@ mod tests {
     }
 
     #[test]
+    fn test_default_registry_has_add() {
+        let reg = default_registry();
+        assert!(reg.has("add"));
+    }
+
+    #[test]
+    fn test_default_registry_has_displace() {
+        let reg = default_registry();
+        assert!(reg.has("displace"));
+    }
+
+    #[test]
     fn test_execute_box_via_registry() {
         let reg = default_registry();
         let geo = reg.execute("box", &[], "{}").unwrap();
         assert_eq!(geo.num_points(), 8);
         assert_eq!(geo.num_prims(), 6);
+    }
+
+    #[test]
+    fn test_execute_add_via_registry() {
+        let reg = default_registry();
+        let geo = reg
+            .execute(
+                "add",
+                &[],
+                r#"{
+                    "points": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 1.0], [0.0, 0.0, 1.0]],
+                    "polygons": [[0, 3, 2, 1]],
+                    "polylines": [[0, 1, 2]]
+                }"#,
+            )
+            .unwrap();
+
+        assert_eq!(geo.num_points(), 4);
+        assert_eq!(geo.num_prims(), 2);
+    }
+
+    #[test]
+    fn test_execute_displace_via_registry() {
+        let reg = default_registry();
+        let geo = reg
+            .execute(
+                "add",
+                &[],
+                r#"{
+                    "points": [[-0.5, 0.0, -0.5], [0.5, 0.0, -0.5], [0.5, 0.0, 0.5], [-0.5, 0.0, 0.5]],
+                    "polygons": [[0, 3, 2, 1]]
+                }"#,
+            )
+            .unwrap();
+
+        let displaced = reg
+            .execute(
+                "displace",
+                &[&geo],
+                r#"{
+                    "strength": 1.0,
+                    "midlevel": 0.0,
+                    "direction": "Y",
+                    "coordinates": "BoundingBox",
+                    "projection": "XZ",
+                    "sample_channel": "Luminance",
+                    "sampler": "Nearest",
+                    "wrap": "Clamp",
+                    "texture": {
+                        "width": 2,
+                        "height": 1,
+                        "pixels": [0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+                    }
+                }"#,
+            )
+            .unwrap();
+
+        assert!(
+            (displaced
+                .point_pos(procgeo_core::PointHandle::from_index(1))
+                .y
+                - 1.0)
+                .abs()
+                < 1e-5
+        );
     }
 
     #[test]
