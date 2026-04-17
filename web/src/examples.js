@@ -1,4 +1,110 @@
 export const examples = {
+    starterScene: `// Starter scene — displaced terrain, an extruded plinth, and a twisted spire
+function mergeAll(parts) {
+  return parts.slice(1).reduce((acc, part) => pg.merge(acc, part), parts[0]);
+}
+
+const footprint = [
+  [-1.2, 0, -0.45],
+  [-0.45, 0, -1.2],
+  [0.45, 0, -1.2],
+  [1.2, 0, -0.45],
+  [1.2, 0, 0.45],
+  [0.45, 0, 1.2],
+  [-0.45, 0, 1.2],
+  [-1.2, 0, 0.45],
+];
+
+let ground = pg.createGrid({ rows: 72, cols: 72, sizeX: 9, sizeY: 9 });
+ground = pg.displace(ground, {
+  direction: 'y',
+  coordinates: 'boundingBox',
+  projection: 'xz',
+  strength: 0.7,
+  midlevel: 0.46,
+  noise: {
+    noiseType: 'simplex',
+    fractal: 'terrain',
+    scale: [1.1, 1.1, 1.1],
+    octaves: 5,
+    lacunarity: 2.0,
+    roughness: 0.52,
+    seed: 12,
+  },
+});
+ground = pg.displace(ground, {
+  direction: 'y',
+  coordinates: 'boundingBox',
+  projection: 'xz',
+  strength: 0.2,
+  midlevel: 0.45,
+  noise: {
+    noiseType: 'worleyF2F1',
+    scale: [3.4, 3.4, 3.4],
+    octaves: 2,
+    seed: 37,
+  },
+});
+ground = pg.displace(ground, {
+  direction: 'y',
+  coordinates: 'boundingBox',
+  projection: 'xz',
+  strength: 0.06,
+  midlevel: 0.5,
+  noise: {
+    noiseType: 'perlin',
+    fractal: 'standard',
+    scale: [7.5, 7.5, 7.5],
+    octaves: 3,
+    roughness: 0.55,
+    seed: 8,
+  },
+});
+ground = pg.smooth(ground, { iterations: 1, strength: 0.12 });
+ground = pg.color(pg.computeNormals(ground), { color: [0.23, 0.3, 0.25] });
+
+let plinth = pg.add(null, {
+  points: footprint,
+  polygons: [[7, 6, 5, 4, 3, 2, 1, 0]],
+});
+plinth = pg.polyExtrude(plinth, { distance: 0.3, inset: 0.08 });
+plinth = pg.transform(plinth, { translate: [0, 0.22, 0] });
+plinth = pg.color(pg.computeNormals(plinth), { color: [0.65, 0.61, 0.56] });
+
+let spire = pg.createBox({ size: [0.9, 3.2, 0.9], center: [0, 1.6, 0] });
+spire = pg.subdivide(spire, { depth: 2, mode: 'linear' });
+spire = pg.bend(spire, {
+  twistEnable: true,
+  twistAngle: 240,
+  captureOrigin: [0, 0, 0],
+  captureDirection: [0, 1, 0],
+  captureLength: 3.2,
+});
+spire = pg.color(pg.computeNormals(spire), { color: [0.7, 0.78, 0.88] });
+
+let halo = pg.createTorus({
+  radiusOuter: 1.35,
+  radiusInner: 0.14,
+  rows: 20,
+  cols: 36,
+  center: [0, 2.6, 0],
+});
+halo = pg.displace(halo, {
+  direction: 'normal',
+  strength: 0.08,
+  midlevel: 0.5,
+  noise: {
+    noiseType: 'worley',
+    scale: [4.0, 4.0, 4.0],
+    octaves: 2,
+    seed: 5,
+  },
+});
+halo = pg.color(pg.computeNormals(halo), { color: [0.93, 0.67, 0.25] });
+
+return mergeAll([ground, plinth, spire, halo]);
+`,
+
     basic: `// Basic box with normals
 const box = pg.createBox({ size: [1, 1, 1] });
 const withNormals = pg.computeNormals(box);
@@ -94,6 +200,87 @@ geo = pg.attribNoise(geo, {
 
 geo = pg.computeNormals(geo);
 geo = pg.color(geo, { color: [0.35, 0.55, 0.25] });
+return geo;
+`,
+
+    textureDisplace: `// Texture displacement from inline RGBA height data
+const heights = [
+  [0.0, 0.12, 0.28, 0.0],
+  [0.18, 0.45, 0.72, 0.2],
+  [0.06, 0.35, 1.0, 0.38],
+  [0.0, 0.16, 0.4, 0.08],
+];
+
+const pixels = [];
+for (const row of heights) {
+  for (const h of row) {
+    pixels.push(h, h, h, 1.0);
+  }
+}
+
+let geo = pg.createGrid({ rows: 96, cols: 96, sizeX: 5, sizeY: 5 });
+geo = pg.displace(geo, {
+  texture: {
+    width: 4,
+    height: 4,
+    pixels,
+  },
+  direction: 'y',
+  coordinates: 'boundingBox',
+  projection: 'xz',
+  sampler: 'bilinear',
+  wrap: 'clamp',
+  strength: 1.25,
+  midlevel: 0.0,
+});
+geo = pg.computeNormals(geo);
+geo = pg.color(geo, { color: [0.36, 0.52, 0.32] });
+return geo;
+`,
+
+    copDisplaceImage: `// COP-generated heightmap driving displaceImage (async)
+const size = 256;
+
+const hills = pg.copNoise({
+  noiseType: 'simplex',
+  frequency: 2.2,
+  octaves: 4,
+  lacunarity: 2.0,
+  gain: 0.5,
+  amplitude: 1.0,
+  seed: 3,
+  width: size,
+  height: size,
+});
+
+const ridges = pg.copNoise({
+  noiseType: 'worley',
+  frequency: 7.0,
+  octaves: 2,
+  amplitude: 0.28,
+  seed: 17,
+  width: size,
+  height: size,
+});
+
+const heightmap = pg.copComposite(hills, ridges, {
+  operation: 'screen',
+  mix: 0.6,
+});
+
+let geo = pg.createGrid({ rows: 120, cols: 120, sizeX: 6, sizeY: 6 });
+geo = await pg.displaceImage(geo, heightmap, {
+  direction: 'y',
+  coordinates: 'boundingBox',
+  projection: 'xz',
+  sampleChannel: 'luminance',
+  sampler: 'bilinear',
+  wrap: 'clamp',
+  strength: 1.1,
+  midlevel: 0.42,
+});
+geo = pg.computeNormals(geo);
+geo = pg.color(geo, { color: [0.34, 0.47, 0.31] });
 return geo;
 `,
 

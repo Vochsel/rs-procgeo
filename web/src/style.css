@@ -46,7 +46,7 @@ html, body, #app {
 
 #toolbar button:hover { background: #1177bb; }
 
-#docs-btn {
+.toolbar-link {
     padding: 4px 12px;
     background: #3c3c3c;
     color: #ccc;
@@ -57,7 +57,7 @@ html, body, #app {
     text-decoration: none;
 }
 
-#docs-btn:hover { background: #505050; color: #fff; }
+.toolbar-link:hover { background: #505050; color: #fff; }
 
 #toolbar select {
     background: #3c3c3c;

@@ -246,6 +246,8 @@ function setStatus(text, type = '') {
 }
 
 // ── Code Execution ───────────────────────────────────────
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+
 async function executeCode(code) {
     if (!wasmReady) {
         setStatus('WASM not loaded yet...', 'error');
@@ -262,8 +264,8 @@ async function executeCode(code) {
         const output = await client.getEmitOutput(uri.toString());
         const js = output.outputFiles[0].text;
 
-        const fn = new Function('pg', `"use strict"; ${js}`);
-        const result = fn(pg);
+        const fn = new AsyncFunction('pg', `"use strict"; ${js}`);
+        const result = await fn(pg);
         const elapsed = (performance.now() - t0).toFixed(1);
 
         if (result && typeof result.getPositions === 'function') {
@@ -299,8 +301,9 @@ self.MonacoEnvironment = {
 };
 
 // Create a TypeScript model so the TS worker can transpile it
+const defaultExampleKey = 'starterScene';
 const editorModel = monaco.editor.createModel(
-    examples.basic,
+    examples[defaultExampleKey],
     'typescript',
     monaco.Uri.parse('file:///main.ts')
 );
@@ -360,11 +363,12 @@ editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
 });
 
 // ── Examples dropdown ────────────────────────────────────
-document.getElementById('examples').addEventListener('change', (e) => {
+document.getElementById('examples').addEventListener('change', async (e) => {
     const key = e.target.value;
     if (key && examples[key]) {
         editor.setValue(examples[key]);
-        executeCode(examples[key]);
+        await executeCode(examples[key]);
+        fitCameraToScene();
     }
     e.target.value = '';
 });
@@ -645,7 +649,7 @@ loadWasm().then(async () => {
         editor.setValue(urlCode);
     }
     await executeCode(editor.getValue());
-    if (urlCode) fitCameraToScene();
+    fitCameraToScene();
 }).catch(e => {
     setStatus(`Failed to load WASM: ${e.message}`, 'error');
     console.error(e);

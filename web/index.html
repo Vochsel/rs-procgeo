@@ -17,6 +17,7 @@
             <select id="examples">
                 <option value="">Examples...</option>
                 <optgroup label="Basics">
+                    <option value="starterScene">Starter Scene</option>
                     <option value="basic">Basic Box</option>
                     <option value="allPrimitives">All Primitives</option>
                     <option value="subdiv">Catmull-Clark Sphere</option>
@@ -24,6 +25,8 @@
                 </optgroup>
                 <optgroup label="Noise &amp; Terrain">
                     <option value="noiseDisplace">Noise Terrain</option>
+                    <option value="textureDisplace">Texture Heightmap</option>
+                    <option value="copDisplaceImage">COP Heightmap Mesh</option>
                     <option value="noisyTorus">Noisy Torus</option>
                     <option value="scatterForest">Scatter Forest</option>
                 </optgroup>
@@ -85,7 +88,8 @@
             <button id="export-glb" title="Export GLB">GLB</button>
             <span class="separator"></span>
             <button id="share-btn" title="Copy shareable link">Share</button>
-            <a href="/docs/" target="_blank" id="docs-btn" title="API Reference">Docs</a>
+            <a href="/docs/" target="_blank" rel="noreferrer" class="toolbar-link" title="API Reference">Docs</a>
+            <a href="https://github.com/vochsel/rs-procgeo" target="_blank" rel="noreferrer" class="toolbar-link" title="GitHub Repository">GitHub</a>
         </div>
         <div id="panels">
             <div id="editor-panel">
