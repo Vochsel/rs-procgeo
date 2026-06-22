@@ -1,0 +1,22 @@
+{
+  "name": "@procgeo/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ProcGeo native desktop app — Tauri shell with procgeo running as a native Rust dependency",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "dev:frontend": "vite",
+    "build:frontend": "vite build",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "vite": "^6.0.0"
+  }
+}

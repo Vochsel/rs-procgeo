@@ -1,0 +1,31 @@
+[package]
+name = "procgeo-desktop"
+version = "0.1.0"
+description = "ProcGeo native desktop app (Tauri) — procgeo runs as a native Rust dependency"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/vochsel/rs-procgeo"
+
+# Detached from the root cargo workspace on purpose: this keeps the Tauri GUI
+# dependency tree (and its native system requirements) out of
+# `cargo build --workspace` / `cargo test --workspace` and CI.
+[workspace]
+
+[lib]
+name = "procgeo_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+procgeo-core = { path = "../../../crates/procgeo-core" }
+procgeo-sops = { path = "../../../crates/procgeo-sops" }
+
+[features]
+# Enabled by `tauri build` for production asset serving via the custom protocol.
+custom-protocol = ["tauri/custom-protocol"]

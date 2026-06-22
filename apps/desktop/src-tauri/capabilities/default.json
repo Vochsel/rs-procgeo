@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capabilities for the main window. Custom invoke commands (cook, list_sops) are always available; this grants the core defaults.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
