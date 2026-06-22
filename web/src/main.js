@@ -38,8 +38,7 @@ const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
 camera.position.set(3, 2.2, 3.5);
 
 const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
+controls.enableDamping = false;
 
 // Lights
 scene.add(new THREE.AmbientLight(0xffffff, 0.35));
