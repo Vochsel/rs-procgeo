@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node ../scripts/validate-web-editor-types.mjs && vite",
     "build": "node ../scripts/validate-web-editor-types.mjs && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:editor": "node scripts/test-editor-graph.mjs"
   },
   "dependencies": {
     "three": "^0.170.0",

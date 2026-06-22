@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcGeo Visual Editor</title>
+    <link rel="stylesheet" href="/src/editor/editor.css">
+</head>
+<body>
+    <div id="app">
+        <div id="toolbar">
+            <span class="logo">ProcGeo</span>
+            <span class="sub">Visual Editor</span>
+            <span class="separator"></span>
+            <button id="new-btn" class="ghost" title="New empty graph">New</button>
+            <select id="presets" title="Load a preset graph">
+                <option value="">Presets…</option>
+            </select>
+            <span id="status"></span>
+            <span class="spacer"></span>
+            <div id="view-modes">
+                <button class="view-mode-btn" data-mode="shaded" title="Shaded">Shaded</button>
+                <button class="view-mode-btn active" data-mode="shaded_wire" title="Shaded + Wireframe">Shaded+Wire</button>
+                <button class="view-mode-btn" data-mode="wire" title="Wireframe">Wire</button>
+            </div>
+            <button id="fit-btn" class="ghost" title="Frame geometry (F)">Frame</button>
+            <span class="separator"></span>
+            <button id="export-obj" class="ghost" title="Export OBJ">OBJ</button>
+            <button id="export-glb" class="ghost" title="Export GLB">GLB</button>
+            <span class="separator"></span>
+            <button id="share-btn" title="Copy shareable link">Share</button>
+            <a href="/" class="toolbar-link" title="Code Playground">Code</a>
+            <a href="/docs/" target="_blank" rel="noreferrer" class="toolbar-link" title="API Reference">Docs</a>
+        </div>
+        <div id="panels">
+            <div id="network-panel">
+                <div id="network-header">Network <span class="hint">right-click / Tab to add · drag ports to wire · Del to remove</span></div>
+                <div id="network"></div>
+            </div>
+            <div id="divider"></div>
+            <div id="viewer-panel">
+                <div id="viewport-view">
+                    <canvas id="canvas"></canvas>
+                </div>
+                <div id="params-wrap">
+                    <div id="params-header">Parameters</div>
+                    <div id="params-panel"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="toast"></div>
+    <script type="module" src="/src/editor/main.js"></script>
+</body>
+</html>
