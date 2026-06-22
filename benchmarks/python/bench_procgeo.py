@@ -56,6 +56,10 @@ def run():
         mean, std, iters = bench(lambda: pg.scatter(grid, count=scale, seed=42))
         emit_result(FW, LANG, "topology", "scatter", scale, mean, std, iters)
 
+        # -- Softbody (XPBD), 10 simulated frames --
+        mean, std, iters = bench(lambda: pg.softbody(grid, frame=10))
+        emit_result(FW, LANG, "simulation", "softbody", scale, mean, std, iters)
+
         # -- Full Pipeline --
         def pipeline():
             g = pg.create_grid(rows=rc, cols=rc)

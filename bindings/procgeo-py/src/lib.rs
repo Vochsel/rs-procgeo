@@ -1931,6 +1931,246 @@ fn boolean_op(
     Ok(Geometry { inner })
 }
 
+// ---- Simulation SOPs ----
+
+/// Build `SoftbodyParams` from keyword arguments shared by `softbody` and
+/// the `SoftBodySolver` class.
+#[allow(clippy::too_many_arguments)]
+fn make_softbody_params(
+    frame: u32,
+    fps: f32,
+    substeps: u32,
+    iterations: u32,
+    gravity_x: f32,
+    gravity_y: f32,
+    gravity_z: f32,
+    stiffness: f32,
+    bend_stiffness: f32,
+    damping: f32,
+    mass: f32,
+    pin_group: Option<String>,
+    ground_collision: bool,
+    ground_height: f32,
+    ground_friction: f32,
+    wind_x: f32,
+    wind_y: f32,
+    wind_z: f32,
+) -> procgeo_sops::simulation::SoftbodyParams {
+    procgeo_sops::simulation::SoftbodyParams {
+        frame,
+        fps,
+        substeps,
+        iterations,
+        gravity: glam::Vec3::new(gravity_x, gravity_y, gravity_z),
+        stiffness,
+        bend_stiffness,
+        damping,
+        mass,
+        pin_group,
+        ground_collision,
+        ground_height,
+        ground_friction,
+        wind: glam::Vec3::new(wind_x, wind_y, wind_z),
+    }
+}
+
+/// Softbody/cloth SOP: simulate `geo` from rest to `frame` (XPBD) and return
+/// the deformed geometry. For interactive playback use `SoftBodySolver`.
+#[pyfunction]
+#[pyo3(signature = (
+    geo,
+    frame=0,
+    fps=24.0,
+    substeps=5,
+    iterations=8,
+    gravity_x=0.0,
+    gravity_y=-9.81,
+    gravity_z=0.0,
+    stiffness=0.9,
+    bend_stiffness=0.2,
+    damping=0.02,
+    mass=1.0,
+    pin_group=None,
+    ground_collision=true,
+    ground_height=0.0,
+    ground_friction=0.3,
+    wind_x=0.0,
+    wind_y=0.0,
+    wind_z=0.0,
+))]
+#[allow(clippy::too_many_arguments)]
+fn softbody(
+    geo: &Geometry,
+    frame: u32,
+    fps: f32,
+    substeps: u32,
+    iterations: u32,
+    gravity_x: f32,
+    gravity_y: f32,
+    gravity_z: f32,
+    stiffness: f32,
+    bend_stiffness: f32,
+    damping: f32,
+    mass: f32,
+    pin_group: Option<String>,
+    ground_collision: bool,
+    ground_height: f32,
+    ground_friction: f32,
+    wind_x: f32,
+    wind_y: f32,
+    wind_z: f32,
+) -> PyResult<Geometry> {
+    let params = make_softbody_params(
+        frame,
+        fps,
+        substeps,
+        iterations,
+        gravity_x,
+        gravity_y,
+        gravity_z,
+        stiffness,
+        bend_stiffness,
+        damping,
+        mass,
+        pin_group,
+        ground_collision,
+        ground_height,
+        ground_friction,
+        wind_x,
+        wind_y,
+        wind_z,
+    );
+    let inner = procgeo_sops::simulation::SoftbodySop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+/// A stateful XPBD softbody/cloth solver for efficient frame-by-frame playback
+/// and dataset generation (e.g. ML training).
+#[pyclass]
+struct SoftBodySolver {
+    inner: procgeo_sops::simulation::SoftbodySolver,
+}
+
+#[pymethods]
+impl SoftBodySolver {
+    #[new]
+    #[pyo3(signature = (
+        geo,
+        fps=24.0,
+        substeps=5,
+        iterations=8,
+        gravity_x=0.0,
+        gravity_y=-9.81,
+        gravity_z=0.0,
+        stiffness=0.9,
+        bend_stiffness=0.2,
+        damping=0.02,
+        mass=1.0,
+        pin_group=None,
+        ground_collision=true,
+        ground_height=0.0,
+        ground_friction=0.3,
+        wind_x=0.0,
+        wind_y=0.0,
+        wind_z=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        geo: &Geometry,
+        fps: f32,
+        substeps: u32,
+        iterations: u32,
+        gravity_x: f32,
+        gravity_y: f32,
+        gravity_z: f32,
+        stiffness: f32,
+        bend_stiffness: f32,
+        damping: f32,
+        mass: f32,
+        pin_group: Option<String>,
+        ground_collision: bool,
+        ground_height: f32,
+        ground_friction: f32,
+        wind_x: f32,
+        wind_y: f32,
+        wind_z: f32,
+    ) -> Self {
+        let params = make_softbody_params(
+            0,
+            fps,
+            substeps,
+            iterations,
+            gravity_x,
+            gravity_y,
+            gravity_z,
+            stiffness,
+            bend_stiffness,
+            damping,
+            mass,
+            pin_group,
+            ground_collision,
+            ground_height,
+            ground_friction,
+            wind_x,
+            wind_y,
+            wind_z,
+        );
+        SoftBodySolver {
+            inner: procgeo_sops::simulation::SoftbodySolver::new(&geo.inner, &params),
+        }
+    }
+
+    /// Advance the simulation by one frame.
+    fn step(&mut self) {
+        self.inner.step();
+    }
+
+    /// Reset back to the rest state (frame 0).
+    fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Simulate from the current state to `frame` (resets if going backwards).
+    fn solve_to(&mut self, frame: u32) {
+        self.inner.solve_to(frame);
+    }
+
+    #[getter]
+    fn frame(&self) -> u32 {
+        self.inner.frame()
+    }
+
+    #[getter]
+    fn num_points(&self) -> usize {
+        self.inner.num_points()
+    }
+
+    #[getter]
+    fn num_constraints(&self) -> usize {
+        self.inner.num_constraints()
+    }
+
+    /// Flat `[x0, y0, z0, x1, y1, z1, ...]` positions at the current frame.
+    fn positions(&self) -> Vec<f32> {
+        let mut out = Vec::with_capacity(self.inner.num_points() * 3);
+        for p in self.inner.positions() {
+            out.push(p.x);
+            out.push(p.y);
+            out.push(p.z);
+        }
+        out
+    }
+
+    /// A geometry snapshot (full topology + attributes) at the current frame.
+    fn geometry(&self) -> Geometry {
+        Geometry {
+            inner: self.inner.geometry(),
+        }
+    }
+}
+
 /// The procgeo Python module.
 #[pymodule]
 fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -1999,6 +2239,9 @@ fn procgeo(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(group_combine, m)?)?;
     // QuadWild
     m.add_function(wrap_pyfunction!(quad_wild, m)?)?;
+    // Simulation
+    m.add_function(wrap_pyfunction!(softbody, m)?)?;
+    m.add_class::<SoftBodySolver>()?;
     // SOP Registry
     m.add_function(wrap_pyfunction!(execute_sop, m)?)?;
     m.add_function(wrap_pyfunction!(execute_sop_create, m)?)?;

@@ -173,7 +173,8 @@ function toBufferGeometry(geo) {
 function clearMeshGroup() {
     while (meshGroup.children.length) {
         const c = meshGroup.children[0];
-        c.geometry?.dispose();
+        // Shared animation buffers are owned by `anim` and reused across frames.
+        if (!c.userData?.shared) c.geometry?.dispose();
         c.material?.dispose();
         meshGroup.remove(c);
     }
@@ -187,6 +188,11 @@ function updateScene(geo) {
 }
 
 function rebuildView() {
+    if (isAnimating && anim) {
+        rebuildAnimView();
+        return;
+    }
+
     const geo = currentGeo;
     if (!geo) return;
 
@@ -215,6 +221,184 @@ function rebuildView() {
     }
 }
 
+// ── Animation playbar + frame cache ──────────────────────
+// When executed code returns a SoftBodySolver, the viewer steps the solver
+// once per frame, caches the per-frame point positions, and lets the playbar
+// scrub through the cache. Topology is constant, so only positions are stored.
+
+const DEFAULT_CACHE_FRAMES = 150;
+const DEFAULT_PLAYBACK_FPS = 24;
+
+let isAnimating = false;
+let anim = null;        // { cache, frameCount, fps, meshGeo, wireGeo, edgeFlat, triIndices, colors }
+let currentFrame = 0;
+let isPlaying = false;
+let loopEnabled = true;
+let playAccum = 0;
+let lastClock = 0;
+
+const playbarEl = document.getElementById('playbar');
+const playBtn = document.getElementById('play-btn');
+const stopBtn = document.getElementById('stop-btn');
+const frameSlider = document.getElementById('frame-slider');
+const frameLabel = document.getElementById('frame-label');
+const loopBtn = document.getElementById('loop-btn');
+const cacheStatus = document.getElementById('cache-status');
+
+/** Collect unique polygon edges as a flat array of point-index pairs. */
+function computeEdgeFlat(geo) {
+    const numPrims = geo.numPrims;
+    const edgeSet = new Set();
+    const flat = [];
+    for (let p = 0; p < numPrims; p++) {
+        const pts = geo.primPointIndices(p);
+        const n = pts.length;
+        if (n < 2) continue;
+        const isClosed = geo.primIsClosed(p);
+        const edgeCount = isClosed ? n : n - 1;
+        for (let i = 0; i < edgeCount; i++) {
+            const a = pts[i];
+            const b = pts[(i + 1) % n];
+            const lo = Math.min(a, b);
+            const hi = Math.max(a, b);
+            const key = lo * 1000000 + hi;
+            if (!edgeSet.has(key)) {
+                edgeSet.add(key);
+                flat.push(a, b);
+            }
+        }
+    }
+    return new Uint32Array(flat);
+}
+
+function setPlaying(playing) {
+    isPlaying = playing && isAnimating;
+    playBtn.textContent = isPlaying ? '❚❚' : '▶';
+    lastClock = performance.now();
+    playAccum = 0;
+}
+
+function exitAnimationMode() {
+    setPlaying(false);
+    isAnimating = false;
+    anim = null;
+    playbarEl.classList.add('hidden');
+}
+
+/**
+ * Enter animation mode for a SoftBodySolver-like object. Builds the full
+ * position cache up-front, sets up reusable Three.js buffers, and shows the
+ * playbar.
+ */
+function enterAnimationMode(solver) {
+    showGeometry();
+    setPlaying(false);
+
+    const frameCount = (typeof solver.frames === 'number' && solver.frames > 1)
+        ? Math.floor(solver.frames) : DEFAULT_CACHE_FRAMES;
+    const fps = (typeof solver.fps === 'number' && solver.fps > 0)
+        ? solver.fps : DEFAULT_PLAYBACK_FPS;
+
+    // Snapshot topology/attributes from the rest state (frame 0).
+    const baseGeo = solver.geometry();
+    const triIndices = baseGeo.getTriangleIndices();
+    const colors = baseGeo.getColors?.() ?? null;
+    const edgeFlat = computeEdgeFlat(baseGeo);
+
+    // Build the position cache by stepping the solver frame by frame.
+    const t0 = performance.now();
+    solver.reset();
+    const cache = new Array(frameCount);
+    cache[0] = solver.getPositions();
+    for (let i = 1; i < frameCount; i++) {
+        solver.step();
+        cache[i] = solver.getPositions();
+    }
+    const bakeMs = (performance.now() - t0).toFixed(0);
+
+    // Reusable Three.js buffers (positions swapped per frame).
+    const meshGeo = new THREE.BufferGeometry();
+    meshGeo.setAttribute('position', new THREE.BufferAttribute(cache[0].slice(), 3));
+    meshGeo.setIndex(new THREE.BufferAttribute(triIndices, 1));
+    if (colors) meshGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const wireGeo = new THREE.BufferGeometry();
+    wireGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(edgeFlat.length * 3), 3));
+
+    anim = { cache, frameCount, fps, meshGeo, wireGeo, edgeFlat, hasColors: !!colors };
+    isAnimating = true;
+
+    // Keep a frame-0 geometry around for the spreadsheet tab.
+    currentGeo = baseGeo;
+
+    playbarEl.classList.remove('hidden');
+    frameSlider.max = String(frameCount - 1);
+    frameSlider.value = '0';
+    cacheStatus.textContent = `${frameCount}f cached (${bakeMs}ms)`;
+    loopBtn.classList.toggle('active', loopEnabled);
+
+    rebuildAnimView();
+    gotoFrame(0);
+    setStatus(`Softbody: ${baseGeo.numPoints} pts | ${frameCount} frames`, 'success');
+    updateSpreadsheet();
+}
+
+/** (Re)build the meshGroup children from the animation buffers for the current view mode. */
+function rebuildAnimView() {
+    if (!anim) return;
+    clearMeshGroup();
+
+    const showShaded = viewMode === 'shaded' || viewMode === 'shaded_wire';
+    const showWire = viewMode === 'wire' || viewMode === 'shaded_wire';
+
+    if (showShaded) {
+        const mesh = new THREE.Mesh(anim.meshGeo, new THREE.MeshStandardMaterial({
+            color: anim.hasColors ? 0xffffff : 0x4488cc,
+            vertexColors: anim.hasColors,
+            side: THREE.DoubleSide,
+            roughness: 0.55,
+            metalness: 0.15,
+        }));
+        mesh.userData.shared = true; // don't dispose shared geometry in clearMeshGroup
+        meshGroup.add(mesh);
+    }
+
+    if (showWire) {
+        const wireColor = viewMode === 'wire' ? 0x88aaff : 0x223355;
+        const wire = new THREE.LineSegments(anim.wireGeo, new THREE.LineBasicMaterial({ color: wireColor }));
+        wire.userData.shared = true;
+        meshGroup.add(wire);
+    }
+}
+
+/** Display a cached frame: swap buffer positions and refresh derived data. */
+function gotoFrame(f) {
+    if (!anim) return;
+    f = Math.max(0, Math.min(anim.frameCount - 1, f | 0));
+    currentFrame = f;
+    const pos = anim.cache[f];
+
+    // Mesh positions + normals.
+    anim.meshGeo.attributes.position.array.set(pos);
+    anim.meshGeo.attributes.position.needsUpdate = true;
+    anim.meshGeo.computeVertexNormals();
+    anim.meshGeo.computeBoundingSphere();
+
+    // Wireframe positions (expand per edge endpoint).
+    const wp = anim.wireGeo.attributes.position.array;
+    const ef = anim.edgeFlat;
+    for (let i = 0; i < ef.length; i++) {
+        const p = ef[i];
+        wp[i * 3] = pos[p * 3];
+        wp[i * 3 + 1] = pos[p * 3 + 1];
+        wp[i * 3 + 2] = pos[p * 3 + 2];
+    }
+    anim.wireGeo.attributes.position.needsUpdate = true;
+
+    frameSlider.value = String(f);
+    frameLabel.textContent = `${f} / ${anim.frameCount - 1}`;
+}
+
 function fitCameraToScene() {
     const box = new THREE.Box3().setFromObject(meshGroup);
     if (box.isEmpty()) return;
@@ -231,8 +415,35 @@ function fitCameraToScene() {
 }
 
 // Render loop
-function render() {
+function render(t) {
     requestAnimationFrame(render);
+
+    if (isAnimating && isPlaying && anim) {
+        const now = t ?? performance.now();
+        playAccum += (now - lastClock) / 1000;
+        lastClock = now;
+        const frameDur = 1 / anim.fps;
+        let advanced = false;
+        while (playAccum >= frameDur) {
+            playAccum -= frameDur;
+            let nf = currentFrame + 1;
+            if (nf >= anim.frameCount) {
+                if (loopEnabled) {
+                    nf = 0;
+                } else {
+                    nf = anim.frameCount - 1;
+                    setPlaying(false);
+                    break;
+                }
+            }
+            currentFrame = nf;
+            advanced = true;
+        }
+        if (advanced) gotoFrame(currentFrame);
+    } else {
+        lastClock = t ?? performance.now();
+    }
+
     controls.update();
     renderer.render(scene, camera);
 }
@@ -267,12 +478,20 @@ async function executeCode(code) {
         const result = await fn(pg);
         const elapsed = (performance.now() - t0).toFixed(1);
 
-        if (result && typeof result.getPositions === 'function') {
+        if (result && typeof result.step === 'function' && typeof result.geometry === 'function') {
+            // A SoftBodySolver (or compatible) → animation with cached playback.
+            showGeometry();
+            enterAnimationMode(result);
+            const el = document.getElementById('status');
+            el.textContent += ` | ${elapsed}ms`;
+        } else if (result && typeof result.getPositions === 'function') {
+            exitAnimationMode();
             showGeometry();
             updateScene(result);
             const el = document.getElementById('status');
             el.textContent += ` | ${elapsed}ms`;
         } else if (result && typeof result.getPixels === 'function') {
+            exitAnimationMode();
             await showCopImage(result);
             const el = document.getElementById('status');
             el.textContent += ` | ${elapsed}ms`;
@@ -469,6 +688,32 @@ document.getElementById('view-modes').addEventListener('click', (e) => {
     document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     rebuildView();
+});
+
+// ── Animation Playbar controls ───────────────────────────
+playBtn.addEventListener('click', () => setPlaying(!isPlaying));
+stopBtn.addEventListener('click', () => {
+    setPlaying(false);
+    gotoFrame(0);
+});
+frameSlider.addEventListener('input', () => {
+    setPlaying(false);
+    gotoFrame(parseInt(frameSlider.value, 10));
+});
+loopBtn.addEventListener('click', () => {
+    loopEnabled = !loopEnabled;
+    loopBtn.classList.toggle('active', loopEnabled);
+});
+// Spacebar toggles playback when an animation is loaded.
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && isAnimating && !(e.target instanceof HTMLInputElement)) {
+        // Avoid hijacking the Monaco editor.
+        const inEditor = document.getElementById('editor')?.contains(document.activeElement);
+        if (!inEditor) {
+            e.preventDefault();
+            setPlaying(!isPlaying);
+        }
+    }
 });
 
 // ── Geometry Spreadsheet ─────────────────────────────────

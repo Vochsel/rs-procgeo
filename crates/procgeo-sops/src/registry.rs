@@ -271,6 +271,12 @@ pub fn default_registry() -> SopRegistry {
         r.add(crate::quadwild::QuadWildSop);
     }
 
+    // Simulation
+    #[cfg(feature = "simulation")]
+    {
+        r.add(crate::simulation::SoftbodySop);
+    }
+
     r
 }
 

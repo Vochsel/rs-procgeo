@@ -103,6 +103,54 @@ export class Geometry {
     readonly numVertices: number;
 }
 
+/**
+ * A stateful XPBD softbody/cloth solver for realtime, cacheable playback.
+ *
+ * Build it from a rest geometry, then call `step()` once per frame. Topology
+ * is constant, so a viewer can cache `positions()` per frame and scrub by
+ * swapping the position buffer.
+ */
+export class SoftBodySolver {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * A geometry snapshot (full topology + attributes) at the current frame.
+     */
+    geometry(): Geometry;
+    /**
+     * Flat `[x0,y0,z0, x1,y1,z1, ...]` positions at the current frame.
+     */
+    getPositions(): Float32Array;
+    /**
+     * Create a solver from a rest geometry and optional params object.
+     */
+    constructor(geo: Geometry, params?: any | null);
+    /**
+     * Reset back to the rest state (frame 0).
+     */
+    reset(): void;
+    /**
+     * Simulate from the current state to `frame` (resets if going backwards).
+     */
+    solveTo(frame: number): void;
+    /**
+     * Advance the simulation by one frame.
+     */
+    step(): void;
+    /**
+     * Current frame index (`0` = rest).
+     */
+    readonly frame: number;
+    /**
+     * Number of internal distance constraints.
+     */
+    readonly numConstraints: number;
+    /**
+     * Number of simulated points.
+     */
+    readonly numPoints: number;
+}
+
 export function add(source?: Geometry | null, params?: any | null): Geometry;
 
 export function attribBlur(geo: Geometry, params?: any | null): Geometry;
@@ -273,6 +321,13 @@ export function scatter(geo: Geometry, params?: any | null): Geometry;
 
 export function smooth(geo: Geometry, params?: any | null): Geometry;
 
+/**
+ * Softbody/cloth SOP: simulates `geo` from rest up to `params.frame` (XPBD)
+ * and returns the deformed geometry. For interactive playback prefer the
+ * [`SoftBodySolver`] class, which steps incrementally and is cacheable.
+ */
+export function softbody(geo: Geometry, params?: any | null): Geometry;
+
 export function sort(geo: Geometry, params?: any | null): Geometry;
 
 export function subdivide(geo: Geometry, params?: any | null): Geometry;
@@ -287,6 +342,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_copimage_free: (a: number, b: number) => void;
     readonly __wbg_geometry_free: (a: number, b: number) => void;
+    readonly __wbg_softbodysolver_free: (a: number, b: number) => void;
     readonly add: (a: number, b: number) => [number, number, number];
     readonly attribBlur: (a: number, b: number) => [number, number, number];
     readonly attribCopy: (a: number, b: number, c: number) => [number, number, number];
@@ -391,13 +447,23 @@ export interface InitOutput {
     readonly revolve: (a: number, b: number) => [number, number, number];
     readonly scatter: (a: number, b: number) => [number, number, number];
     readonly smooth: (a: number, b: number) => [number, number, number];
+    readonly softbody: (a: number, b: number) => [number, number, number];
+    readonly softbodysolver_frame: (a: number) => number;
+    readonly softbodysolver_geometry: (a: number) => number;
+    readonly softbodysolver_getPositions: (a: number) => [number, number];
+    readonly softbodysolver_new: (a: number, b: number) => number;
+    readonly softbodysolver_numConstraints: (a: number) => number;
+    readonly softbodysolver_numPoints: (a: number) => number;
+    readonly softbodysolver_reset: (a: number) => void;
+    readonly softbodysolver_solveTo: (a: number, b: number) => void;
+    readonly softbodysolver_step: (a: number) => void;
     readonly sort: (a: number, b: number) => [number, number, number];
     readonly subdivide: (a: number, b: number) => [number, number, number];
     readonly transform: (a: number, b: number) => [number, number, number];
     readonly voronoiFracture: (a: number, b: number, c: number) => [number, number, number];
-    readonly wasm_bindgen__convert__closures_____invoke__h8d52734cc70625dc: (a: number, b: number, c: any) => [number, number];
-    readonly wasm_bindgen__convert__closures_____invoke__h67baf97aa0fae51e: (a: number, b: number, c: any, d: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__hd28ba1d3b3161cad: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h7f44d0234d64f352: (a: number, b: number, c: any) => [number, number];
+    readonly wasm_bindgen__convert__closures_____invoke__h08a5157219d5598e: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h8e769f7595b65e92: (a: number, b: number, c: any) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

@@ -34,6 +34,8 @@ pub mod quadwild;
 pub mod reshape;
 #[cfg(feature = "scatter")]
 pub mod scatter;
+#[cfg(feature = "simulation")]
+pub mod simulation;
 #[cfg(feature = "topology")]
 pub mod topology;
 #[cfg(feature = "transform")]

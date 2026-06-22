@@ -360,6 +360,100 @@ export class Geometry {
 if (Symbol.dispose) Geometry.prototype[Symbol.dispose] = Geometry.prototype.free;
 
 /**
+ * A stateful XPBD softbody/cloth solver for realtime, cacheable playback.
+ *
+ * Build it from a rest geometry, then call `step()` once per frame. Topology
+ * is constant, so a viewer can cache `positions()` per frame and scrub by
+ * swapping the position buffer.
+ */
+export class SoftBodySolver {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        SoftBodySolverFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_softbodysolver_free(ptr, 0);
+    }
+    /**
+     * Current frame index (`0` = rest).
+     * @returns {number}
+     */
+    get frame() {
+        const ret = wasm.softbodysolver_frame(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * A geometry snapshot (full topology + attributes) at the current frame.
+     * @returns {Geometry}
+     */
+    geometry() {
+        const ret = wasm.softbodysolver_geometry(this.__wbg_ptr);
+        return Geometry.__wrap(ret);
+    }
+    /**
+     * Flat `[x0,y0,z0, x1,y1,z1, ...]` positions at the current frame.
+     * @returns {Float32Array}
+     */
+    getPositions() {
+        const ret = wasm.softbodysolver_getPositions(this.__wbg_ptr);
+        var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Create a solver from a rest geometry and optional params object.
+     * @param {Geometry} geo
+     * @param {any | null} [params]
+     */
+    constructor(geo, params) {
+        _assertClass(geo, Geometry);
+        const ret = wasm.softbodysolver_new(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+        this.__wbg_ptr = ret >>> 0;
+        SoftBodySolverFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * Number of internal distance constraints.
+     * @returns {number}
+     */
+    get numConstraints() {
+        const ret = wasm.softbodysolver_numConstraints(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Number of simulated points.
+     * @returns {number}
+     */
+    get numPoints() {
+        const ret = wasm.softbodysolver_numPoints(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * Reset back to the rest state (frame 0).
+     */
+    reset() {
+        wasm.softbodysolver_reset(this.__wbg_ptr);
+    }
+    /**
+     * Simulate from the current state to `frame` (resets if going backwards).
+     * @param {number} frame
+     */
+    solveTo(frame) {
+        wasm.softbodysolver_solveTo(this.__wbg_ptr, frame);
+    }
+    /**
+     * Advance the simulation by one frame.
+     */
+    step() {
+        wasm.softbodysolver_step(this.__wbg_ptr);
+    }
+}
+if (Symbol.dispose) SoftBodySolver.prototype[Symbol.dispose] = SoftBodySolver.prototype.free;
+
+/**
  * @param {Geometry | null} [source]
  * @param {any | null} [params]
  * @returns {Geometry}
@@ -1427,6 +1521,23 @@ export function smooth(geo, params) {
 }
 
 /**
+ * Softbody/cloth SOP: simulates `geo` from rest up to `params.frame` (XPBD)
+ * and returns the deformed geometry. For interactive playback prefer the
+ * [`SoftBodySolver`] class, which steps incrementally and is cacheable.
+ * @param {Geometry} geo
+ * @param {any | null} [params]
+ * @returns {Geometry}
+ */
+export function softbody(geo, params) {
+    _assertClass(geo, Geometry);
+    const ret = wasm.softbody(geo.__wbg_ptr, isLikeNone(params) ? 0 : addToExternrefTable0(params));
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return Geometry.__wrap(ret[0]);
+}
+
+/**
  * @param {Geometry} geo
  * @param {any | null} [params]
  * @returns {Geometry}
@@ -1796,7 +1907,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return wasm_bindgen__convert__closures_____invoke__h67baf97aa0fae51e(a, state0.b, arg0, arg1);
+                        return wasm_bindgen__convert__closures_____invoke__h08a5157219d5598e(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -2089,12 +2200,12 @@ function __wbg_get_imports() {
         }, arguments); },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 647, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__hd28ba1d3b3161cad);
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h8e769f7595b65e92);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 668, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h8d52734cc70625dc);
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h7f44d0234d64f352);
             return ret;
         },
         __wbindgen_cast_0000000000000003: function(arg0) {
@@ -2145,19 +2256,19 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__hd28ba1d3b3161cad(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__hd28ba1d3b3161cad(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h8e769f7595b65e92(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h8e769f7595b65e92(arg0, arg1, arg2);
 }
 
-function wasm_bindgen__convert__closures_____invoke__h8d52734cc70625dc(arg0, arg1, arg2) {
-    const ret = wasm.wasm_bindgen__convert__closures_____invoke__h8d52734cc70625dc(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h7f44d0234d64f352(arg0, arg1, arg2) {
+    const ret = wasm.wasm_bindgen__convert__closures_____invoke__h7f44d0234d64f352(arg0, arg1, arg2);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
 }
 
-function wasm_bindgen__convert__closures_____invoke__h67baf97aa0fae51e(arg0, arg1, arg2, arg3) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h67baf97aa0fae51e(arg0, arg1, arg2, arg3);
+function wasm_bindgen__convert__closures_____invoke__h08a5157219d5598e(arg0, arg1, arg2, arg3) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h08a5157219d5598e(arg0, arg1, arg2, arg3);
 }
 
 
@@ -2180,6 +2291,9 @@ const CopImageFinalization = (typeof FinalizationRegistry === 'undefined')
 const GeometryFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_geometry_free(ptr >>> 0, 1));
+const SoftBodySolverFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_softbodysolver_free(ptr >>> 0, 1));
 
 function addToExternrefTable0(obj) {
     const idx = wasm.__externref_table_alloc();

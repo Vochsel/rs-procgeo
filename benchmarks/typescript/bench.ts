@@ -186,6 +186,17 @@ function runProcgeoBenchmarks(framework: string, pg: any) {
       dispose(grid);
     }
 
+    // -- Softbody (XPBD), 10 simulated frames --
+    {
+      const cloth = pg.createGrid({ rows: rc, cols: rc });
+      r = bench(() => {
+        const out = pg.softbody(cloth, { frame: 10 });
+        dispose(out);
+      });
+      emitBench(framework, "simulation", "softbody", scale, r);
+      dispose(cloth);
+    }
+
     r = bench(() => {
       const input = pg.createGrid({ rows: rc, cols: rc });
       const moved = pg.transform(input, {

@@ -40,6 +40,8 @@ pub mod prelude {
     pub use procgeo_sops::reshape::*;
     #[cfg(feature = "scatter")]
     pub use procgeo_sops::scatter::*;
+    #[cfg(feature = "simulation")]
+    pub use procgeo_sops::simulation::*;
     #[cfg(feature = "topology")]
     pub use procgeo_sops::topology::*;
     #[cfg(feature = "transform")]

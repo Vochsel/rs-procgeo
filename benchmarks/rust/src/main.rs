@@ -297,7 +297,7 @@ fn bench_procgeo(results: &mut Vec<BenchResult>) {
                 )
             })
             .and_then(|g| g.apply(&FuseSop, &FuseParams { distance: 0.001 }))
-            .and_then(|g| g.apply(&NormalSop, &NormalParams));
+            .and_then(|g| g.apply(&NormalSop, &NormalParams::default()));
         });
         results.push(BenchResult {
             framework: "procgeo",
@@ -1070,6 +1070,47 @@ fn bench_quad_remesh(results: &mut Vec<BenchResult>) {
 // Main
 // ---------------------------------------------------------------------------
 
+fn bench_simulation(results: &mut Vec<BenchResult>) {
+    // ── Softbody / cloth (XPBD) ──────────────────────────────────────────
+    // Simulate a fixed number of frames so the cost scales with point count.
+    let scales: &[(u32, u32)] = &[(100, 10), (10_000, 100), (40_000, 200)];
+    const FRAMES: u32 = 10;
+
+    for &(scale, rc) in scales {
+        let grid = generate(
+            &GridSop,
+            &GridParams {
+                rows: rc,
+                cols: rc,
+                size: [10.0, 10.0],
+                orientation: GridOrientation::XY,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let (mean, std, iters) = bench(|| {
+            let _ = grid.clone().apply(
+                &SoftbodySop,
+                &SoftbodyParams {
+                    frame: FRAMES,
+                    ..SoftbodyParams::default()
+                },
+            );
+        });
+        results.push(BenchResult {
+            framework: "procgeo",
+            language: "rust",
+            category: "simulation",
+            operation: "softbody",
+            scale,
+            mean_ms: mean,
+            std_ms: std,
+            iterations: iters,
+        });
+    }
+}
+
 fn main() {
     let mut results: Vec<BenchResult> = Vec::new();
 
@@ -1084,6 +1125,9 @@ fn main() {
 
     eprintln!("Running quad remesh benchmarks...");
     bench_quad_remesh(&mut results);
+
+    eprintln!("Running simulation benchmarks...");
+    bench_simulation(&mut results);
 
     eprintln!("Running parry3d benchmarks...");
     bench_parry3d(&mut results);

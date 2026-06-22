@@ -1209,4 +1209,76 @@ geo = pg.color(geo, { color: [0.5, 0.4, 0.9] });
 geo = pg.computeNormals(geo);
 return geo;
 `,
+
+    softbodyCloth: `// Cloth Drape — a sheet falls and folds onto the ground plane.
+// Return a SoftBodySolver to enable the animation playbar + frame cache.
+let cloth = pg.createGrid({ rows: 40, cols: 40, sizeX: 4, sizeY: 4 });
+cloth = pg.transform(cloth, { translate: [0, 3, 0] });
+cloth = pg.color(cloth, { color: [0.85, 0.3, 0.35] });
+
+const solver = new pg.SoftBodySolver(cloth, {
+  stiffness: 0.9,
+  bendStiffness: 0.25,
+  damping: 0.03,
+  substeps: 6,
+  iterations: 10,
+  groundCollision: true,
+  groundHeight: 0,
+  groundFriction: 0.4,
+});
+// Viewer hints: how many frames to bake and the playback rate.
+solver.frames = 180;
+solver.fps = 24;
+return solver;
+`,
+
+    softbodyFlag: `// Waving Flag — a sheet pinned along one edge, blown by wind.
+let flag = pg.createGrid({ rows: 24, cols: 36, sizeX: 3, sizeY: 2 });
+flag = pg.transform(flag, { translate: [0, 2.5, 0] });
+// Pin the edge at z = -1 (the "pole" side) as a point group.
+flag = pg.groupCreate(flag, {
+  name: 'pole',
+  groupType: 'points',
+  mode: 'boundingBox',
+  bboxMin: [-2, 1, -1.05],
+  bboxMax: [2, 4, -0.92],
+});
+flag = pg.color(flag, { color: [0.2, 0.55, 0.85] });
+
+const solver = new pg.SoftBodySolver(flag, {
+  pinGroup: 'pole',
+  stiffness: 0.85,
+  bendStiffness: 0.15,
+  damping: 0.02,
+  wind: [0, 0, 9],
+  gravity: [0, -3.5, 0],
+  substeps: 6,
+  iterations: 8,
+  groundCollision: false,
+});
+solver.frames = 220;
+solver.fps = 24;
+return solver;
+`,
+
+    softbodyJelly: `// Jelly Drop — a soft sphere drops and squashes on the ground.
+let blob = pg.createSphere({ radius: 0.8, rows: 20, cols: 28 });
+blob = pg.transform(blob, { translate: [0, 2.5, 0] });
+blob = pg.color(blob, { color: [0.5, 0.8, 0.3] });
+
+const solver = new pg.SoftBodySolver(blob, {
+  stiffness: 0.35,        // soft, wobbly
+  bendStiffness: 0.2,
+  damping: 0.04,
+  mass: 1.0,
+  substeps: 8,
+  iterations: 12,
+  groundCollision: true,
+  groundHeight: 0,
+  groundFriction: 0.5,
+});
+solver.frames = 160;
+solver.fps = 24;
+return solver;
+`,
 };

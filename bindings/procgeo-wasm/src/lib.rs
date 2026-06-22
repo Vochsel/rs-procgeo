@@ -860,6 +860,122 @@ pub fn point_deform(
 }
 
 // ---------------------------------------------------------------------------
+// Simulation SOPs
+// ---------------------------------------------------------------------------
+
+/// Parse a JS params object into `SoftbodyParams` (camelCase keys).
+fn softbody_params_from_js(p: &JsValue) -> procgeo_sops::simulation::SoftbodyParams {
+    let d = procgeo_sops::simulation::SoftbodyParams::default();
+    procgeo_sops::simulation::SoftbodyParams {
+        frame: get_u32(p, "frame", d.frame),
+        fps: get_f32(p, "fps", d.fps),
+        substeps: get_u32(p, "substeps", d.substeps),
+        iterations: get_u32(p, "iterations", d.iterations),
+        gravity: get_vec3(p, "gravity", [d.gravity.x, d.gravity.y, d.gravity.z]),
+        stiffness: get_f32(p, "stiffness", d.stiffness),
+        bend_stiffness: get_f32(p, "bendStiffness", d.bend_stiffness),
+        damping: get_f32(p, "damping", d.damping),
+        mass: get_f32(p, "mass", d.mass),
+        pin_group: js_sys::Reflect::get(p, &"pinGroup".into())
+            .ok()
+            .and_then(|v| v.as_string()),
+        ground_collision: get_bool(p, "groundCollision", d.ground_collision),
+        ground_height: get_f32(p, "groundHeight", d.ground_height),
+        ground_friction: get_f32(p, "groundFriction", d.ground_friction),
+        wind: get_vec3(p, "wind", [d.wind.x, d.wind.y, d.wind.z]),
+    }
+}
+
+/// Softbody/cloth SOP: simulates `geo` from rest up to `params.frame` (XPBD)
+/// and returns the deformed geometry. For interactive playback prefer the
+/// [`SoftBodySolver`] class, which steps incrementally and is cacheable.
+#[wasm_bindgen]
+pub fn softbody(geo: &Geometry, params: Option<JsValue>) -> Result<Geometry, JsError> {
+    let p = params.unwrap_or_else(empty_obj);
+    let params = softbody_params_from_js(&p);
+    let inner = procgeo_sops::simulation::SoftbodySop
+        .execute(&[&geo.inner], &params)
+        .map_err(sop_err)?;
+    Ok(Geometry { inner })
+}
+
+/// A stateful XPBD softbody/cloth solver for realtime, cacheable playback.
+///
+/// Build it from a rest geometry, then call `step()` once per frame. Topology
+/// is constant, so a viewer can cache `positions()` per frame and scrub by
+/// swapping the position buffer.
+#[wasm_bindgen]
+pub struct SoftBodySolver {
+    inner: procgeo_sops::simulation::SoftbodySolver,
+}
+
+#[wasm_bindgen]
+impl SoftBodySolver {
+    /// Create a solver from a rest geometry and optional params object.
+    #[wasm_bindgen(constructor)]
+    pub fn new(geo: &Geometry, params: Option<JsValue>) -> SoftBodySolver {
+        let p = params.unwrap_or_else(empty_obj);
+        let params = softbody_params_from_js(&p);
+        SoftBodySolver {
+            inner: procgeo_sops::simulation::SoftbodySolver::new(&geo.inner, &params),
+        }
+    }
+
+    /// Advance the simulation by one frame.
+    pub fn step(&mut self) {
+        self.inner.step();
+    }
+
+    /// Reset back to the rest state (frame 0).
+    pub fn reset(&mut self) {
+        self.inner.reset();
+    }
+
+    /// Simulate from the current state to `frame` (resets if going backwards).
+    #[wasm_bindgen(js_name = "solveTo")]
+    pub fn solve_to(&mut self, frame: u32) {
+        self.inner.solve_to(frame);
+    }
+
+    /// Current frame index (`0` = rest).
+    #[wasm_bindgen(getter)]
+    pub fn frame(&self) -> u32 {
+        self.inner.frame()
+    }
+
+    /// Number of simulated points.
+    #[wasm_bindgen(getter, js_name = "numPoints")]
+    pub fn num_points(&self) -> u32 {
+        self.inner.num_points() as u32
+    }
+
+    /// Number of internal distance constraints.
+    #[wasm_bindgen(getter, js_name = "numConstraints")]
+    pub fn num_constraints(&self) -> u32 {
+        self.inner.num_constraints() as u32
+    }
+
+    /// Flat `[x0,y0,z0, x1,y1,z1, ...]` positions at the current frame.
+    #[wasm_bindgen(js_name = "getPositions")]
+    pub fn get_positions(&self) -> Vec<f32> {
+        let mut out = Vec::with_capacity(self.inner.num_points() * 3);
+        for p in self.inner.positions() {
+            out.push(p.x);
+            out.push(p.y);
+            out.push(p.z);
+        }
+        out
+    }
+
+    /// A geometry snapshot (full topology + attributes) at the current frame.
+    pub fn geometry(&self) -> Geometry {
+        Geometry {
+            inner: self.inner.geometry(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Boolean SOP
 // ---------------------------------------------------------------------------
 

@@ -55,6 +55,11 @@
                     <option value="taperCone">Tapered Cone</option>
                     <option value="pointDeformWave">Point Deform Wave</option>
                 </optgroup>
+                <optgroup label="Simulation">
+                    <option value="softbodyCloth">Cloth Drape (Softbody)</option>
+                    <option value="softbodyFlag">Waving Flag (Wind)</option>
+                    <option value="softbodyJelly">Jelly Drop</option>
+                </optgroup>
                 <optgroup label="Quad Remeshing">
                     <option value="quadWild">QuadWild Sphere</option>
                     <option value="quadWildBox">QuadWild Box</option>
@@ -105,6 +110,14 @@
                 <div id="viewport-view" class="viewer-view active">
                     <canvas id="canvas"></canvas>
                     <canvas id="cop-canvas"></canvas>
+                    <div id="playbar" class="hidden">
+                        <button id="play-btn" title="Play / Pause">▶</button>
+                        <button id="stop-btn" title="Stop (go to frame 0)">⏮</button>
+                        <input id="frame-slider" type="range" min="0" max="100" value="0" step="1">
+                        <span id="frame-label">0 / 0</span>
+                        <button id="loop-btn" class="active" title="Loop playback">↻</button>
+                        <span id="cache-status"></span>
+                    </div>
                 </div>
                 <div id="spreadsheet-view" class="viewer-view">
                     <div id="spreadsheet-subtabs">

@@ -456,6 +456,63 @@ interface ProcGeoPointDeformParams {
     mask?: number;
 }
 
+interface ProcGeoSoftbodyParams {
+    /** Frame to simulate up to (0 = rest state). */
+    frame?: number;
+    /** Frames per second; controls the per-frame timestep. */
+    fps?: number;
+    /** Integration substeps per frame. */
+    substeps?: number;
+    /** Constraint solver iterations per substep. */
+    iterations?: number;
+    /** Gravity acceleration vector. */
+    gravity?: ProcGeoVec3;
+    /** Structural (edge) stiffness in [0, 1]. */
+    stiffness?: number;
+    /** Bend / shear stiffness in [0, 1] (0 disables bend constraints). */
+    bendStiffness?: number;
+    /** Per-substep velocity damping in [0, 1]. */
+    damping?: number;
+    /** Mass of each unpinned point. */
+    mass?: number;
+    /** Point group whose points are pinned (fixed). */
+    pinGroup?: string;
+    /** Enable ground-plane collision. */
+    groundCollision?: boolean;
+    /** Ground plane height (world Y). */
+    groundHeight?: number;
+    /** Ground tangential friction in [0, 1]. */
+    groundFriction?: number;
+    /** Constant wind force vector. */
+    wind?: ProcGeoVec3;
+}
+
+interface ProcGeoSoftBodySolver {
+    /** Release the underlying WASM allocation. */
+    free(): void;
+    /** Advance the simulation by one frame. */
+    step(): void;
+    /** Reset back to the rest state (frame 0). */
+    reset(): void;
+    /** Simulate from the current state to `frame` (resets if going backwards). */
+    solveTo(frame: number): void;
+    /** Current frame index (0 = rest). */
+    readonly frame: number;
+    /** Number of simulated points. */
+    readonly numPoints: number;
+    /** Number of internal distance constraints. */
+    readonly numConstraints: number;
+    /** Flat [x0,y0,z0, ...] positions at the current frame. */
+    getPositions(): Float32Array;
+    /** A geometry snapshot (topology + attributes) at the current frame. */
+    geometry(): ProcGeoGeometry;
+}
+
+interface ProcGeoSoftBodySolverConstructor {
+    new(geo: ProcGeoGeometry, params?: ProcGeoSoftbodyParams): ProcGeoSoftBodySolver;
+    readonly prototype: ProcGeoSoftBodySolver;
+}
+
 interface ProcGeoBooleanParams {
     operation?: ProcGeoBooleanOperation;
     treatAAs?: ProcGeoBooleanTreatAs;
@@ -731,6 +788,7 @@ interface ProcGeoCopCustomShaderParams {
 interface ProcGeoModule {
     readonly Geometry: ProcGeoGeometryConstructor;
     readonly CopImage: ProcGeoCopImageConstructor;
+    readonly SoftBodySolver: ProcGeoSoftBodySolverConstructor;
 
     /** Initialize the GPU context for COP image processing. */
     initCopGpu(): Promise<void>;
@@ -767,6 +825,14 @@ interface ProcGeoModule {
         deformedLattice: ProcGeoGeometry,
         params?: ProcGeoPointDeformParams
     ): ProcGeoGeometry;
+
+    // Simulation
+    /**
+     * Softbody/cloth SOP (XPBD): simulate `geo` from rest to `params.frame`
+     * and return the deformed geometry. For interactive playback build a
+     * `SoftBodySolver` and cache its per-frame positions instead.
+     */
+    softbody(geo: ProcGeoGeometry, params?: ProcGeoSoftbodyParams): ProcGeoGeometry;
 
     // Copy / scatter / merge
     scatter(geo: ProcGeoGeometry, params?: ProcGeoScatterParams): ProcGeoGeometry;
