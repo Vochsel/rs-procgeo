@@ -79,7 +79,7 @@ EOF
 ok "package.json"
 
 # Copy editor types (hand-written, used for Monaco autocomplete)
-cp "$ROOT/web/src/procgeo-editor-types.d.ts" "$PKG_LIB/types.d.ts"
+cp "$ROOT/apps/web/src/procgeo-editor-types.d.ts" "$PKG_LIB/types.d.ts"
 ok "types.d.ts (Monaco autocomplete)"
 
 cat > "$PKG_LIB/README.md" << 'READMEEOF'
@@ -143,7 +143,7 @@ ok "README.md"
 # ─── @procgeo/three ──────────────────────────────────────────────────────────
 
 step "Staging @procgeo/three@${VERSION}"
-PKG_THREE="utils/procgeo-three"
+PKG_THREE="packages/three"
 
 cat > "$PKG_THREE/package.json" << EOF
 {

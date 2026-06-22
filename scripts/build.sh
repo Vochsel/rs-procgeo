@@ -23,11 +23,11 @@ ok "Built + tested"
 step "WASM binding"
 if command -v wasm-pack &>/dev/null; then
   wasm-pack build bindings/procgeo-wasm --target web --out-dir pkg --release
-  cp bindings/procgeo-wasm/pkg/procgeo_wasm.js web/wasm/
-  cp bindings/procgeo-wasm/pkg/procgeo_wasm_bg.wasm web/wasm/
-  cp bindings/procgeo-wasm/pkg/procgeo_wasm.d.ts web/wasm/
+  cp bindings/procgeo-wasm/pkg/procgeo_wasm.js apps/web/wasm/
+  cp bindings/procgeo-wasm/pkg/procgeo_wasm_bg.wasm apps/web/wasm/
+  cp bindings/procgeo-wasm/pkg/procgeo_wasm.d.ts apps/web/wasm/
   node scripts/validate-web-editor-types.mjs
-  ok "procgeo-wasm → web/wasm/"
+  ok "procgeo-wasm → apps/web/wasm/"
 else
   warn "wasm-pack not found — install: cargo install wasm-pack"
 fi

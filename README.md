@@ -241,7 +241,7 @@ print(f"{instances.num_points} points")
 
 ## Web Playground
 
-An interactive playground at `web/` with a Monaco code editor (with autocomplete) and Three.js viewport. Write procedural geometry code and see it render in real-time.
+An interactive playground at `apps/web/` with a Monaco code editor (with autocomplete) and Three.js viewport. Write procedural geometry code and see it render in real-time.
 
 ```bash
 pnpm setup:web    # install deps + copy WASM
@@ -250,7 +250,18 @@ pnpm dev:web      # start Vite dev server
 
 Includes 14 example presets: noise terrain, Catmull-Clark sphere, scatter instances, extruded city, voronoi fracture, and more.
 
-The playground autocomplete is sourced from `web/src/procgeo-editor-types.d.ts`. `pnpm dev:web`, `pnpm build`, `pnpm build:wasm`, and `pnpm build:editor-types` validate that file against the generated WASM surface in `web/wasm/procgeo_wasm.d.ts`, so new exports cannot drift out of the editor typings silently.
+The playground autocomplete is sourced from `apps/web/src/procgeo-editor-types.d.ts`. `pnpm dev:web`, `pnpm build`, `pnpm build:wasm`, and `pnpm build:editor-types` validate that file against the generated WASM surface in `apps/web/wasm/procgeo_wasm.d.ts`, so new exports cannot drift out of the editor typings silently.
+
+## Desktop App
+
+A native desktop app at `apps/desktop/`, built with [Tauri](https://tauri.app). It links procgeo as a **native Rust dependency** — SOP graphs are cooked at native speed and only render buffers cross into the Three.js webview.
+
+```bash
+pnpm dev:desktop     # tauri dev (Vite + native window, hot reload)
+pnpm build:desktop   # tauri build (release installer)
+```
+
+Requires the Rust toolchain, WebView2 (preinstalled on Windows 11), and MSVC build tools. See [`apps/desktop/README.md`](apps/desktop/README.md).
 
 ## Build
 

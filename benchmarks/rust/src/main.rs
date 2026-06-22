@@ -297,7 +297,7 @@ fn bench_procgeo(results: &mut Vec<BenchResult>) {
                 )
             })
             .and_then(|g| g.apply(&FuseSop, &FuseParams { distance: 0.001 }))
-            .and_then(|g| g.apply(&NormalSop, &NormalParams));
+            .and_then(|g| g.apply(&NormalSop, &NormalParams::default()));
         });
         results.push(BenchResult {
             framework: "procgeo",

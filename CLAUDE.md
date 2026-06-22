@@ -15,12 +15,23 @@ The python build allows interaction with custom ai model training, and interacti
 
 ## Architecture
 
+The repo is a monorepo with a Cargo workspace (`crates/*`, `bindings/*`,
+`benchmarks/rust`) and a pnpm + Turborepo JS workspace (`apps/*`, `packages/*`).
+
+**Rust crates** (`crates/`)
 - `procgeo-core` — Geometry model (points, vertices, primitives, attributes, groups)
 - `procgeo-sops` — SOP implementations (feature-gated by category)
 - `procgeo-io` — Format readers/writers (OBJ, glTF)
 - `procgeo` — Umbrella crate with `prelude` module
+
+**Bindings** (`bindings/`)
 - `bindings/procgeo-wasm` — TypeScript/JavaScript bindings for browser and Node.js (wasm-bindgen)
 - `bindings/procgeo-py` — Python bindings (PyO3/maturin)
+
+**Apps & packages**
+- `apps/web` — `@procgeo/playground`, the Vite + Three.js + Monaco web playground (runs procgeo via WASM)
+- `apps/desktop` — `@procgeo/desktop`, the native Tauri app. Its `src-tauri` crate depends on procgeo as a **native Rust dependency** (no WASM/IPC of geometry logic — only render buffers cross to the webview). It is **detached** from the root Cargo workspace via its own empty `[workspace]`, so Tauri's GUI deps stay out of `cargo build --workspace`.
+- `packages/three` — `@procgeo/three`, the Three.js bridge (BufferGeometry/Mesh/wireframe helpers)
 
 ## Conventions
 
@@ -48,5 +59,7 @@ All polygon faces must use **CCW winding when viewed from outside** (right-hand 
 1. Add corresponding wrapper functions/methods to both `bindings/procgeo-wasm/src/lib.rs` (wasm-bindgen) and `bindings/procgeo-py/src/lib.rs` (PyO3)
 2. Expose new SOPs as functions with params as JS objects / Python kwargs
 3. Ensure new Geometry methods are mirrored on the binding's Geometry class
-4. Update `web/src/procgeo-editor-types.d.ts` so Monaco autocomplete stays aligned with the WASM API, then run `pnpm build:editor-types`
+4. Update `apps/web/src/procgeo-editor-types.d.ts` so Monaco autocomplete stays aligned with the WASM API, then run `pnpm build:editor-types`
 5. Test that both bindings compile: `cargo build -p procgeo-wasm && cargo build -p procgeo-py`
+
+New SOPs need no change to the desktop app: `apps/desktop` dispatches through `procgeo_sops::default_registry()`, so any registered SOP is callable by name from `cook`.

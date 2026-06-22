@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "node ../scripts/validate-web-editor-types.mjs && vite",
-    "build": "node ../scripts/validate-web-editor-types.mjs && vite build",
+    "dev": "node ../../scripts/validate-web-editor-types.mjs && vite",
+    "build": "node ../../scripts/validate-web-editor-types.mjs && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -14,8 +14,5 @@
   },
   "devDependencies": {
     "vite": "^6.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
   }
 }

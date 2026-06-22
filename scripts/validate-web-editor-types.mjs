@@ -6,11 +6,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
 
-const editorTypesPath = path.join(repoRoot, 'web/src/procgeo-editor-types.d.ts');
+const editorTypesPath = path.join(repoRoot, 'apps/web/src/procgeo-editor-types.d.ts');
 const wasmTypesCandidates = [
-  path.join(repoRoot, 'web/wasm/procgeo_wasm.d.ts'),
+  path.join(repoRoot, 'apps/web/wasm/procgeo_wasm.d.ts'),
   path.join(repoRoot, 'bindings/procgeo-wasm/pkg/procgeo_wasm.d.ts'),
-  path.join(repoRoot, 'web/pkg/procgeo_wasm.d.ts'),
+  path.join(repoRoot, 'apps/web/pkg/procgeo_wasm.d.ts'),
 ];
 
 const wasmTypesPath = wasmTypesCandidates.find((candidate) => fs.existsSync(candidate));

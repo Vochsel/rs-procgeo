@@ -15,13 +15,13 @@ fi
 
 # Copy WASM build into web/wasm/ (source dir, not public — Vite imports it as a module)
 mkdir -p wasm
-WASM_PKG="../bindings/procgeo-wasm/pkg"
+WASM_PKG="../../bindings/procgeo-wasm/pkg"
 if [ -d "$WASM_PKG" ]; then
     cp "$WASM_PKG/procgeo_wasm.js" wasm/
     cp "$WASM_PKG/procgeo_wasm_bg.wasm" wasm/
     cp "$WASM_PKG/procgeo_wasm.d.ts" wasm/
     cp "$WASM_PKG/procgeo_wasm_bg.wasm.d.ts" wasm/ 2>/dev/null || true
-    node ../scripts/validate-web-editor-types.mjs
+    node ../../scripts/validate-web-editor-types.mjs
     echo "WASM files copied to wasm/"
 else
     echo "WASM package not found. Run: cd ../bindings/procgeo-wasm && ./build.sh"
