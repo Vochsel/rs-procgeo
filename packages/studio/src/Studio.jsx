@@ -15,6 +15,8 @@ import { Inspector } from './Inspector.jsx';
 import { SOPS, sopList, defaultParams } from './sops.js';
 import { buildCookDag, uniqueId, inputsOf, autoLayout } from './graph.js';
 import { graphToCode, codeToGraph } from './codegen.js';
+import { TEMPLATES } from './templates.js';
+import { serializeDoc, parseDoc, browserHost } from './doc.js';
 
 const DEFAULT_CODE = `const box1 = box({ size: [2, 2, 2] })
 const subdivide1 = subdivide(box1, { depth: 2 })
@@ -26,7 +28,7 @@ return normal1
  * The full ProcGeo studio. Engine-agnostic: `engine.cookGraph(dag)` returns
  * render buffers. Used by both the web (WASM) and desktop (native) apps.
  */
-export function Studio({ engine }) {
+export function Studio({ engine, host = browserHost }) {
   const seed = useMemo(() => safeParse(DEFAULT_CODE), []);
   const [nodes, setNodes] = useState(seed.nodes);
   const [edges, setEdges] = useState(seed.edges);
@@ -36,7 +38,11 @@ export function Studio({ engine }) {
   const [direction, setDirection] = useState('LR');
   const [viewMode, setViewMode] = useState('shaded_wire');
   const [showSettings, setShowSettings] = useState(false);
+  const [showFileMenu, setShowFileMenu] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [leftWidth, setLeftWidth] = useState(560);
+  const [docName, setDocName] = useState('untitled');
+  const [docPath, setDocPath] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState(null);
 
@@ -203,9 +209,119 @@ export function Studio({ engine }) {
     }, 400);
   }, []);
 
+  // ── File: new / open / save / templates ──
+  const loadGraph = useCallback((g) => {
+    if (g.direction) {
+      prevDir.current = g.direction; // skip the relayout effect; keep loaded positions
+      setDirection(g.direction);
+    }
+    suppressCodeRegen.current = false; // regenerate code from the loaded graph
+    setNodes(g.nodes);
+    setEdges(g.edges);
+    setOutputId(g.outputId);
+    didFit.current = false;
+  }, []);
+
+  const newDoc = useCallback(() => {
+    loadGraph(codeToGraph(DEFAULT_CODE, directionRef.current));
+    setDocName('untitled');
+    setDocPath(null);
+    setShowFileMenu(false);
+  }, [loadGraph]);
+
+  const openDoc = useCallback(async () => {
+    setShowFileMenu(false);
+    try {
+      const r = await host.openDocument();
+      if (!r) return;
+      loadGraph(parseDoc(r.text));
+      setDocName((r.name || 'untitled').replace(/\.(procgeo|json)$/i, ''));
+      setDocPath(r.path || null);
+    } catch (e) {
+      setError(`open: ${e.message}`);
+    }
+  }, [host, loadGraph]);
+
+  const saveDoc = useCallback(
+    async (asNew) => {
+      setShowFileMenu(false);
+      try {
+        const text = serializeDoc({ nodes, edges, outputId, direction });
+        const saved = await host.saveDocument(text, `${docName}.procgeo`, asNew ? null : docPath);
+        if (saved) {
+          setDocPath(saved);
+          setDocName(String(saved).split(/[\\/]/).pop().replace(/\.(procgeo|json)$/i, ''));
+        }
+      } catch (e) {
+        setError(`save: ${e.message}`);
+      }
+    },
+    [host, nodes, edges, outputId, direction, docName, docPath],
+  );
+
+  const loadTemplate = useCallback(
+    (t) => {
+      loadGraph(codeToGraph(t.code, directionRef.current));
+      setDocName(t.name.replace(/\s+/g, '-').toLowerCase());
+      setDocPath(null);
+      setShowTemplates(false);
+      setShowFileMenu(false);
+    },
+    [loadGraph],
+  );
+
+  // Keyboard shortcuts: Ctrl/Cmd + N/O/S.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === 's') { e.preventDefault(); saveDoc(e.shiftKey); }
+      else if (k === 'o') { e.preventDefault(); openDoc(); }
+      else if (k === 'n') { e.preventDefault(); newDoc(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [saveDoc, openDoc, newDoc]);
+
+  // Close the File menu on any outside click.
+  useEffect(() => {
+    if (!showFileMenu) return;
+    const close = () => setShowFileMenu(false);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [showFileMenu]);
+
   return (
     <div className="pg-studio">
       <div className="pg-toolbar">
+        <div className="pg-filemenu">
+          <button onClick={(e) => { e.stopPropagation(); setShowFileMenu((v) => !v); }}>
+            File ▾
+          </button>
+          {showFileMenu && (
+            <div className="pg-menu" onClick={(e) => e.stopPropagation()}>
+              <button className="pg-menu-item" onClick={newDoc}>
+                New <span className="pg-menu-kbd">Ctrl N</span>
+              </button>
+              <button className="pg-menu-item" onClick={openDoc}>
+                Open… <span className="pg-menu-kbd">Ctrl O</span>
+              </button>
+              <button className="pg-menu-item" onClick={() => saveDoc(false)}>
+                Save <span className="pg-menu-kbd">Ctrl S</span>
+              </button>
+              <button className="pg-menu-item" onClick={() => saveDoc(true)}>
+                Save As… <span className="pg-menu-kbd">Ctrl ⇧ S</span>
+              </button>
+              <div className="pg-menu-sep" />
+              <button
+                className="pg-menu-item"
+                onClick={() => { setShowTemplates(true); setShowFileMenu(false); }}
+              >
+                New from Template…
+              </button>
+            </div>
+          )}
+        </div>
         <div className="pg-tabs">
           <button className={tab === 'nodes' ? 'active' : ''} onClick={() => setTab('nodes')}>
             Nodes
@@ -215,6 +331,7 @@ export function Studio({ engine }) {
           </button>
         </div>
         <AddNodeMenu sops={sops} onAdd={(t) => addNodeAt(t)} />
+        <span className="pg-docname">{docName}</span>
         <div className="pg-spacer" />
         <button onClick={() => viewportRef.current?.fit()}>frame</button>
         <button onClick={() => setShowSettings(true)}>⚙ Settings</button>
@@ -271,6 +388,37 @@ export function Studio({ engine }) {
           onClose={() => setShowSettings(false)}
         />
       )}
+
+      {showTemplates && (
+        <TemplatesModal
+          templates={TEMPLATES}
+          onPick={loadTemplate}
+          onClose={() => setShowTemplates(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function TemplatesModal({ templates, onPick, onClose }) {
+  return (
+    <div className="pg-modal-backdrop" onMouseDown={onClose}>
+      <div className="pg-modal pg-modal-wide" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="pg-modal-head">
+          <span>New from Template</span>
+          <button className="pg-modal-x" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <div className="pg-template-grid">
+          {templates.map((t) => (
+            <button key={t.name} className="pg-template" onClick={() => onPick(t)}>
+              <span className="pg-template-name">{t.name}</span>
+              <span className="pg-template-desc">{t.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

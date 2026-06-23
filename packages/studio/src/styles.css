@@ -227,3 +227,62 @@
 }
 .pg-seg button:hover { background: #34344a; }
 .pg-seg button.active { background: #3a5bd0; border-color: #3a5bd0; color: #fff; }
+
+/* ── File menu ── */
+.pg-filemenu { position: relative; }
+.pg-docname { color: #9a9ab0; font: 12px ui-monospace, monospace; margin-left: 4px; }
+.pg-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 60;
+  background: #1d1d28;
+  border: 1px solid #34344a;
+  border-radius: 8px;
+  padding: 5px;
+  min-width: 190px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.pg-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #d8d8e6;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font: inherit;
+}
+.pg-menu-item:hover { background: #3a5bd0; color: #fff; }
+.pg-menu-kbd { color: #70708a; font: 11px ui-monospace, monospace; }
+.pg-menu-item:hover .pg-menu-kbd { color: #cfd6ff; }
+.pg-menu-sep { height: 1px; background: #2a2a3a; margin: 5px 2px; }
+
+/* ── Templates modal ── */
+.pg-modal-wide { min-width: 620px; max-width: 760px; }
+.pg-template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 6px;
+}
+.pg-template {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  background: #242433;
+  border: 1px solid #34344a;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+}
+.pg-template:hover { border-color: #3a5bd0; background: #2a2a3f; }
+.pg-template-name { font-weight: 600; }
+.pg-template-desc { color: #9a9ab0; font-size: 12px; }
