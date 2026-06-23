@@ -56,7 +56,7 @@ export const Viewport = forwardRef(function Viewport({ viewMode = 'shaded_wire' 
 
     ctx.current = {
       renderer, scene, camera, controls, viewMode,
-      surfaceMat, wireMat, pointsMat, mesh, wire, points, hasTris: false,
+      surfaceMat, wireMat, pointsMat, mesh, wire, points, hasTris: false, lastIndices: null,
     };
 
     const resize = () => {
@@ -114,7 +114,7 @@ export const Viewport = forwardRef(function Viewport({ viewMode = 'shaded_wire' 
   return <div className="pg-viewport" ref={mountRef} />;
 });
 
-function toBufferGeometry(buffers) {
+function buildGeometry(buffers) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(buffers.positions, 3));
   if (buffers.indices?.length) geo.setIndex(new THREE.Uint32BufferAttribute(buffers.indices, 1));
@@ -125,36 +125,95 @@ function toBufferGeometry(buffers) {
   return geo;
 }
 
+/** Unique edge index (point pairs) from triangle indices, for wireframe. */
+function edgeIndex(tri) {
+  const seen = new Set();
+  const out = [];
+  const add = (a, b) => {
+    const lo = a < b ? a : b;
+    const hi = a < b ? b : a;
+    const key = lo + ':' + hi;
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(lo, hi);
+    }
+  };
+  for (let i = 0; i + 2 < tri.length; i += 3) {
+    add(tri[i], tri[i + 1]);
+    add(tri[i + 1], tri[i + 2]);
+    add(tri[i + 2], tri[i]);
+  }
+  return new Uint32Array(out);
+}
+
+function sameTopology(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/** Copy new vertex data into existing attributes in place (no realloc). The
+ *  wireframe shares the mesh's position attribute, so it updates for free. */
+function updateInPlace(geo, buffers) {
+  geo.attributes.position.array.set(buffers.positions);
+  geo.attributes.position.needsUpdate = true;
+  if (buffers.normals && geo.attributes.normal) {
+    geo.attributes.normal.array.set(buffers.normals);
+    geo.attributes.normal.needsUpdate = true;
+  } else if (!buffers.normals) {
+    geo.computeVertexNormals();
+  }
+  if (buffers.colors && geo.attributes.color) {
+    geo.attributes.color.array.set(buffers.colors);
+    geo.attributes.color.needsUpdate = true;
+  }
+  geo.computeBoundingSphere();
+}
+
 function setBuffers(c, buffers) {
-  const geo = toBufferGeometry(buffers);
   const hasTris = !!(buffers.indices && buffers.indices.length);
-  const hasColors = !!geo.getAttribute('color');
+  const hasColors = !!buffers.colors;
   c.hasTris = hasTris;
 
-  // Swap geometry on the persistent objects, disposing the previous ones.
   if (hasTris) {
-    c.mesh.geometry?.dispose();
-    c.mesh.geometry = geo;
+    const posMatches =
+      c.mesh.geometry &&
+      c.mesh.geometry.attributes.position.count === buffers.positions.length / 3;
+
+    if (posMatches && sameTopology(buffers.indices, c.lastIndices)) {
+      // Same topology → update buffers in place; wireframe shares the position.
+      updateInPlace(c.mesh.geometry, buffers);
+    } else {
+      const g = buildGeometry(buffers);
+      c.mesh.geometry?.dispose();
+      c.mesh.geometry = g;
+
+      // Wireframe reuses the mesh position attribute + a deduped edge index,
+      // so in-place position updates above flow through to it.
+      const wg = new THREE.BufferGeometry();
+      wg.setAttribute('position', g.attributes.position);
+      wg.setIndex(new THREE.Uint32BufferAttribute(edgeIndex(buffers.indices), 1));
+      c.wire.geometry?.dispose();
+      c.wire.geometry = wg;
+      c.lastIndices = buffers.indices;
+    }
+
     c.surfaceMat.color.set(hasColors ? 0xffffff : 0x4488cc);
     c.surfaceMat.vertexColors = hasColors;
     c.surfaceMat.needsUpdate = true;
-
-    c.wire.geometry?.dispose();
-    c.wire.geometry = new THREE.WireframeGeometry(geo);
-
     c.points.geometry?.dispose();
     c.points.geometry = null;
   } else {
     c.points.geometry?.dispose();
-    c.points.geometry = geo;
+    c.points.geometry = buildGeometry(buffers);
     c.pointsMat.color.set(hasColors ? 0xffffff : 0x88aaff);
     c.pointsMat.vertexColors = hasColors;
     c.pointsMat.needsUpdate = true;
-
     c.mesh.geometry?.dispose();
     c.mesh.geometry = null;
     c.wire.geometry?.dispose();
     c.wire.geometry = null;
+    c.lastIndices = null;
   }
   applyVisibility(c);
 }
