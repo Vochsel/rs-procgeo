@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 
 use procgeo_core::{AttribClass, Geometry, PolyType, PrimHandle, Primitive};
 use procgeo_sops::SopRegistry;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// The SOP registry is immutable and stateless, so build it once.
 static REGISTRY: OnceLock<SopRegistry> = OnceLock::new();
@@ -55,30 +55,46 @@ struct Dag {
     output: Option<String>,
 }
 
-/// Render-ready buffers, mirroring the WASM binding's getters so the frontend
-/// bridge is identical across web and desktop.
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GeoBuffers {
-    positions: Vec<f32>,
-    indices: Vec<u32>,
-    normals: Option<Vec<f32>>,
-    colors: Option<Vec<f32>>,
-    num_points: usize,
-    num_prims: usize,
-}
+/// Pack render buffers into a compact little-endian byte blob so they cross IPC
+/// as raw bytes instead of JSON number arrays (orders of magnitude faster for
+/// large meshes). The webview decodes typed-array views directly over it.
+///
+/// Layout (all 4-byte aligned):
+///   u32 numPoints, u32 numPrims,
+///   u32 posLen, u32 idxLen, u32 nrmLen, u32 colLen   (lengths in elements)
+///   f32 positions[posLen], u32 indices[idxLen],
+///   f32 normals[nrmLen], f32 colors[colLen]
+fn pack(geo: &Geometry) -> Vec<u8> {
+    let positions = positions(geo);
+    let indices = triangle_indices(geo);
+    let normals = point_vec3(geo, "N");
+    let colors = point_vec3(geo, "Cd");
 
-impl GeoBuffers {
-    fn from_geometry(geo: &Geometry) -> Self {
-        GeoBuffers {
-            positions: positions(geo),
-            indices: triangle_indices(geo),
-            normals: point_vec3(geo, "N"),
-            colors: point_vec3(geo, "Cd"),
-            num_points: geo.num_points(),
-            num_prims: geo.num_prims(),
-        }
+    let header: [u32; 6] = [
+        geo.num_points() as u32,
+        geo.num_prims() as u32,
+        positions.len() as u32,
+        indices.len() as u32,
+        normals.as_ref().map_or(0, |v| v.len()) as u32,
+        colors.as_ref().map_or(0, |v| v.len()) as u32,
+    ];
+
+    let mut buf = Vec::with_capacity(
+        24 + positions.len() * 4
+            + indices.len() * 4
+            + normals.as_ref().map_or(0, |v| v.len()) * 4
+            + colors.as_ref().map_or(0, |v| v.len()) * 4,
+    );
+    buf.extend_from_slice(bytemuck::cast_slice(&header));
+    buf.extend_from_slice(bytemuck::cast_slice(&positions));
+    buf.extend_from_slice(bytemuck::cast_slice(&indices));
+    if let Some(n) = &normals {
+        buf.extend_from_slice(bytemuck::cast_slice(n));
     }
+    if let Some(c) = &colors {
+        buf.extend_from_slice(bytemuck::cast_slice(c));
+    }
+    buf
 }
 
 // ---------------------------------------------------------------------------
@@ -132,9 +148,9 @@ fn point_vec3(geo: &Geometry, name: &str) -> Option<Vec<f32>> {
 // Tauri commands
 // ---------------------------------------------------------------------------
 
-/// Cook a SOP DAG natively and return render-ready buffers for the output node.
+/// Cook a SOP DAG natively and return packed render buffers for the output node.
 #[tauri::command]
-fn cook_graph(graph: Dag) -> Result<GeoBuffers, String> {
+fn cook_graph(graph: Dag) -> Result<tauri::ipc::Response, String> {
     if graph.nodes.is_empty() {
         return Err("graph has no nodes".into());
     }
@@ -170,7 +186,7 @@ fn cook_graph(graph: Dag) -> Result<GeoBuffers, String> {
     let geo = cache
         .get(output)
         .ok_or_else(|| format!("output node '{output}' not found"))?;
-    Ok(GeoBuffers::from_geometry(geo))
+    Ok(tauri::ipc::Response::new(pack(geo)))
 }
 
 /// Depth-first topological sort over node inputs, with cycle detection.

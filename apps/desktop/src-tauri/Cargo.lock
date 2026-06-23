@@ -2405,6 +2405,7 @@ dependencies = [
 name = "procgeo-desktop"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "procgeo-core",
  "procgeo-sops",
  "serde",

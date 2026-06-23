@@ -44,6 +44,7 @@ export function Studio({ engine }) {
   const suppressCodeRegen = useRef(false); // set when a graph change came FROM code
   const cookTimer = useRef(null);
   const didFit = useRef(false);
+  const lastDag = useRef(''); // skip cooks when geometry-affecting inputs are unchanged
   const directionRef = useRef(direction);
   directionRef.current = direction;
 
@@ -71,16 +72,22 @@ export function Studio({ engine }) {
     }
   }, [nodes, edges, outputId]);
 
-  // ── Cook (debounced) on any graph change ──
+  // ── Cook (debounced) only when the geometry-affecting graph changes ──
+  // The cook DAG excludes node positions/selection, so dragging nodes around
+  // never triggers a recook.
   useEffect(() => {
+    const dag = buildCookDag(nodes, edges, outputId);
+    if (!dag.nodes.length) {
+      setStatus('empty graph');
+      return;
+    }
+    const key = JSON.stringify(dag);
+    if (key === lastDag.current) return;
+    lastDag.current = key;
+
     clearTimeout(cookTimer.current);
     cookTimer.current = setTimeout(async () => {
       try {
-        const dag = buildCookDag(nodes, edges, outputId);
-        if (!dag.nodes.length) {
-          setStatus('empty graph');
-          return;
-        }
         const t0 = performance.now();
         const buffers = await engine.cookGraph(dag);
         const ms = (performance.now() - t0).toFixed(1);
@@ -94,7 +101,7 @@ export function Studio({ engine }) {
       } catch (e) {
         setError(String(e?.message || e));
       }
-    }, 250);
+    }, 40);
     return () => clearTimeout(cookTimer.current);
   }, [nodes, edges, outputId, engine]);
 
