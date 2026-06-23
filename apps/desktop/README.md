@@ -3,15 +3,20 @@
 Native desktop app for ProcGeo, built with [Tauri](https://tauri.app).
 
 Unlike the web playground (which runs procgeo compiled to WebAssembly), this app
-links **procgeo as a native Rust dependency**. SOP graphs are cooked on the
-native side at full speed and only render-ready buffers cross the IPC boundary
-into the Three.js webview.
+links **procgeo as a native Rust dependency**. SOP DAGs are cooked on the native
+side at full speed and only render-ready buffers cross the IPC boundary into the
+webview.
+
+The UI is the shared [`@procgeo/studio`](../../packages/studio) React component
+(xyflow node editor + Monaco code editor + Three.js viewport), mounted with a
+native engine adapter.
 
 ```
 apps/desktop/
-  index.html, src/        Frontend (Vite + Three.js, runs in the system webview)
+  index.html, src/        React shell (main.jsx, App.jsx) + native engine adapter
+    src/engine.js          invoke('cook_graph', { graph }) -> render buffers
   src-tauri/              Rust backend
-    src/lib.rs            Tauri commands: cook(graph), list_sops()
+    src/lib.rs            Tauri commands: cook_graph(dag), list_sops()
     Cargo.toml           Depends on procgeo-core + procgeo-sops (path deps)
 ```
 

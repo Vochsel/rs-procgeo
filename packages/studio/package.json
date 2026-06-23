@@ -1,0 +1,23 @@
+{
+  "name": "@procgeo/studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared ProcGeo studio UI — xyflow node editor + Monaco code editor (round-trip) + Three.js viewport, engine-agnostic",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./styles.css": "./src/styles.css"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "three": "^0.170.0"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.3.0",
+    "acorn": "^8.12.1",
+    "monaco-editor": "^0.52.0"
+  }
+}
