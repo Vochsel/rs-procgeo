@@ -121,14 +121,29 @@ export const SOPS = {
     params: [],
   },
 
-  // ── Combine (2 inputs) ─────────────────────────────────────────────────
+  // ── Combine (multiple inputs) ──────────────────────────────────────────
+  copy_to_points: {
+    label: 'CopyToPoints',
+    category: 'combine',
+    inputs: 2, // [0] geometry to copy, [1] target points
+    params: [],
+  },
   merge: {
     label: 'Merge',
     category: 'combine',
-    inputs: 2,
+    inputs: 2, // minimum ports shown; grows as inputs connect
+    variadic: true,
     params: [],
   },
 };
+
+/** Number of input ports to show for a node, given how many are connected. */
+export function portCount(type, connected = 0) {
+  const sop = SOPS[type];
+  if (!sop) return 0;
+  if (sop.variadic) return Math.max(sop.inputs || 1, connected + 1);
+  return sop.inputs || 0;
+}
 
 /** Default param object for a SOP type (clone so callers can mutate freely). */
 export function defaultParams(type) {

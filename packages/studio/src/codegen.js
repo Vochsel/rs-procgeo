@@ -10,7 +10,7 @@
 
 import { parse } from 'acorn';
 import { SOPS, defaultParams } from './sops.js';
-import { inputsOf, prunedParams } from './graph.js';
+import { inputsOf, prunedParams, autoLayout } from './graph.js';
 
 // ── Graph → Code ─────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ function toLiteral(v) {
 
 // ── Code → Graph ─────────────────────────────────────────────────────────
 
-export function codeToGraph(code) {
+export function codeToGraph(code, direction = 'LR') {
   const program = parse(code, { ecmaVersion: 2022, allowReturnOutsideFunction: true });
 
   const parsed = []; // { id, sop, inputs: [ids], params }
@@ -83,14 +83,6 @@ export function codeToGraph(code) {
     }
   }
 
-  const positions = layout(parsed);
-  const nodes = parsed.map((p) => ({
-    id: p.id,
-    type: 'sop',
-    position: positions[p.id],
-    data: { sop: p.sop, params: { ...defaultParams(p.sop), ...p.params } },
-  }));
-
   const edges = [];
   for (const p of parsed) {
     p.inputs.forEach((src, i) => {
@@ -102,6 +94,14 @@ export function codeToGraph(code) {
       });
     });
   }
+
+  const positions = autoLayout(parsed, edges, direction);
+  const nodes = parsed.map((p) => ({
+    id: p.id,
+    type: 'sop',
+    position: positions[p.id],
+    data: { sop: p.sop, params: { ...defaultParams(p.sop), ...p.params } },
+  }));
 
   if (!outputId && parsed.length) outputId = parsed[parsed.length - 1].id;
   return { nodes, edges, outputId };
@@ -149,30 +149,4 @@ export function topoSort(nodes, edges) {
   };
   for (const n of nodes) visit(n.id);
   return out;
-}
-
-/** Layered left-to-right layout from parsed { id, inputs } records. */
-function layout(parsed) {
-  const byId = new Map(parsed.map((p) => [p.id, p]));
-  const depth = new Map();
-  const depthOf = (id, seen = new Set()) => {
-    if (depth.has(id)) return depth.get(id);
-    if (seen.has(id)) return 0;
-    seen.add(id);
-    const p = byId.get(id);
-    const d = p && p.inputs.length ? 1 + Math.max(...p.inputs.map((i) => depthOf(i, seen))) : 0;
-    depth.set(id, d);
-    return d;
-  };
-  parsed.forEach((p) => depthOf(p.id));
-
-  const rowByCol = new Map();
-  const positions = {};
-  for (const p of parsed) {
-    const col = depth.get(p.id) || 0;
-    const row = rowByCol.get(col) || 0;
-    rowByCol.set(col, row + 1);
-    positions[p.id] = { x: col * 240, y: row * 130 };
-  }
-  return positions;
 }

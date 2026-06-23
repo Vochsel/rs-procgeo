@@ -11,8 +11,8 @@ import { NodeCanvas } from './NodeCanvas.jsx';
 import { CodeEditor } from './CodeEditor.jsx';
 import { Viewport } from './Viewport.jsx';
 import { Inspector } from './Inspector.jsx';
-import { sopList, defaultParams } from './sops.js';
-import { buildCookDag, uniqueId, inferOutput } from './graph.js';
+import { SOPS, sopList, defaultParams } from './sops.js';
+import { buildCookDag, uniqueId, inputsOf, autoLayout } from './graph.js';
 import { graphToCode, codeToGraph } from './codegen.js';
 
 const DEFAULT_CODE = `const box1 = box({ size: [2, 2, 2] })
@@ -32,6 +32,7 @@ export function Studio({ engine }) {
   const [outputId, setOutputId] = useState(seed.outputId);
   const [code, setCode] = useState(DEFAULT_CODE);
   const [tab, setTab] = useState('nodes');
+  const [direction, setDirection] = useState('LR');
   const [viewMode, setViewMode] = useState('shaded_wire');
   const [status, setStatus] = useState('');
   const [error, setError] = useState(null);
@@ -40,8 +41,34 @@ export function Studio({ engine }) {
   const suppressCodeRegen = useRef(false); // set when a graph change came FROM code
   const cookTimer = useRef(null);
   const didFit = useRef(false);
+  const directionRef = useRef(direction);
+  directionRef.current = direction;
 
   const selected = nodes.find((n) => n.selected) || null;
+
+  // Inject a dynamic input-port count into variadic nodes (e.g. merge) so the
+  // canvas shows connected ports + one spare. Canonical state stays untouched.
+  const displayNodes = useMemo(
+    () =>
+      nodes.map((n) => {
+        const def = SOPS[n.data.sop];
+        if (!def?.variadic) return n;
+        const connected = inputsOf(n.id, edges).length;
+        return { ...n, data: { ...n.data, _ports: Math.max(def.inputs || 1, connected + 1) } };
+      }),
+    [nodes, edges],
+  );
+
+  // Re-run auto-layout when the flow direction is toggled.
+  const prevDir = useRef(direction);
+  useEffect(() => {
+    if (prevDir.current === direction) return;
+    prevDir.current = direction;
+    setNodes((ns) => {
+      const pos = autoLayout(ns, edges, direction);
+      return ns.map((n) => ({ ...n, position: pos[n.id] || n.position }));
+    });
+  }, [direction, edges]);
 
   // ── Regenerate code from the graph (unless the graph change came from code) ──
   useEffect(() => {
@@ -130,7 +157,7 @@ export function Studio({ engine }) {
     clearTimeout(codeTimer.current);
     codeTimer.current = setTimeout(() => {
       try {
-        const g = codeToGraph(text);
+        const g = codeToGraph(text, directionRef.current);
         suppressCodeRegen.current = true;
         setNodes((prev) => mergePositions(g.nodes, prev));
         setEdges(g.edges);
@@ -156,6 +183,13 @@ export function Studio({ engine }) {
           </button>
         </div>
         <AddNodeMenu sops={sops} onAdd={addNode} />
+        <button
+          className="pg-dir"
+          title="Toggle node layout direction"
+          onClick={() => setDirection((d) => (d === 'LR' ? 'TB' : 'LR'))}
+        >
+          {direction === 'LR' ? 'Layout: ⇥ horizontal' : 'Layout: ⤓ vertical'}
+        </button>
         <div className="pg-spacer" />
         <div className="pg-viewmodes">
           {['shaded', 'shaded_wire', 'wire'].map((m) => (
@@ -172,8 +206,9 @@ export function Studio({ engine }) {
           <div className="pg-editor" style={{ display: tab === 'nodes' ? 'block' : 'none' }}>
             <ReactFlowProvider>
               <NodeCanvas
-                nodes={nodes}
+                nodes={displayNodes}
                 edges={edges}
+                direction={direction}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
@@ -242,6 +277,3 @@ function mergePositions(newNodes, prevNodes) {
     return old ? { ...n, position: old.position, selected: old.selected } : n;
   });
 }
-
-// re-export for app convenience
-export { inferOutput };

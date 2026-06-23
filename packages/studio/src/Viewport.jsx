@@ -113,9 +113,28 @@ function toBufferGeometry(buffers) {
 function rebuild(c) {
   clearGroup(c.group);
   if (!c.buffers) return;
+  const geo = toBufferGeometry(c.buffers);
+  const hasTris = !!(c.buffers.indices && c.buffers.indices.length);
+
+  // No polygons (e.g. scatter output) → render a point cloud so it's visible.
+  if (!hasTris) {
+    const hasColors = !!geo.getAttribute('color');
+    c.group.add(
+      new THREE.Points(
+        geo,
+        new THREE.PointsMaterial({
+          size: 0.04,
+          sizeAttenuation: true,
+          color: hasColors ? 0xffffff : 0x88aaff,
+          vertexColors: hasColors,
+        }),
+      ),
+    );
+    return;
+  }
+
   const showShaded = c.viewMode === 'shaded' || c.viewMode === 'shaded_wire';
   const showWire = c.viewMode === 'wire' || c.viewMode === 'shaded_wire';
-  const geo = toBufferGeometry(c.buffers);
 
   if (showShaded) {
     const hasColors = !!geo.getAttribute('color');

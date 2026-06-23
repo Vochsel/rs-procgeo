@@ -61,6 +61,39 @@ export function prunedParams(sopType, params) {
   return out;
 }
 
+/**
+ * Layered auto-layout. `direction` is 'LR' (left→right) or 'TB' (top→bottom).
+ * Returns { [id]: { x, y } }. Accepts nodes as objects with `.id` or strings.
+ */
+export function autoLayout(nodes, edges, direction = 'LR') {
+  const ids = nodes.map((n) => (typeof n === 'string' ? n : n.id));
+  const idSet = new Set(ids);
+  const depth = new Map();
+  const depthOf = (id, seen = new Set()) => {
+    if (depth.has(id)) return depth.get(id);
+    if (seen.has(id) || !idSet.has(id)) return 0;
+    seen.add(id);
+    const ins = inputsOf(id, edges);
+    const d = ins.length ? 1 + Math.max(...ins.map((i) => depthOf(i, seen))) : 0;
+    depth.set(id, d);
+    return d;
+  };
+  ids.forEach((id) => depthOf(id));
+
+  const rowByCol = new Map();
+  const pos = {};
+  const COL = 240;
+  const ROW = 130;
+  for (const id of ids) {
+    const col = depth.get(id) || 0;
+    const row = rowByCol.get(col) || 0;
+    rowByCol.set(col, row + 1);
+    pos[id] =
+      direction === 'TB' ? { x: row * 200, y: col * ROW } : { x: col * COL, y: row * ROW };
+  }
+  return pos;
+}
+
 /** Pick a sensible default output node: a node nothing else consumes. */
 export function inferOutput(nodes, edges) {
   if (!nodes.length) return null;
