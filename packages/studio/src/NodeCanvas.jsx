@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { ReactFlow, Background, Controls } from '@xyflow/react';
+import { useEffect, useMemo } from 'react';
+import { ReactFlow, Background, Controls, useUpdateNodeInternals } from '@xyflow/react';
 import { SopNode } from './SopNode.jsx';
 import { DirectionContext } from './layoutContext.js';
 
@@ -16,6 +16,15 @@ export function NodeCanvas({
   onConnect,
 }) {
   const nodeTypes = useMemo(() => ({ sop: SopNode }), []);
+
+  // Handles move (left/right ↔ top/bottom) when the direction flips, so React
+  // Flow must re-measure them or edges stay anchored to the old positions.
+  const updateNodeInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    nodes.forEach((n) => updateNodeInternals(n.id));
+    // Only re-measure on a direction change, not on every node edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [direction]);
 
   return (
     <DirectionContext.Provider value={direction}>
