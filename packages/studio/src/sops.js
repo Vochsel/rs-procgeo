@@ -126,6 +126,7 @@ export const SOPS = {
     label: 'CopyToPoints',
     category: 'combine',
     inputs: 2, // [0] geometry to copy, [1] target points
+    inputLabels: ['geometry to copy', 'target points'],
     params: [],
   },
   merge: {
@@ -136,6 +137,14 @@ export const SOPS = {
     params: [],
   },
 };
+
+/** Human label for input port `i` of a SOP, shown on handle hover. */
+export function inputLabel(type, i) {
+  const sop = SOPS[type];
+  if (sop?.inputLabels?.[i]) return sop.inputLabels[i];
+  if (sop?.variadic) return `input ${i + 1}`;
+  return (sop?.inputs || 0) <= 1 ? 'input' : `input ${i + 1}`;
+}
 
 /** Number of input ports to show for a node, given how many are connected. */
 export function portCount(type, connected = 0) {

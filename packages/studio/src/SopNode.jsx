@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { SOPS, portCount } from './sops.js';
+import { SOPS, portCount, inputLabel } from './sops.js';
 import { DirectionContext } from './layoutContext.js';
 
 /** A SOP node. Input handles scale with the SOP's arity; orientation follows
@@ -30,12 +30,14 @@ export function SopNode({ data, selected }) {
           type="target"
           position={targetPos}
           id={`in-${i}`}
+          className="pg-handle"
+          data-label={inputLabel(data.sop, i)}
           style={handleStyle(ports, i, vertical)}
         />
       ))}
       <div className="pg-node-title">{def.label}</div>
       <div className="pg-node-id">{summary}</div>
-      <Handle type="source" position={sourcePos} id="out" />
+      <Handle type="source" position={sourcePos} id="out" className="pg-handle" data-label="output" />
     </div>
   );
 }

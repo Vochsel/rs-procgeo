@@ -35,13 +35,18 @@
 /* ── Body layout ── */
 .pg-body { flex: 1; display: flex; min-height: 0; }
 .pg-left {
-  width: 46%;
-  min-width: 320px;
+  flex: 0 0 auto;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #2a2a3a;
   position: relative;
 }
+.pg-divider {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: #2a2a3a;
+}
+.pg-divider:hover { background: #3a5bd0; }
 .pg-editor, .pg-code { flex: 1; min-height: 0; position: relative; }
 .pg-code { height: 100%; }
 .pg-right { flex: 1; position: relative; min-width: 0; }
@@ -83,8 +88,11 @@
   border-top: 1px solid #2a2a3a;
   background: #1b1b26;
   padding: 10px 12px;
-  max-height: 42%;
+  height: 200px;
+  max-height: 60%;
+  min-height: 80px;
   overflow: auto;
+  resize: vertical;
 }
 .pg-inspector-empty { color: #70708a; padding: 6px 0; }
 .pg-inspector-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
@@ -119,3 +127,103 @@
 }
 .pg-btn.active { background: #b8862a; border-color: #b8862a; color: #fff; }
 .pg-btn-danger:hover { background: #7a2a2a; border-color: #a33; }
+
+/* ── Handle hover tooltip ── */
+.react-flow__handle.pg-handle:hover::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 14px;
+  top: -6px;
+  white-space: nowrap;
+  background: #0e0e14;
+  color: #d8d8e6;
+  border: 1px solid #34344a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font: 11px system-ui, sans-serif;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* ── Right-click context menu ── */
+.pg-ctxmenu {
+  position: fixed;
+  z-index: 50;
+  background: #1d1d28;
+  border: 1px solid #34344a;
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  max-height: 60vh;
+  overflow: auto;
+  min-width: 150px;
+}
+.pg-ctx-cat {
+  color: #70708a;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 8px 2px;
+}
+.pg-ctx-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #d8d8e6;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 8px;
+  cursor: pointer;
+  font: inherit;
+}
+.pg-ctx-item:hover { background: #3a5bd0; color: #fff; }
+
+/* ── Settings modal ── */
+.pg-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.pg-modal {
+  background: #1d1d28;
+  border: 1px solid #34344a;
+  border-radius: 12px;
+  padding: 18px 20px;
+  min-width: 340px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+}
+.pg-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+.pg-modal-x {
+  background: transparent;
+  border: none;
+  color: #9a9ab0;
+  cursor: pointer;
+  font-size: 14px;
+}
+.pg-modal-x:hover { color: #fff; }
+.pg-setting { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+.pg-setting-label { width: 100px; color: #b0b0c4; }
+.pg-seg { display: flex; gap: 4px; }
+.pg-seg button {
+  background: #2a2a38;
+  color: #d8d8e6;
+  border: 1px solid #34344a;
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+.pg-seg button:hover { background: #34344a; }
+.pg-seg button.active { background: #3a5bd0; border-color: #3a5bd0; color: #fff; }

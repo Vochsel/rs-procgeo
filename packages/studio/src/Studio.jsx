@@ -4,6 +4,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
+  reconnectEdge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -34,6 +35,8 @@ export function Studio({ engine }) {
   const [tab, setTab] = useState('nodes');
   const [direction, setDirection] = useState('LR');
   const [viewMode, setViewMode] = useState('shaded_wire');
+  const [showSettings, setShowSettings] = useState(false);
+  const [leftWidth, setLeftWidth] = useState(560);
   const [status, setStatus] = useState('');
   const [error, setError] = useState(null);
 
@@ -45,9 +48,9 @@ export function Studio({ engine }) {
   directionRef.current = direction;
 
   const selected = nodes.find((n) => n.selected) || null;
+  const sops = useMemo(() => sopList(), []);
 
-  // Inject a dynamic input-port count into variadic nodes (e.g. merge) so the
-  // canvas shows connected ports + one spare. Canonical state stays untouched.
+  // Inject a dynamic input-port count into variadic nodes (e.g. merge).
   const displayNodes = useMemo(
     () =>
       nodes.map((n) => {
@@ -59,18 +62,7 @@ export function Studio({ engine }) {
     [nodes, edges],
   );
 
-  // Re-run auto-layout when the flow direction is toggled.
-  const prevDir = useRef(direction);
-  useEffect(() => {
-    if (prevDir.current === direction) return;
-    prevDir.current = direction;
-    setNodes((ns) => {
-      const pos = autoLayout(ns, edges, direction);
-      return ns.map((n) => ({ ...n, position: pos[n.id] || n.position }));
-    });
-  }, [direction, edges]);
-
-  // ── Regenerate code from the graph (unless the graph change came from code) ──
+  // ── Regenerate code from the graph (unless the change came from code) ──
   useEffect(() => {
     if (suppressCodeRegen.current) {
       suppressCodeRegen.current = false;
@@ -106,13 +98,42 @@ export function Studio({ engine }) {
     return () => clearTimeout(cookTimer.current);
   }, [nodes, edges, outputId, engine]);
 
+  // ── Re-run auto-layout when the flow direction is toggled ──
+  const prevDir = useRef(direction);
+  useEffect(() => {
+    if (prevDir.current === direction) return;
+    prevDir.current = direction;
+    setNodes((ns) => {
+      const pos = autoLayout(ns, edges, direction);
+      return ns.map((n) => ({ ...n, position: pos[n.id] || n.position }));
+    });
+  }, [direction, edges]);
+
+  // ── Resizable left/right split ──
+  const dragging = useRef(false);
+  useEffect(() => {
+    const move = (e) => {
+      if (!dragging.current) return;
+      setLeftWidth(Math.max(300, Math.min(window.innerWidth - 280, e.clientX)));
+    };
+    const up = () => {
+      dragging.current = false;
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+  }, []);
+
   // ── Graph editing ──
   const onNodesChange = useCallback((changes) => setNodes((ns) => applyNodeChanges(changes, ns)), []);
   const onEdgesChange = useCallback((changes) => setEdges((es) => applyEdgeChanges(changes, es)), []);
 
   const onConnect = useCallback((conn) => {
     setEdges((es) => {
-      // Enforce one edge per target input handle.
       const cleaned = es.filter(
         (e) => !(e.target === conn.target && e.targetHandle === conn.targetHandle),
       );
@@ -120,35 +141,41 @@ export function Studio({ engine }) {
     });
   }, []);
 
+  const onReconnect = useCallback((oldEdge, conn) => {
+    setEdges((es) => {
+      // Keep one edge per target input handle (excluding the one being moved).
+      const cleaned = es.filter(
+        (e) =>
+          e.id === oldEdge.id ||
+          !(e.target === conn.target && e.targetHandle === conn.targetHandle),
+      );
+      return reconnectEdge(oldEdge, conn, cleaned);
+    });
+  }, []);
+
   const changeParams = useCallback((id, params) => {
     setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, params } } : n)));
   }, []);
 
-  const addNode = useCallback(
-    (type) => {
-      setNodes((ns) => {
-        const id = uniqueId(type, ns);
-        const node = {
-          id,
-          type: 'sop',
-          position: { x: 40 + ns.length * 24, y: 40 + ns.length * 24 },
-          selected: true,
-          data: { sop: type, params: defaultParams(type) },
-        };
-        return ns.map((n) => ({ ...n, selected: false })).concat(node);
-      });
-    },
-    [],
-  );
+  const addNodeAt = useCallback((type, position) => {
+    setNodes((ns) => {
+      const id = uniqueId(type, ns);
+      const node = {
+        id,
+        type: 'sop',
+        position: position || { x: 60 + ns.length * 24, y: 60 + ns.length * 24 },
+        selected: true,
+        data: { sop: type, params: defaultParams(type) },
+      };
+      return ns.map((n) => ({ ...n, selected: false })).concat(node);
+    });
+  }, []);
 
-  const deleteNode = useCallback(
-    (id) => {
-      setNodes((ns) => ns.filter((n) => n.id !== id));
-      setEdges((es) => es.filter((e) => e.source !== id && e.target !== id));
-      setOutputId((cur) => (cur === id ? null : cur));
-    },
-    [],
-  );
+  const deleteNode = useCallback((id) => {
+    setNodes((ns) => ns.filter((n) => n.id !== id));
+    setEdges((es) => es.filter((e) => e.source !== id && e.target !== id));
+    setOutputId((cur) => (cur === id ? null : cur));
+  }, []);
 
   // ── Code editing → graph (debounced parse) ──
   const codeTimer = useRef(null);
@@ -169,8 +196,6 @@ export function Studio({ engine }) {
     }, 400);
   }, []);
 
-  const sops = useMemo(() => sopList(), []);
-
   return (
     <div className="pg-studio">
       <div className="pg-toolbar">
@@ -182,36 +207,26 @@ export function Studio({ engine }) {
             Code
           </button>
         </div>
-        <AddNodeMenu sops={sops} onAdd={addNode} />
-        <button
-          className="pg-dir"
-          title="Toggle node layout direction"
-          onClick={() => setDirection((d) => (d === 'LR' ? 'TB' : 'LR'))}
-        >
-          {direction === 'LR' ? 'Layout: ⇥ horizontal' : 'Layout: ⤓ vertical'}
-        </button>
+        <AddNodeMenu sops={sops} onAdd={(t) => addNodeAt(t)} />
         <div className="pg-spacer" />
-        <div className="pg-viewmodes">
-          {['shaded', 'shaded_wire', 'wire'].map((m) => (
-            <button key={m} className={viewMode === m ? 'active' : ''} onClick={() => setViewMode(m)}>
-              {m === 'shaded_wire' ? 'both' : m}
-            </button>
-          ))}
-          <button onClick={() => viewportRef.current?.fit()}>frame</button>
-        </div>
+        <button onClick={() => viewportRef.current?.fit()}>frame</button>
+        <button onClick={() => setShowSettings(true)}>⚙ Settings</button>
       </div>
 
       <div className="pg-body">
-        <div className="pg-left">
+        <div className="pg-left" style={{ width: leftWidth }}>
           <div className="pg-editor" style={{ display: tab === 'nodes' ? 'block' : 'none' }}>
             <ReactFlowProvider>
               <NodeCanvas
                 nodes={displayNodes}
                 edges={edges}
                 direction={direction}
+                sops={sops}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
+                onReconnect={onReconnect}
+                onAddNode={addNodeAt}
               />
             </ReactFlowProvider>
           </div>
@@ -225,11 +240,30 @@ export function Studio({ engine }) {
           />
         </div>
 
+        <div
+          className="pg-divider"
+          onMouseDown={(e) => {
+            dragging.current = true;
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+          }}
+        />
+
         <div className="pg-right">
           <Viewport ref={viewportRef} viewMode={viewMode} />
           <div className={`pg-status ${error ? 'error' : ''}`}>{error || status}</div>
         </div>
       </div>
+
+      {showSettings && (
+        <SettingsModal
+          direction={direction}
+          setDirection={setDirection}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </div>
   );
 }
@@ -257,6 +291,44 @@ function AddNodeMenu({ sops, onAdd }) {
         </optgroup>
       ))}
     </select>
+  );
+}
+
+function SettingsModal({ direction, setDirection, viewMode, setViewMode, onClose }) {
+  return (
+    <div className="pg-modal-backdrop" onMouseDown={onClose}>
+      <div className="pg-modal" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="pg-modal-head">
+          <span>Settings</span>
+          <button className="pg-modal-x" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+
+        <div className="pg-setting">
+          <span className="pg-setting-label">Node layout</span>
+          <div className="pg-seg">
+            <button className={direction === 'LR' ? 'active' : ''} onClick={() => setDirection('LR')}>
+              ⇥ Horizontal
+            </button>
+            <button className={direction === 'TB' ? 'active' : ''} onClick={() => setDirection('TB')}>
+              ⤓ Vertical
+            </button>
+          </div>
+        </div>
+
+        <div className="pg-setting">
+          <span className="pg-setting-label">View mode</span>
+          <div className="pg-seg">
+            {['shaded', 'shaded_wire', 'wire'].map((m) => (
+              <button key={m} className={viewMode === m ? 'active' : ''} onClick={() => setViewMode(m)}>
+                {m === 'shaded_wire' ? 'both' : m}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
